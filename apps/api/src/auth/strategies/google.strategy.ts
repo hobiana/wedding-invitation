@@ -11,9 +11,19 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     private readonly authService: AuthService,
   ) {
     super({
-      clientID: config.get<string>('GOOGLE_CLIENT_ID') ?? '',
-      clientSecret: config.get<string>('GOOGLE_CLIENT_SECRET') ?? '',
-      callbackURL: config.get<string>('GOOGLE_CALLBACK_URL') ?? '',
+      // passport-oauth2's Strategy constructor throws synchronously if
+      // clientID/clientSecret are falsy (including ''), and GoogleStrategy
+      // is an eagerly-instantiated Nest provider — so an empty/unset value
+      // here would crash the whole AppModule at boot, not just OAuth
+      // requests. Fall back to non-empty placeholders so the app (and every
+      // other route) still boots fine when Google OAuth isn't configured;
+      // the strategy just won't work correctly, which is expected.
+      clientID: config.get<string>('GOOGLE_CLIENT_ID') || 'unconfigured',
+      clientSecret:
+        config.get<string>('GOOGLE_CLIENT_SECRET') || 'unconfigured',
+      callbackURL:
+        config.get<string>('GOOGLE_CALLBACK_URL') ||
+        'http://localhost:3000/auth/google/callback',
       scope: ['email', 'profile'],
     });
   }
