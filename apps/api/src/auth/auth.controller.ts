@@ -4,6 +4,7 @@ import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { AdminUser } from '@prisma/client';
 
 @Controller('auth')
@@ -43,5 +44,19 @@ export class AuthController {
   @Get('me')
   me(@Req() req: { user: { userId: string; email: string } }) {
     return { id: req.user.userId, email: req.user.email };
+  }
+
+  @UseGuards(GoogleAuthGuard)
+  @Get('google')
+  googleLogin() {
+    // Passport redirects to Google; body never reached.
+  }
+
+  @UseGuards(GoogleAuthGuard)
+  @Get('google/callback')
+  googleCallback(@Req() req: { user: AdminUser }, @Res() res: Response) {
+    const { accessToken } = this.authService.login(req.user);
+    this.setAuthCookie(res, accessToken);
+    res.redirect(`${this.config.get('FRONTEND_URL')}/admin`);
   }
 }
