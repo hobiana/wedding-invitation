@@ -1,0 +1,12 @@
+{
+  "name": "invitation-app",
+  "private": true,
+  "scripts": {
+    "dev:api": "pnpm --filter @invitation-app/api start:dev",
+    "dev:web": "pnpm --filter @invitation-app/web dev",
+    "build": "pnpm -r build"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
