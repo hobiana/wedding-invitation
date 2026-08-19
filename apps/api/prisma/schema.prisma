@@ -1,13 +1,55 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+enum RsvpStatus {
+  PENDING
+  CONFIRMED
+  DECLINED
+}
+
+model Household {
+  id             String     @id
+  displayName    String
+  allocatedSeats Int
+  memberNames    String[]   @default([])
+  status         RsvpStatus @default(PENDING)
+  confirmedCount Int?
+  dietaryNotes   String?
+  message        String?
+  table          Table?     @relation(fields: [tableId], references: [id])
+  tableId        String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+}
+
+model Table {
+  id         String      @id @default(cuid())
+  name       String
+  capacity   Int         @default(10)
+  households Household[]
+}
+
+model AdminUser {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String?
+  googleId     String?  @unique
+  createdAt    DateTime @default(now())
+}
+
+model WeddingSettings {
+  id                   String   @id @default("singleton")
+  weddingDate          DateTime
+  venueName            String
+  address              String
+  mapUrl               String?
+  dressCode            String?
+  parkingInfo          String?
+  rsvpDeadline         DateTime
+  seatingPlanActivated Boolean  @default(false)
 }
