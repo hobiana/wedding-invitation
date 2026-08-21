@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { nanoid } from 'nanoid';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateHouseholdDto } from './dto/create-household.dto';
@@ -32,7 +36,21 @@ export class HouseholdsService {
   }
 
   async update(id: string, dto: UpdateHouseholdDto) {
-    await this.findOne(id);
+    const household = await this.findOne(id);
+
+    // Mirror InvitationService.submitRsvp's invariant. Admin edits are never
+    // date-restricted, but they must not be able to produce a state the public
+    // path forbids — confirmedCount feeds the seating capacity maths, so an
+    // over-allocation here silently corrupts the table planner.
+    // Both fields can move in the same PATCH, so compare the resulting values.
+    const allocatedSeats = dto.allocatedSeats ?? household.allocatedSeats;
+    const confirmedCount = dto.confirmedCount ?? household.confirmedCount;
+    if (confirmedCount !== null && confirmedCount > allocatedSeats) {
+      throw new BadRequestException(
+        'confirmedCount cannot exceed allocatedSeats',
+      );
+    }
+
     return this.prisma.household.update({ where: { id }, data: dto });
   }
 

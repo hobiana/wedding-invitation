@@ -84,3 +84,75 @@ describe('TablesService.assignHousehold', () => {
     await expect(service.assignHousehold('t1', 'h2')).resolves.not.toThrow();
   });
 });
+
+describe('TablesService.update', () => {
+  let service: TablesService;
+  let prisma: {
+    table: { findUnique: jest.Mock; update: jest.Mock };
+  };
+
+  beforeEach(async () => {
+    prisma = {
+      table: { findUnique: jest.fn(), update: jest.fn().mockResolvedValue({}) },
+    };
+    const moduleRef = await Test.createTestingModule({
+      providers: [TablesService, { provide: PrismaService, useValue: prisma }],
+    }).compile();
+    service = moduleRef.get(TablesService);
+  });
+
+  it('throws NotFoundException for an unknown table', async () => {
+    prisma.table.findUnique.mockResolvedValue(null);
+    await expect(service.update('t1', { name: 'x' })).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+
+  // assignHousehold would have refused to create this state, so update must
+  // not be a back door into it: shrinking capacity under the seats already
+  // taken leaves an over-capacity table the assign path can never produce.
+  it('refuses to shrink capacity below the seats already taken', async () => {
+    prisma.table.findUnique.mockResolvedValue({
+      id: 't1',
+      name: 'Table 1',
+      capacity: 10,
+      households: [
+        { id: 'h1', confirmedCount: 4, allocatedSeats: 4 },
+        { id: 'h2', confirmedCount: null, allocatedSeats: 3 },
+      ],
+    });
+
+    await expect(service.update('t1', { capacity: 6 })).rejects.toThrow(
+      ConflictException,
+    );
+    expect(prisma.table.update).not.toHaveBeenCalled();
+  });
+
+  it('allows shrinking capacity down to exactly the seats taken', async () => {
+    prisma.table.findUnique.mockResolvedValue({
+      id: 't1',
+      name: 'Table 1',
+      capacity: 10,
+      households: [{ id: 'h1', confirmedCount: 7, allocatedSeats: 8 }],
+    });
+
+    await expect(service.update('t1', { capacity: 7 })).resolves.not.toThrow();
+    expect(prisma.table.update).toHaveBeenCalledWith({
+      where: { id: 't1' },
+      data: { capacity: 7 },
+    });
+  });
+
+  it('allows a rename with no capacity change on an over-subscribed table', async () => {
+    prisma.table.findUnique.mockResolvedValue({
+      id: 't1',
+      name: 'Table 1',
+      capacity: 4,
+      households: [{ id: 'h1', confirmedCount: 9, allocatedSeats: 9 }],
+    });
+
+    await expect(
+      service.update('t1', { name: 'Table des amis' }),
+    ).resolves.not.toThrow();
+  });
+});

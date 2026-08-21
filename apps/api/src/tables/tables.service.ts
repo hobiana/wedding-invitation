@@ -34,8 +34,36 @@ export class TablesService {
   }
 
   async update(id: string, dto: UpdateTableDto) {
-    await this.findOne(id);
+    const table = await this.findOne(id);
+
+    // assignHousehold refuses to seat more guests than a table holds, so
+    // update must not be a back door into the same broken state: shrinking
+    // capacity under the seats already taken leaves an over-capacity table
+    // that could never have been assembled by dragging households onto it.
+    if (dto.capacity !== undefined) {
+      const occupied = this.seatsTaken(table.households);
+      if (dto.capacity < occupied) {
+        throw new ConflictException(
+          `Table "${table.name}" already seats ${occupied} guest(s); its capacity cannot be lowered to ${dto.capacity}`,
+        );
+      }
+    }
+
     return this.prisma.table.update({ where: { id }, data: dto });
+  }
+
+  /**
+   * Seats a set of households occupies. A household that has not answered yet
+   * still holds its full allocation — the same rule assignHousehold applies,
+   * so both paths agree on how full a table is.
+   */
+  private seatsTaken(
+    households: { confirmedCount: number | null; allocatedSeats: number }[],
+  ) {
+    return households.reduce(
+      (sum, h) => sum + (h.confirmedCount ?? h.allocatedSeats),
+      0,
+    );
   }
 
   async remove(id: string) {
@@ -56,9 +84,9 @@ export class TablesService {
     });
     if (!household) throw new NotFoundException('Household not found');
 
-    const occupied = table.households
-      .filter((h) => h.id !== householdId)
-      .reduce((sum, h) => sum + (h.confirmedCount ?? h.allocatedSeats), 0);
+    const occupied = this.seatsTaken(
+      table.households.filter((h) => h.id !== householdId),
+    );
     const incoming = household.confirmedCount ?? household.allocatedSeats;
 
     if (occupied + incoming > table.capacity) {

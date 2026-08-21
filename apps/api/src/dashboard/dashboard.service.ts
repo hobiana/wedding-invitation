@@ -18,8 +18,12 @@ export class DashboardService {
     const { _sum } = await this.prisma.household.aggregate({
       _sum: { confirmedCount: true },
     });
+    // `not: null` alone also matched the empty strings the RSVP form wrote for
+    // every untouched textarea, counting every confirming guest as having
+    // dietary requirements. The form no longer sends '', but rows written
+    // before that fix are still in the database.
     const dietaryNotesCount = await this.prisma.household.count({
-      where: { dietaryNotes: { not: null } },
+      where: { NOT: [{ dietaryNotes: null }, { dietaryNotes: '' }] },
     });
 
     const confirmedHouseholds = byStatus.CONFIRMED ?? 0;

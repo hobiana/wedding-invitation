@@ -7,6 +7,121 @@ import {
 import { InvitationService } from './invitation.service';
 import { PrismaService } from '../prisma/prisma.service';
 
+describe('InvitationService.getInvitation', () => {
+  let service: InvitationService;
+  let prisma: {
+    household: { findUnique: jest.Mock };
+    weddingSettings: { findUniqueOrThrow: jest.Mock };
+    table: { findUnique: jest.Mock };
+  };
+
+  beforeEach(async () => {
+    prisma = {
+      household: { findUnique: jest.fn() },
+      weddingSettings: { findUniqueOrThrow: jest.fn() },
+      table: { findUnique: jest.fn() },
+    };
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        InvitationService,
+        { provide: PrismaService, useValue: prisma },
+      ],
+    }).compile();
+    service = moduleRef.get(InvitationService);
+  });
+
+  it('throws NotFoundException for an unknown linkId', async () => {
+    prisma.household.findUnique.mockResolvedValue(null);
+    await expect(service.getInvitation('unknown')).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+
+  // The seating plan is revealed manually by the admin and never by date, so
+  // an assigned table must stay invisible until the toggle is flipped.
+  it('hides the seating plan while seatingPlanActivated is false, even for a seated household', async () => {
+    prisma.household.findUnique.mockResolvedValue({
+      id: 'h1',
+      displayName: 'Famille A',
+      tableId: 't1',
+    });
+    prisma.weddingSettings.findUniqueOrThrow.mockResolvedValue({
+      seatingPlanActivated: false,
+    });
+
+    const result = await service.getInvitation('h1');
+
+    expect(result.seatingPlan).toBeNull();
+    expect(prisma.table.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('returns no seating plan for a household that has not been seated yet', async () => {
+    prisma.household.findUnique.mockResolvedValue({
+      id: 'h1',
+      displayName: 'Famille A',
+      tableId: null,
+    });
+    prisma.weddingSettings.findUniqueOrThrow.mockResolvedValue({
+      seatingPlanActivated: true,
+    });
+
+    const result = await service.getInvitation('h1');
+
+    expect(result.seatingPlan).toBeNull();
+    expect(prisma.table.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('returns the table name and neighbours, excluding the household itself', async () => {
+    prisma.household.findUnique.mockResolvedValue({
+      id: 'h1',
+      displayName: 'Famille A',
+      tableId: 't1',
+    });
+    prisma.weddingSettings.findUniqueOrThrow.mockResolvedValue({
+      seatingPlanActivated: true,
+    });
+    prisma.table.findUnique.mockResolvedValue({
+      id: 't1',
+      name: "Table d'honneur",
+      households: [
+        { id: 'h1', displayName: 'Famille A', confirmedCount: 2 },
+        { id: 'h2', displayName: 'Famille B', confirmedCount: 3 },
+        { id: 'h3', displayName: 'Famille C', confirmedCount: null },
+      ],
+    });
+
+    const result = await service.getInvitation('h1');
+
+    expect(result.seatingPlan).toEqual({
+      tableName: "Table d'honneur",
+      neighbors: [
+        { displayName: 'Famille B', confirmedCount: 3 },
+        // a neighbour who has not answered yet reads as 0, never null
+        { displayName: 'Famille C', confirmedCount: 0 },
+      ],
+    });
+    expect(
+      result.seatingPlan?.neighbors.map((n) => n.displayName),
+    ).not.toContain('Famille A');
+  });
+
+  it('returns the household and wedding settings alongside the plan', async () => {
+    const household = { id: 'h1', displayName: 'Famille A', tableId: null };
+    const wedding = {
+      seatingPlanActivated: false,
+      venueName: 'Domaine des Roses',
+    };
+    prisma.household.findUnique.mockResolvedValue(household);
+    prisma.weddingSettings.findUniqueOrThrow.mockResolvedValue(wedding);
+
+    await expect(service.getInvitation('h1')).resolves.toEqual({
+      household,
+      wedding,
+      seatingPlan: null,
+    });
+  });
+});
+
 describe('InvitationService.submitRsvp', () => {
   let service: InvitationService;
   let prisma: {
