@@ -15,7 +15,15 @@ export function RsvpForm({ allocatedSeats, defaultConfirmedCount, defaultDietary
 
   function handleConfirm(e: FormEvent) {
     e.preventDefault();
-    onSubmit({ status: "CONFIRMED", confirmedCount, dietaryNotes });
+    // Omit the field entirely when the textarea was never filled in. Sending ""
+    // wrote a meaningless empty string to the database and made the admin
+    // dashboard count every confirming guest as having dietary requirements.
+    const notes = dietaryNotes.trim();
+    onSubmit({
+      status: "CONFIRMED",
+      confirmedCount,
+      dietaryNotes: notes === "" ? undefined : notes,
+    });
   }
 
   function handleDecline() {

@@ -26,14 +26,36 @@ function seatsUsed(households: TableHouseholdSummaryDto[]) {
   return households.reduce((sum, h) => sum + (h.confirmedCount ?? h.allocatedSeats), 0);
 }
 
+/**
+ * What a drag-end event means, or `null` when it means nothing.
+ *
+ * dnd-kit leaves `event.over` null both for a drag dropped on dead space and
+ * for one the user cancelled with Escape. Those used to be indistinguishable
+ * from a drop on the "unassigned" zone, so cancelling a drag silently pulled
+ * the household off its table. Only an explicit drop on a droppable counts.
+ *
+ * Exported so the three outcomes can be tested directly — dnd-kit's pointer
+ * sensors don't produce real drags under jsdom.
+ */
+export function dragEndTarget(
+  event: DragEndEvent,
+): { householdId: string; tableId: string | null } | null {
+  if (!event.over) return null;
+  const targetId = String(event.over.id);
+  return {
+    householdId: String(event.active.id),
+    tableId: targetId === "unassigned" ? null : targetId,
+  };
+}
+
 export function TableBoard({ tables, unassignedHouseholds, onAssign, onUnassign }: TableBoardProps) {
   function handleDragEnd(event: DragEndEvent) {
-    const householdId = String(event.active.id);
-    const targetId = event.over?.id ? String(event.over.id) : null;
-    if (!targetId || targetId === "unassigned") {
-      onUnassign(householdId);
+    const target = dragEndTarget(event);
+    if (!target) return;
+    if (target.tableId === null) {
+      onUnassign(target.householdId);
     } else {
-      onAssign(targetId, householdId);
+      onAssign(target.tableId, target.householdId);
     }
   }
 
