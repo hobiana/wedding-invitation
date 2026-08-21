@@ -1,0 +1,14 @@
+# Repo-root .dockerignore.
+#
+# This is the one that actually matters for `docker build -f apps/api/Dockerfile .`
+# run from the repo root: Docker resolves .dockerignore relative to the build
+# CONTEXT directory, not the Dockerfile's directory. Since the context for that
+# command is the repo root (the trailing "."), apps/api/.dockerignore is never
+# read — only this file is. Without it, the Dockerfile's `COPY apps/api ./apps/api`
+# and `COPY packages/shared ./packages/shared` would copy real .env files
+# (containing secrets) and node_modules straight into the build-stage image layer.
+.git
+**/.env
+**/node_modules
+**/dist
+.worktrees
