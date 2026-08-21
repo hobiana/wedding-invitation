@@ -5,6 +5,7 @@ import { HealthController } from './health/health.controller';
 import { AuthModule } from './auth/auth.module';
 import { HouseholdsModule } from './households/households.module';
 import { InvitationModule } from './invitation/invitation.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { InvitationModule } from './invitation/invitation.module';
     AuthModule,
     HouseholdsModule,
     InvitationModule,
+    DashboardModule,
   ],
   controllers: [HealthController],
   providers: [],
