@@ -44,7 +44,10 @@ export function HouseholdFormDialog({ initial, onSubmit, onClose }: HouseholdFor
       allocatedSeats,
       status,
       // A declined household seats nobody; the API normalises this too.
-      confirmedCount: status === "DECLINED" ? 0 : confirmedCount,
+      // A still-pending household hasn't confirmed anything — omit the field
+      // entirely rather than overwrite its null (no answer yet) with 0, which
+      // would make the seating capacity maths treat it as holding zero seats.
+      ...(status !== "PENDING" && { confirmedCount: status === "DECLINED" ? 0 : confirmedCount }),
     });
   }
 

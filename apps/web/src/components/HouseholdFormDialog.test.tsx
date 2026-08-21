@@ -65,4 +65,28 @@ describe("HouseholdFormDialog", () => {
 
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ status: "DECLINED", confirmedCount: 0 }));
   });
+
+  // Regression: a household that never answered has confirmedCount: null,
+  // meaning the seating maths falls back to allocatedSeats (its full
+  // reservation). Editing it (e.g. only to fix a typo in the name) must not
+  // silently overwrite that null with 0 — that would make the table planner
+  // think it holds zero seats instead of its full allocation.
+  it("omits confirmedCount when saving a household that is still pending", () => {
+    const pending: HouseholdAdminDto = {
+      ...existing,
+      status: "PENDING",
+      confirmedCount: null,
+    };
+    const onSubmit = vi.fn();
+    render(<HouseholdFormDialog initial={pending} onSubmit={onSubmit} onClose={() => {}} />);
+
+    fireEvent.change(screen.getByLabelText(/nom du foyer/i), { target: { value: "Famille Rakoto (corrigé)" } });
+    fireEvent.click(screen.getByRole("button", { name: /enregistrer/i }));
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      displayName: "Famille Rakoto (corrigé)",
+      allocatedSeats: 4,
+      status: "PENDING",
+    });
+  });
 });
