@@ -15,7 +15,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: cookieExtractor,
       ignoreExpiration: false,
-      secretOrKey: config.get<string>('JWT_SECRET') ?? 'dev-secret',
+      // No `?? 'dev-secret'` fallback: verifying tokens against a secret that
+      // is published in this repo would accept forged admin sessions.
+      // envValidationSchema makes JWT_SECRET required at boot.
+      secretOrKey: config.getOrThrow<string>('JWT_SECRET'),
     });
   }
 

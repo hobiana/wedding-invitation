@@ -14,13 +14,40 @@ export class AuthController {
     private readonly config: ConfigService,
   ) {}
 
+  /**
+   * Attributes shared by the set and the clear of the auth cookie. Browsers
+   * only drop a cookie when clearCookie repeats the attributes it was set
+   * with, so these MUST stay in one place — a mismatch makes logout silently
+   * leave the session cookie in place.
+   *
+   * In production the frontend (Vercel) and the API (Railway/Render) sit on
+   * different domains, making every admin fetch cross-site. `SameSite=Lax`
+   * cookies are never sent on cross-site requests, so the cookie has to be
+   * `SameSite=None`, which browsers reject unless `Secure` is also set — the
+   * two always move together. Locally both apps are same-site over plain
+   * http, where `Lax` + non-secure is what actually works.
+   */
+  private authCookieOptions() {
+    const isProduction = this.config.get<string>('NODE_ENV') === 'production';
+    return {
+      httpOnly: true,
+      sameSite: isProduction ? ('none' as const) : ('lax' as const),
+      secure: isProduction,
+      path: '/',
+    };
+  }
+
   private setAuthCookie(res: Response, accessToken: string) {
     res.cookie('access_token', accessToken, {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: this.config.get('NODE_ENV') === 'production',
+      ...this.authCookieOptions(),
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
+  }
+
+  private frontendUrl() {
+    return (
+      this.config.get<string>('FRONTEND_URL') || 'http://localhost:5173'
+    );
   }
 
   @UseGuards(LocalAuthGuard)
@@ -36,7 +63,7 @@ export class AuthController {
 
   @Post('logout')
   logout(@Res({ passthrough: true }) res: Response) {
-    res.clearCookie('access_token');
+    res.clearCookie('access_token', this.authCookieOptions());
     return { success: true };
   }
 
@@ -57,6 +84,6 @@ export class AuthController {
   googleCallback(@Req() req: { user: AdminUser }, @Res() res: Response) {
     const { accessToken } = this.authService.login(req.user);
     this.setAuthCookie(res, accessToken);
-    res.redirect(`${this.config.get('FRONTEND_URL')}/admin`);
+    res.redirect(`${this.frontendUrl()}/admin`);
   }
 }

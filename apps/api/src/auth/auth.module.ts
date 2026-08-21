@@ -15,10 +15,15 @@ import { GoogleStrategy } from './strategies/google.strategy';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService): JwtModuleOptions => ({
-        secret: config.get<string>('JWT_SECRET') ?? 'dev-secret',
+        // getOrThrow, never `?? 'dev-secret'`: a fallback secret committed to
+        // this repo would let anyone forge an admin session if JWT_SECRET were
+        // ever missing in production. envValidationSchema already requires it
+        // at boot; this is the second line of defence.
+        secret: config.getOrThrow<string>('JWT_SECRET'),
         signOptions: {
-          expiresIn: (config.get<string>('JWT_EXPIRES_IN') ??
-            '7d') as JwtSignOptions['expiresIn'],
+          expiresIn: config.getOrThrow<string>(
+            'JWT_EXPIRES_IN',
+          ) as JwtSignOptions['expiresIn'],
         },
       }),
     }),
