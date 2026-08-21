@@ -7,6 +7,7 @@ import { HouseholdsModule } from './households/households.module';
 import { InvitationModule } from './invitation/invitation.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { TablesModule } from './tables/tables.module';
+import { SettingsModule } from './settings/settings.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { TablesModule } from './tables/tables.module';
     InvitationModule,
     DashboardModule,
     TablesModule,
+    SettingsModule,
   ],
   controllers: [HealthController],
   providers: [],
