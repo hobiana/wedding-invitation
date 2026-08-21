@@ -17,11 +17,14 @@ export function DashboardPage() {
     <div className="p-8 space-y-6">
       <h1 className="text-2xl font-semibold">Tableau de bord</h1>
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <StatCard label="Foyers confirmés" value={stats.confirmedHouseholds} />
           <StatCard label="Foyers déclinés" value={stats.declinedHouseholds} />
           <StatCard label="En attente" value={stats.pendingHouseholds} />
           <StatCard label="Invités confirmés" value={stats.totalConfirmedGuests} />
+          {/* Computed by the API all along but never rendered — the traiteur
+              needs this number, and the notes behind it (see Foyers). */}
+          <StatCard label="Régimes particuliers" value={stats.dietaryNotesCount} />
         </div>
       )}
       <table className="w-full text-sm border-collapse">

@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useId, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AdminSettingsDto } from "@invitation-app/shared";
 import { api } from "@/lib/api";
@@ -39,6 +39,18 @@ export function SettingsPage() {
     <div className="p-8 max-w-lg space-y-6">
       <h1 className="text-2xl font-semibold">Paramètres du mariage</h1>
       <form onSubmit={handleSubmit} className="space-y-4">
+        <DateTimeField
+          label="Date du mariage"
+          value={form.weddingDate}
+          onChange={(v) => setForm({ ...form, weddingDate: v })}
+        />
+        {/* This one field governs the entire public RSVP lock; before this it
+            could only be changed with direct SQL. */}
+        <DateTimeField
+          label="Date limite de réponse (RSVP)"
+          value={form.rsvpDeadline}
+          onChange={(v) => setForm({ ...form, rsvpDeadline: v })}
+        />
         <Field label="Lieu" value={form.venueName} onChange={(v) => setForm({ ...form, venueName: v })} />
         <Field label="Adresse" value={form.address} onChange={(v) => setForm({ ...form, address: v })} />
         <Field
@@ -82,10 +94,56 @@ export function SettingsPage() {
 }
 
 function Field({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const id = useId();
   return (
     <div className="space-y-1">
-      <label className="text-sm font-medium">{label}</label>
-      <input value={value} onChange={(e) => onChange(e.target.value)} className="w-full border rounded-md px-3 py-2" />
+      <label htmlFor={id} className="text-sm font-medium">{label}</label>
+      <input
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full border rounded-md px-3 py-2"
+      />
+    </div>
+  );
+}
+
+/**
+ * The API stores and returns these as ISO strings, but `datetime-local` only
+ * speaks local `YYYY-MM-DDTHH:mm`, so both directions need converting.
+ */
+function toDateTimeLocal(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function DateTimeField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (isoValue: string) => void;
+}) {
+  const id = useId();
+  return (
+    <div className="space-y-1">
+      <label htmlFor={id} className="text-sm font-medium">{label}</label>
+      <input
+        id={id}
+        type="datetime-local"
+        value={toDateTimeLocal(value)}
+        onChange={(e) => {
+          // Ignore a half-typed value rather than pushing an Invalid Date into
+          // the form and failing the API's @IsDateString on submit.
+          const next = new Date(e.target.value);
+          if (!Number.isNaN(next.getTime())) onChange(next.toISOString());
+        }}
+        className="w-full border rounded-md px-3 py-2"
+      />
     </div>
   );
 }
