@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { InvitationResponseDto, SubmitRsvpDto } from "@invitation-app/shared";
 import { api } from "@/lib/api";
 import { RsvpForm } from "@/components/RsvpForm";
+import { SeatingPlanSection } from "@/components/SeatingPlanSection";
 
 export function InvitationPage() {
   const { linkId } = useParams<{ linkId: string }>();
@@ -48,6 +49,7 @@ export function InvitationPage() {
         defaultDietaryNotes={household.dietaryNotes ?? ""}
         onSubmit={(dto) => rsvpMutation.mutate(dto)}
       />
+      <SeatingPlanSection seatingPlan={data.seatingPlan} />
     </div>
   );
 }
