@@ -2,6 +2,7 @@ import { Route, Routes } from "react-router-dom";
 import { LoginPage } from "./pages/LoginPage";
 import { InvitationPage } from "./pages/InvitationPage";
 import { DashboardPage } from "./pages/admin/DashboardPage";
+import { HouseholdsPage } from "./pages/admin/HouseholdsPage";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 
 function App() {
@@ -11,6 +12,7 @@ function App() {
       <Route path="/i/:linkId" element={<InvitationPage />} />
       <Route element={<ProtectedRoute />}>
         <Route path="/admin" element={<DashboardPage />} />
+        <Route path="/admin/households" element={<HouseholdsPage />} />
       </Route>
     </Routes>
   );
