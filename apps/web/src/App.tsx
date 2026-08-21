@@ -4,6 +4,7 @@ import { InvitationPage } from "./pages/InvitationPage";
 import { DashboardPage } from "./pages/admin/DashboardPage";
 import { HouseholdsPage } from "./pages/admin/HouseholdsPage";
 import { TablesPage } from "./pages/admin/TablesPage";
+import { SettingsPage } from "./pages/admin/SettingsPage";
 import { ProtectedRoute } from "./auth/ProtectedRoute";
 
 function App() {
@@ -15,6 +16,7 @@ function App() {
         <Route path="/admin" element={<DashboardPage />} />
         <Route path="/admin/households" element={<HouseholdsPage />} />
         <Route path="/admin/tables" element={<TablesPage />} />
+        <Route path="/admin/settings" element={<SettingsPage />} />
       </Route>
     </Routes>
   );
