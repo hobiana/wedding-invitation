@@ -1,0 +1,4 @@
+# apps/api/.dockerignore
+node_modules
+dist
+.env
