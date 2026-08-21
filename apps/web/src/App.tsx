@@ -1,8 +1,15 @@
+import { Route, Routes } from "react-router-dom";
+import { LoginPage } from "./pages/LoginPage";
+import { ProtectedRoute } from "./auth/ProtectedRoute";
+
 function App() {
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <h1 className="text-2xl font-semibold">Notre mariage</h1>
-    </div>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route element={<ProtectedRoute />}>
+        <Route path="/admin" element={<div className="p-8">Dashboard (à venir)</div>} />
+      </Route>
+    </Routes>
   );
 }
 
