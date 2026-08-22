@@ -76,6 +76,14 @@ Easings : entrée `cubic-bezier(0.22, 1, 0.36, 1)` · sortie `cubic-bezier(0.4, 
 4. **L'animation d'ouverture ne se joue qu'une fois par session.** Un invité qui revient trois fois pour vérifier l'adresse ne doit pas re-subir douze secondes de mise en scène. Mémoriser dans `sessionStorage`, prévoir un moyen de la rejouer.
 5. **Rien n'anime dans l'admin.** L'espace organisateur est un outil de travail : transitions micro uniquement. Le spectacle est réservé aux invités.
 
+## Décisions arrêtées
+
+Tranchées par le commanditaire le 2026-08-22, après l'audit. Ne pas les rouvrir sans lui.
+
+- **Le doré reste tel quel** (`#B08D57`), cantonné au filet strictement décoratif. Mesuré à 2,92:1, il ne portera jamais de texte ni d'icône signifiante. Ne pas l'assombrir « pour le rendre utilisable » : le choix est de préserver son caractère patiné et de laisser le bordeaux porter tout ce qui doit être lu.
+- **Les prénoms des mariés et la photo sont des constantes de build**, pas des champs en base. Le produit est mono-événement par construction ; pas de migration, pas d'édition dans l'admin.
+- **Les primitives d'interface s'appuient sur Radix** (`@radix-ui/react-dialog` et sœurs), cohérent avec le shadcn/ui déjà en place. Ne pas repartir sur `<dialog>` natif.
+
 ## Périmètre
 
 Ce système couvre `apps/web`. La page publique `/i/:linkId` porte l'identité complète ; l'admin `/admin/*` réutilise les mêmes tokens dans un registre sobre et dense.
