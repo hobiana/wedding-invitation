@@ -11,3 +11,6 @@ dist/
 apps/api/.agents/
 apps/api/.windsurf/
 apps/api/.claude/skills/
+
+# Rapports de couverture générés par les suites de tests
+coverage/
