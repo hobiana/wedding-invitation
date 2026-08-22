@@ -5,3 +5,9 @@ dist/
 .env.local
 *.log
 .DS_Store
+
+# Skills Prisma vendorisées par un outil externe (doublons + symlinks absolus).
+# Reproductibles depuis apps/api/skills-lock.json, qui lui est versionné.
+apps/api/.agents/
+apps/api/.windsurf/
+apps/api/.claude/skills/
