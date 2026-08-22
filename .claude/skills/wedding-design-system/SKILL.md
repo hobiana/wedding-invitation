@@ -38,7 +38,7 @@ Aujourd'hui `index.css` contient une seule ligne (`@import "tailwindcss"`). Tout
 | `--color-cream` | `#F2EAE0` | Fond secondaire, cartes |
 | `--color-gold` | `#B08D57` | Accent décoratif, filets, ornements |
 
-**Règle d'accessibilité non négociable :** `--color-gold` sur ivoire tourne autour de 3:1. Il est **décoratif uniquement** — filets, ornements, icônes non porteuses de sens. Jamais de texte courant, jamais un libellé de bouton, jamais un état d'erreur. Le bordeaux 700 sur ivoire dépasse largement 7:1 : c'est lui qui porte le texte et les actions.
+**Règle d'accessibilité non négociable :** `--color-gold` sur ivoire a été **mesuré à 2,92:1**, sous le seuil de 3:1. Il est donc **décoratif uniquement** — filets, ornements, icônes non porteuses de sens. Jamais de texte courant, jamais un libellé de bouton, jamais un état d'erreur. Le bordeaux 700 sur ivoire dépasse largement 7:1 : c'est lui qui porte le texte et les actions.
 
 Statuts RSVP : ne pas coder l'information par la seule couleur. `CONFIRMED` / `DECLINED` / `PENDING` portent toujours un libellé ou une icône en plus de la teinte.
 
