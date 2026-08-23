@@ -111,3 +111,22 @@ Correction attendue : figer le fuseau du lieu et le passer explicitement à tous
 - **Les agents et les skills ne s'enregistrent qu'au démarrage de la session.** Un fichier d'agent créé en cours de route n'est pas invocable avant redémarrage.
 - **Les captures d'écran ne fonctionnent pas** dans cet environnement (le panneau navigateur ne composite pas). Utiliser `read_page`, `get_page_text` et `getComputedStyle`.
 - Quand un agent travaille dans l'arbre, **ne pas faire de `git checkout` qui change les fichiers sous lui**. Pour avancer une branche en retard, déplacer son pointeur (`git branch -f`) plutôt que la sortir.
+
+---
+
+## Point de reprise — 2026-08-23, lot 3 tâche 1 en cours
+
+**Le commanditaire a fourni ses références et ses photos**, dans `images/` à la racine (non versionné à ce stade — vérifier avant de supposer).
+
+- `WhatsApp Image ... 09.34.56.jpeg` — faire-part pochette bordeaux, **cachet de cire doré**, intérieur ivoire, aquarelles florales, cadre hexagonal doré, prénoms en script doré. Attention : la dorure du papier brille par réflexion, l'écran ne reproduit pas cet effet au même contraste.
+- `WhatsApp Image ... (1).jpeg` — pochette velours bordeaux, **carte ivoire qui coulisse** hors d'une encoche en demi-lune. Mécanisme mieux adapté à un écran vertical qu'un rabat d'enveloppe.
+- `(2)` et `(3)` — photos récentes de plage, lumineuses, dominante bleu/vert. **Tonalement en conflit** avec le bordeaux ; déconseillées pour la composition principale.
+- `old images - fiancailles/DSC_3536.jpg` (portrait 4016×6016) et `DSC_3541.jpg` (paysage) — **la vraie matière** : portraits professionnels en tenues traditionnelles malgaches blanches à broderies bordeaux. La palette du mariage est déjà dans leurs vêtements.
+
+**Piste ouverte au designer :** tirer l'ornement des broderies malgaches de leurs propres tenues plutôt que des aquarelles de roses de la référence, qui est un modèle du commerce.
+
+**Tension à trancher :** le commanditaire demande « épuré », sa référence est chargée. À concilier explicitement.
+
+**Vidéo de référence** : `https://www.youtube.com/shorts/fYVUDkunFGg` — modèle Canva de faire-part numérique animé avec RSVP. **Non visionnable** : je ne lis pas la vidéo. `ffmpeg` n'est pas installé (`winget` est disponible si on veut l'ajouter, décision du commanditaire). En attente soit de captures d'écran déposées dans `images/`, soit d'une description du mouvement.
+
+**Ce qui bloque quoi :** la tâche 1 (direction artistique) est en cours chez `ui-ux-designer`, livrable attendu dans `docs/design/2026-08-23-direction-artistique.md`. Les tâches 2 à 6 démarrent dès sa validation par le commanditaire. Les tâches 7 et 8 dépendent en plus du choix de photo.
