@@ -1,1 +1,172 @@
 @import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Polices — auto-hébergées, sous-ensemble latin.
+   43 292 o au total, soit 36 % du budget de 120 Ko.
+
+   Le repli n'est pas un pis-aller : les métriques ci-dessous sont calées sur
+   celles des vraies polices, si bien que la substitution au chargement ne
+   déplace pas la page. Un invité sur un réseau lent lit la même mise en page,
+   pas une version qui saute sous ses yeux.
+   --------------------------------------------------------------------------- */
+
+@font-face {
+  font-family: "Marcellus";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/marcellus-latin-400.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Source Sans 3";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("/fonts/source-sans-3-latin-var.woff2") format("woff2");
+}
+
+/* Hauteur d'x mesurée : Georgia 48, Marcellus 50 — d'où les 104 %. */
+@font-face {
+  font-family: "Marcellus Fallback";
+  src: local("Georgia"), local("Noto Serif"), local("Times New Roman");
+  size-adjust: 104%;
+  ascent-override: 93%;
+  descent-override: 27%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "Source Sans Fallback";
+  src: local("Segoe UI"), local("Roboto"), local("Helvetica Neue"), local("Arial");
+  size-adjust: 98%;
+  ascent-override: 104%;
+  descent-override: 41%;
+  line-gap-override: 0%;
+}
+
+/* ---------------------------------------------------------------------------
+   Jetons. Tailwind v4 : la configuration est ici, il n'y a pas de
+   tailwind.config.js et il ne faut pas en créer — il ne serait pas lu.
+   --------------------------------------------------------------------------- */
+
+/* `static` : sans lui, Tailwind v4 n'émet que les variables qu'il voit
+   employées dans une classe utilitaire. Les jetons lus en `var()` direct — les
+   durées, les easings, l'ombre, l'or des tracés SVG — disparaîtraient
+   silencieusement du CSS produit, et les animations tomberaient sur des valeurs
+   vides sans qu'aucune erreur ne soit levée. */
+@theme static {
+  /* Encre */
+  --color-ink: #2a2124;
+  --color-ink-muted: #6b5b60;
+
+  /* Bordeaux */
+  --color-bordeaux-900: #3e1220;
+  --color-bordeaux-700: #6e1f35;
+  --color-bordeaux-500: #8e3a50;
+  --color-bordeaux-200: #e8cdd4;
+  --color-bordeaux-50: #f9eff1;
+
+  /* Papier */
+  --color-ivory: #fbf8f4;
+  --color-cream: #f2eae0;
+  --color-rule: #e1d5c4;
+  --color-rule-strong: #8c7a68;
+
+  /* Or — relevé sur le faire-part papier du couple. 3,58:1 sur ivoire : il
+     passe le seuil des éléments NON textuels, jamais celui du texte. */
+  --color-gold: #ac784c;
+
+  /* Statuts — admin uniquement, et toujours doublés d'un libellé. */
+  --color-status-yes: #3f5d45;
+  --color-status-pending: #8e3a50;
+  --color-status-no: #6e635a;
+  --color-status-yes-bg: #e4eae2;
+  --color-status-pending-bg: #f5e4e8;
+  --color-status-no-bg: #ede7de;
+
+  /* Familles */
+  --font-display: "Marcellus", "Marcellus Fallback", Georgia, serif;
+  --font-sans: "Source Sans 3", "Source Sans Fallback", system-ui, sans-serif;
+
+  /* Corps. 17 px de texte courant dans une colonne de 520 px donne ~63
+     caractères par ligne — la longueur où l'œil retrouve la ligne suivante. */
+  --text-body: 1.0625rem;
+  --text-body--line-height: 1.6;
+  --text-hero: 2.75rem;
+  --text-hero--line-height: 1.08;
+
+  /* Colonnes */
+  --container-prose: 520px;
+  --container-hero: 640px;
+
+  /* Rayons. 2 px et non 0 : un rayon nul lit « journal » et se comporte mal
+     sur les densités de pixels non entières. 2 px et non 8 : au-delà de 4 on
+     quitte l'imprimé pour l'application. */
+  --radius-control: 2px;
+  --radius-surface: 4px;
+
+  /* Mouvement */
+  --ease-in: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out: cubic-bezier(0.4, 0, 1, 1);
+  --duration-micro: 140ms;
+  --duration-transition: 280ms;
+
+  /* Une seule ombre, statique, jamais animée. */
+  --shadow-card: 0 1px 2px rgb(42 33 36 / 0.06), 0 8px 24px rgb(42 33 36 / 0.08);
+}
+
+/* ---------------------------------------------------------------------------
+   Base document
+   --------------------------------------------------------------------------- */
+
+@layer base {
+  /* Aucune graisse ni italique synthétique : Marcellus n'a qu'un poids, et un
+     faux gras de capitale romaine est laid. Pour appuyer, on change de taille
+     ou on passe en Source Sans 3 600. */
+  * {
+    font-synthesis: none;
+  }
+
+  html {
+    /* Déclaré explicitement : sans lui, l'inversion automatique de certains
+       navigateurs mobiles retourne la page et détruit la palette. */
+    color-scheme: light;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-ivory);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    text-wrap: balance;
+  }
+
+  /* Le focus se voit. Il hérite de la couleur qui porte les actions, jamais de
+     l'or, qui ne passe pas le contraste du texte. */
+  :focus-visible {
+    outline: 2px solid var(--color-bordeaux-700);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
