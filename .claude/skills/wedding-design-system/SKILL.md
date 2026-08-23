@@ -36,9 +36,9 @@ Aujourd'hui `index.css` contient une seule ligne (`@import "tailwindcss"`). Tout
 | `--color-bordeaux-50` | `#F9EFF1` | Fonds de section très légers |
 | `--color-ivory` | `#FBF8F4` | **Fond principal** de l'app |
 | `--color-cream` | `#F2EAE0` | Fond secondaire, cartes |
-| `--color-gold` | `#B08D57` | Accent décoratif, filets, ornements |
+| `--color-gold` | `#AC784C` | Accent, filets, ornements — relevé sur le faire-part du commanditaire |
 
-**Règle d'accessibilité non négociable :** `--color-gold` sur ivoire a été **mesuré à 2,92:1**, sous le seuil de 3:1. Il est donc **décoratif uniquement** — filets, ornements, icônes non porteuses de sens. Jamais de texte courant, jamais un libellé de bouton, jamais un état d'erreur. Le bordeaux 700 sur ivoire dépasse largement 7:1 : c'est lui qui porte le texte et les actions.
+**Règle d'accessibilité non négociable :** `--color-gold` sur ivoire mesure **3,58:1** — il franchit le seuil de 3:1 des éléments **non textuels**, donc il peut porter un filet, une bordure, une icône décorative. Il ne porte pour autant **jamais de texte** : le seuil du texte est 4,5:1. (Le jeton précédent, `#B08D57`, échouait à 2,92:1 ; celui-ci vient de la référence papier du commanditaire et se trouve être le plus conforme des deux.) Il reste **ornemental** — filets, ornements, icônes non porteuses de sens. Jamais de texte courant, jamais un libellé de bouton, jamais un état d'erreur. Le bordeaux 700 sur ivoire dépasse largement 7:1 : c'est lui qui porte le texte et les actions.
 
 Statuts RSVP : ne pas coder l'information par la seule couleur. `CONFIRMED` / `DECLINED` / `PENDING` portent toujours un libellé ou une icône en plus de la teinte.
 
@@ -80,7 +80,10 @@ Easings : entrée `cubic-bezier(0.22, 1, 0.36, 1)` · sortie `cubic-bezier(0.4, 
 
 Tranchées par le commanditaire le 2026-08-22, après l'audit. Ne pas les rouvrir sans lui.
 
-- **Le doré reste tel quel** (`#B08D57`), cantonné au filet strictement décoratif. Mesuré à 2,92:1, il ne portera jamais de texte ni d'icône signifiante. Ne pas l'assombrir « pour le rendre utilisable » : le choix est de préserver son caractère patiné et de laisser le bordeaux porter tout ce qui doit être lu.
+- **Le doré est `#AC784C`**, relevé sur le faire-part papier du commanditaire. À 3,58:1 il franchit le seuil des éléments non textuels, mais ne porte jamais de texte. Le bordeaux porte tout ce qui doit être lu.
+- **L'ornement vient des broderies malgaches du couple** : le motif d'ourlet de la robe devient un tracé SVG et sert de signature, les rayures du lamba (rythme 1/2/5/2/1) deviennent le filet de section. Les aquarelles florales et le cadre hexagonal de la référence papier sont écartés — la densité est bon marché sur papier et chère sur un téléphone.
+- **L'ouverture est une pochette à encoche**, pas une enveloppe à rabat : la carte coulisse verticalement. Aucune transformation 3D, CSS pur, aucune librairie d'animation.
+- **Typographie : Marcellus** (display) et **Source Sans 3** (texte), auto-hébergées, 42,3 Ko au total. Choix arrêté sur la hauteur d'x mesurée, pas sur le goût — ne pas revenir à Cormorant.
 - **Les prénoms des mariés et la photo sont des constantes de build**, pas des champs en base. Le produit est mono-événement par construction ; pas de migration, pas d'édition dans l'admin.
 - **Les primitives d'interface s'appuient sur Radix** (`@radix-ui/react-dialog` et sœurs), cohérent avec le shadcn/ui déjà en place. Ne pas repartir sur `<dialog>` natif.
 
