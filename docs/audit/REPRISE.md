@@ -1,107 +1,113 @@
 # Où on en est — reprise de session
 
-**Dernière mise à jour :** 2026-08-22, par l'architecte.
+**Dernière mise à jour :** 2026-08-23, par l'architecte.
 À lire en premier si tu reprends ce projet sans le contexte de la conversation précédente.
 
 ## L'état en une phrase
 
-L'audit est terminé et livré ; les décisions sont prises ; le **lot 0** (correction des 5 bloquants) est **en cours** sur la branche `fix/lot-0-bloquants`.
+L'audit est livré, les décisions sont prises, le **lot 0 est terminé et fusionné**. Le **lot 3 — la refonte design — vient de s'ouvrir**, en attente de la direction artistique et des photos du couple.
 
-## Ce qui est fait
+## Le dépôt
 
-- **`master`** porte l'application. Elle vivait dans `.worktrees/feature-invitation-app-v1` ; merge fast-forward de 33 commits, worktree supprimé, branche `feature/invitation-app-v1` et `develop` entièrement contenues dans `master`.
-- **Six agents** dans `.claude/agents/` : `backend-nestjs`, `frontend-react`, `ui-ux-designer`, `devops`, `qa-tester`, `security-auditor`. Chacun nomme explicitement les skills superpowers qu'il doit invoquer — les sous-agents ignorent `using-superpowers`, donc c'est le seul mécanisme qui traverse la frontière.
-- **Trois skills** dans `.claude/skills/` : `invitation-app-domain` (les 8 invariants), `audit-protocol` (grille d'audit commune), `wedding-design-system` (tokens et règles de mouvement, avec les décisions arrêtées en fin de fichier).
-- **L'audit** : 6 rapports dans `docs/audit/`, 86 constats, consolidés dans `2026-08-22-rapport-architecte.md`. Publié aussi comme artifact.
+**`main` est la seule branche** et porte tout. Aucun remote.
+
+L'application vivait dans `.worktrees/feature-invitation-app-v1` ; elle a été fusionnée et le worktree supprimé. `master` a été renommée `main` le 2026-08-23, et `develop`, `feature/invitation-app-v1` et `fix/lot-0-bloquants` supprimées après vérification qu'elles étaient intégralement contenues dans `main`.
+
+## L'équipe
+
+**Six agents** dans `.claude/agents/` : `backend-nestjs`, `frontend-react`, `ui-ux-designer`, `devops`, `qa-tester`, `security-auditor`.
+
+Chacun **nomme explicitement** les skills superpowers qu'il doit invoquer. C'est indispensable : `using-superpowers` ordonne aux sous-agents de l'ignorer, donc rien ne se charge tout seul de l'autre côté de la frontière.
+
+Chacun porte aussi la règle de **sauvegarde d'état à 60 % du budget** — écrire où on en est avant la coupure, pas pendant.
+
+**Trois skills** dans `.claude/skills/` : `invitation-app-domain` (les 8 invariants métier), `audit-protocol` (grille d'audit commune), `wedding-design-system` (tokens, règles de mouvement, et les décisions arrêtées en fin de fichier).
 
 ## Les décisions du commanditaire — ne pas les rouvrir
 
-Arbitrées le 2026-08-22 :
+1. **Prénoms des mariés et photo** : constantes de build, pas de champs en base.
+2. **Le doré `#B08D57` reste tel quel**, cantonné au filet décoratif — mesuré à 2,92:1, il ne portera jamais de texte.
+3. **Les primitives d'interface s'appuient sur Radix**, pas sur `<dialog>` natif.
+4. **Le lot 3 est découpé en petites tâches** commitables une par une, pour suivre l'avancement.
 
-1. **Lot 0 seul**, puis point d'étape. Pas de refonte design en parallèle.
-2. **Prénoms des mariés et photo** : constantes de build, pas de champs en base.
-3. **Le doré `#B08D57` reste tel quel**, cantonné au filet décoratif (mesuré 2,92:1, ne portera jamais de texte).
-4. **Les primitives d'interface s'appuient sur Radix** (`@radix-ui/react-dialog`), pas sur `<dialog>` natif.
+## Lot 0 — terminé
 
-## Lot 0 — 3 bloquants sur 5 corrigés
+Les cinq bloquants du rapport d'audit, corrigés et fusionnés dans `main` (`fe98be1` → `fc15f1a`).
 
-Mise à jour du 2026-08-23. Branche `fix/lot-0-bloquants`.
-
-| # | Bloquant | État |
+| # | Bloquant | Commit |
 |---|---|---|
-| 1 | Un foyer confirmé occupe zéro siège | **fait** — `fe98be1` (api) + `296b487` (web) |
-| 2 | Capacité contournable en une requête | **fait** — `fe98be1` |
-| 5 | L'invitation ne dit pas quand venir | **fait** — `296b487` |
-| 3 | Force brute sur `/auth/login` | en cours |
-| 4 | Aucune défense CSRF | en cours |
+| 1 | Un foyer confirmé occupait zéro siège | `fe98be1` + `296b487` |
+| 2 | La capacité de table se contournait en une requête | `fe98be1` |
+| 3 | Force brute possible sur `/auth/login` | `fe17014` |
+| 4 | Aucune défense CSRF derrière `SameSite=None` | `fe17014` |
+| 5 | L'invitation ne disait pas à quelle heure venir | `296b487` |
 
-Suites vertes : **70 tests backend** (57 avant), **58 frontend** (44 avant), **18 e2e**, build à exit 0.
+**Contrat établi entre le front et l'API, à respecter des deux côtés :**
+`CONFIRMED` exige `confirmedCount >= 1` · `DECLINED` force `0` · `PENDING` remet à `null`.
 
-### La base de données locale tourne — les e2e aussi
+Suites : **100 tests backend** (57 avant l'audit), **58 frontend** (44 avant), **18 e2e**, build à exit 0.
 
-Le rapport d'audit dit que les tests e2e n'ont jamais été exécutés. **Ce n'est plus vrai depuis le 2026-08-23** : Postgres tourne via le `docker-compose.yml` du dépôt, et les 18 tests passent. On sait donc à l'exécution, et plus seulement par lecture du code, que les 13 routes admin refusent un accès non authentifié. Le constat MAJEUR du QA sur ce point est levé.
+## L'environnement de développement
 
-Pour remonter l'environnement depuis zéro :
+Postgres tourne en local et la base contient un jeu de données réaliste. Pour tout remonter depuis zéro :
 
 ```
 docker compose up -d
-cp apps/api/.env.example apps/api/.env      # puis renseigner DATABASE_URL et JWT_SECRET
+cp apps/api/.env.example apps/api/.env      # renseigner DATABASE_URL et JWT_SECRET
 cd apps/api && npx prisma migrate deploy
-pnpm --filter @invitation-app/api test:e2e
+pnpm --filter @invitation-app/api seed:demo
 ```
 
-`apps/api/.env` est ignoré par git et ne contient que des valeurs de développement local, alignées sur le `docker-compose.yml`. Le rapport d'audit reste tel qu'il a été écrit : c'était un instantané exact à sa date.
+`seed:demo` crée **40 foyers, 6 tables**, tous les champs optionnels remplis, avec deux tiers des foyers placés. Les données respectent les invariants que l'API applique — un jeu incohérent ferait chercher des bugs qui n'existent pas. `seed.ts` reste minimal : c'est lui qui tournera contre le vrai mariage.
 
-Piège payé une fois, à ne pas repayer : la coupure a surpris l'agent backend **au milieu d'un refactor**. `tables.service.ts` appelait `seatsTaken()` sans import et `this.seatsTaken()` alors que la méthode venait d'être supprimée — cinq tests rouges pour deux lignes manquantes. D'où la règle de sauvegarde d'état à 60 % du budget, désormais inscrite dans les six définitions d'agents.
+- Invitation d'exemple : `http://localhost:5173/i/<linkId>` (les liens s'affichent à la fin du seed)
+- Admin : `http://localhost:5173/login` — `admin@invitation-app.local` / `motdepasse-de-dev`
+- `apps/api/.env` est ignoré par git et ne contient que des valeurs de développement.
 
-## Historique — lot 0 au démarrage
+Les tests e2e tournent depuis que la base existe. On sait donc **à l'exécution**, et plus seulement par lecture du code, que les 13 routes admin refusent un accès non authentifié. Le rapport d'audit dit le contraire : il était exact à sa date, il n'a pas été réécrit.
 
-Branche `fix/lot-0-bloquants`, partant de `5cafe2f`.
+## Lot 3 — en cours
 
-Deux agents ont travaillé en parallèle, **sans commiter** (l'architecte relit et commite, pour éviter les courses sur l'index git) :
+Découpé en onze tâches, chacune commitable seule :
 
-- **`backend-nestjs`** — 4 bloquants : cohérence de `confirmedCount` sur les écritures admin · capacité de table contournable par `PATCH /admin/households/:id` · limitation de débit sur le login et sur l'invitation · défense CSRF derrière `SameSite=None`. État détaillé dans `ETAT-lot0-backend.md` s'il a eu le temps de l'écrire.
-- **`frontend-react`** — 2 bloquants : le dialogue d'édition qui fait occuper zéro siège à un foyer confirmé · les cinq champs de l'invitation jamais affichés. État détaillé dans `ETAT-lot0-frontend.md`.
+| # | Tâche | Dépend de |
+|---|---|---|
+| 1 | Direction artistique : palette, typographies, chorégraphie de l'enveloppe | — |
+| 2 | Fondations : tokens `@theme`, polices, espacement | 1 |
+| 3 | `index.html` : `lang="fr"`, titre, image de partage | 2 |
+| 4 | Primitives de saisie : `Field`, `Input`, `Textarea`, `Select` | 2 |
+| 5 | Primitives de dialogue : `Dialog`, `AlertDialog` via Radix | 2 |
+| 6 | Primitives d'affichage : `Badge`, `Card`, `Table`, `Skeleton`, `EmptyState` | 2 |
+| 7 | Invitation : composition et respiration | 2, 4 |
+| 8 | Invitation : la mise en scène d'enveloppe | 7 |
+| 9 | Admin : navigation, tableau de bord en ratios | 4, 6 |
+| 10 | Admin : foyers, copie du lien, recherche | 4, 5, 6 |
+| 11 | Admin : plan de table utilisable au doigt, chemin sans glisser | 6 |
 
-**Contrat imposé aux deux, à respecter de part et d'autre :**
-`CONFIRMED` exige `confirmedCount >= 1` · `DECLINED` force `0` · `PENDING` remet à `null`.
-
-**Attention :** le travail des agents peut être **non commité** dans l'arbre. Vérifie `git status` avant toute opération destructive. Un agent a déjà écrasé une modification du `.gitignore` avec un `git checkout` trop large — ne fais pas confiance à un arbre propre sans l'avoir regardé.
+**Les photos du couple sont attendues** pour les tâches 7 et 8. Portrait ou carré, haute résolution.
 
 ## Trouvé en faisant tourner l'app — à traiter au lot 1
 
 **[MAJEUR] L'heure du mariage s'affiche dans le fuseau de l'invité, pas dans celui du lieu.**
 
-`weddingDate` est un timestamp UTC, rendu par `toLocaleString` sans `timeZone`. Une cérémonie enregistrée à `2027-06-12T15:00:00Z` s'affiche donc :
-
-| Fuseau de l'invité | Heure lue |
-|---|---|
-| Indian/Antananarivo | 18:00 |
-| Indian/Mauritius | 19:00 |
-| Europe/Paris | 17:00 |
-| America/Montreal | 11:00 |
-
-Un invité qui ouvre son lien depuis la France lit 17:00 pour un mariage à 18:00. L'heure d'un événement physique est celle de son lieu : elle doit être identique pour tous les lecteurs. Même problème sur `rsvpDeadline`, qui affiche « 04:00 » là où la base porte minuit.
+`weddingDate` est un timestamp UTC rendu par `toLocaleString` sans `timeZone`. Une cérémonie enregistrée à `2027-06-12T15:00:00Z` se lit 18:00 à Antananarivo, 19:00 à Maurice, 17:00 à Paris, 11:00 à Montréal. Un invité en France lit donc 17:00 pour un mariage à 18:00. Même problème sur `rsvpDeadline`, qui affiche « 04:00 » là où la base porte minuit.
 
 Aucun test ne pouvait l'attraper — ils s'exécutent tous dans le fuseau de la machine — et l'audit ne l'a pas vu faute de données. C'est apparu à la première exécution réelle.
 
-Correction attendue : figer un fuseau de référence (celui du lieu) et le passer explicitement à tous les rendus de date, côté invité comme côté admin.
+Correction attendue : figer le fuseau du lieu et le passer explicitement à tous les rendus de date, côté invité comme côté admin.
 
-## Ce qui vient après
-
-Ordre validé, détaillé dans le rapport consolidé :
+## Ce qui reste après le lot 3
 
 | Lot | Contenu | Effort |
 |---|---|---|
-| 1 | Fiabilité produit — états de chargement, confirmations, messages en français, révocation à la déconnexion, en-têtes | 3 – 4 j |
-| 2 | Chaîne de livraison — `postinstall` Prisma, CI, durcissement Docker, `VITE_API_URL` bruyant | 1,5 – 2 j |
-| 3 | Refonte design — fondations, 12 primitives, invitation et ouverture d'enveloppe, admin | 14,5 – 18 j |
+| 1 | Fiabilité produit — états de chargement, confirmations avant suppression, messages en français, fuseau horaire, révocation à la déconnexion, en-têtes de sécurité | 3 – 4 j |
+| 2 | Chaîne de livraison — `postinstall` Prisma, CI, durcissement Docker, échec bruyant si `VITE_API_URL` manque | 1,5 – 2 j |
 
-Le commanditaire fournira **les vraies photos au démarrage du lot 3**. Ne pas figer l'identité visuelle avant de les avoir.
+## Pièges connus
 
-## Pièges connus de cet environnement
-
-- `pnpm --filter @invitation-app/api lint` tourne avec **`--fix`** et modifie le dépôt. Ce n'est pas une commande de vérification.
-- **`prisma generate` ne tourne pas à l'installation** (ni `postinstall` ni `prepare`). Sur un clone frais, rien ne compile tant qu'on ne l'a pas lancé à la main. C'est un constat du lot 2.
-- Les **tests e2e** exigent `DATABASE_URL` et `JWT_SECRET` ; ils n'ont jamais été exécutés dans cet audit.
-- Les agents et skills ne sont **enregistrés qu'au démarrage de la session**. Un fichier d'agent créé en cours de route n'est pas invocable avant redémarrage.
+- `pnpm --filter @invitation-app/api lint` tourne avec **`--fix`** et modifie le dépôt. Ce n'est pas une commande de vérification. Le lot 2 doit le corriger.
+- **`prisma generate` ne tourne pas à l'installation** (ni `postinstall` ni `prepare`). Sur un clone frais, rien ne compile tant qu'on ne l'a pas lancé à la main.
+- **Les fins de ligne ne sont pas normalisées** : un `eslint` en lecture seule sort environ 2 000 erreurs `Delete ␍`, presque toutes préexistantes. Il faut un `.gitattributes` décidé une fois — pas au coup par coup, sinon un `--fix` réécrit le dépôt entier et noie toute relecture.
+- **Les agents et les skills ne s'enregistrent qu'au démarrage de la session.** Un fichier d'agent créé en cours de route n'est pas invocable avant redémarrage.
+- **Les captures d'écran ne fonctionnent pas** dans cet environnement (le panneau navigateur ne composite pas). Utiliser `read_page`, `get_page_text` et `getComputedStyle`.
+- Quand un agent travaille dans l'arbre, **ne pas faire de `git checkout` qui change les fichiers sous lui**. Pour avancer une branche en retard, déplacer son pointeur (`git branch -f`) plutôt que la sortir.
