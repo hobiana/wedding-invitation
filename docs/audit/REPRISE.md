@@ -35,7 +35,22 @@ Mise à jour du 2026-08-23. Branche `fix/lot-0-bloquants`.
 | 3 | Force brute sur `/auth/login` | en cours |
 | 4 | Aucune défense CSRF | en cours |
 
-Suites vertes : **70 tests backend** (57 avant), **58 frontend** (44 avant), build à exit 0.
+Suites vertes : **70 tests backend** (57 avant), **58 frontend** (44 avant), **18 e2e**, build à exit 0.
+
+### La base de données locale tourne — les e2e aussi
+
+Le rapport d'audit dit que les tests e2e n'ont jamais été exécutés. **Ce n'est plus vrai depuis le 2026-08-23** : Postgres tourne via le `docker-compose.yml` du dépôt, et les 18 tests passent. On sait donc à l'exécution, et plus seulement par lecture du code, que les 13 routes admin refusent un accès non authentifié. Le constat MAJEUR du QA sur ce point est levé.
+
+Pour remonter l'environnement depuis zéro :
+
+```
+docker compose up -d
+cp apps/api/.env.example apps/api/.env      # puis renseigner DATABASE_URL et JWT_SECRET
+cd apps/api && npx prisma migrate deploy
+pnpm --filter @invitation-app/api test:e2e
+```
+
+`apps/api/.env` est ignoré par git et ne contient que des valeurs de développement local, alignées sur le `docker-compose.yml`. Le rapport d'audit reste tel qu'il a été écrit : c'était un instantané exact à sa date.
 
 Piège payé une fois, à ne pas repayer : la coupure a surpris l'agent backend **au milieu d'un refactor**. `tables.service.ts` appelait `seatsTaken()` sans import et `this.seatsTaken()` alors que la méthode venait d'être supprimée — cinq tests rouges pour deux lignes manquantes. D'où la règle de sauvegarde d'état à 60 % du budget, désormais inscrite dans les six définitions d'agents.
 
