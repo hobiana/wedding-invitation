@@ -4,6 +4,28 @@
 **Périmètre :** `apps/web` — page publique `/i/:linkId` et back-office `/admin/*`
 **Ce document ne modifie aucun fichier.** Il spécifie. L'intégration est faite par `frontend-react`.
 
+> ### RÉVISION 2 — 2026-08-23, après réception des références et des photos du commanditaire
+>
+> Le document a d'abord été rédigé **sans** les références ni les photos. Elles sont arrivées ensuite, dans `images/`, et elles **changent trois choses**. Ce bloc les consigne en premier, en cas d'interruption. Les sections concernées plus bas sont mises à jour ; **là où subsiste une divergence, ce bloc fait foi.**
+>
+> **1. La palette est validée par mesure sur les références du commanditaire — elle ne bouge pas.**
+> J'ai échantillonné ses deux photos de faire-part. Les écarts avec les jetons provisoires sont dérisoires :
+>
+> | Objet mesuré dans sa référence | Relevé | Notre jeton | Écart |
+> |---|---|---|---|
+> | Velours de la pochette (réf. 2) | `#3E0A17` — H345 S72 L14 | `--color-bordeaux-900 #3E1220` — H341 S55 L16 | 2 pts de valeur |
+> | Rabat de la pochette (réf. 1) | `#74222D` — H352 S55 L29 | `--color-bordeaux-700 #6E1F35` — H343 S56 L28 | 1 pt de valeur, saturation identique |
+> | Carte ivoire (réf. 1) | `#FCFBF9` | `--color-ivory #FBF8F4` | ΔR 1 ΔG 3 ΔB 5 |
+> | Script doré (réf. 2) | `#AC784C` — H27 S39 L49 | `--color-gold #B08D57` — H36 S36 L52 | 9° de teinte |
+>
+> **Et le rouge de leurs broderies est notre bordeaux.** Relevé sur le `lamba` : `#8B011B` — **H 349° S 99 % L 27 %**. Notre `bordeaux-700 #6E1F35` : **H 343° S 56 % L 28 %**. *Même teinte, même valeur, deux fois moins de saturation.* Ce n'est pas une coïncidence heureuse à raconter : c'est la garantie chiffrée que la photo ne se battra pas avec la page. `#8B011B` sur ivoire mesure 9,37:1, notre bordeaux 10,38:1.
+>
+> **2. L'enveloppe C6 à rabat est remplacée par une POCHETTE À ENCOCHE (réf. 2).** Décision structurante, détaillée au §8 réécrit. En une phrase : une pochette portrait dont la carte **monte** par une encoche en demi-lune. Cela supprime `rotateX`, `perspective`, `preserve-3d`, `backface-visibility`, le scintillement à 180° et la re-rastérisation WebKit — **toute la classe de risque 3D disparaît**, il ne reste que des `translateY`. Et le geste est vertical, comme le pouce et comme le défilement qui suit.
+>
+> **3. Les broderies malgaches sont exploitables — oui, et mieux que je ne l'espérais.** Voir §1.5. En résumé : le motif d'ourlet est **déjà un trait d'épaisseur constante**, donc il se transpose en SVG sans rien perdre ; les rayures du `lamba` sont de la géométrie pure et pèsent zéro octet. Les aquarelles de roses de la référence roumaine sont abandonnées.
+>
+> **État d'avancement au moment de la révision 2 :** §1 à §7 et §9 à §12 sont à jour et complets. Le §8 (chorégraphie) est **réécrit ci-dessous en version pochette** ; l'ancienne version enveloppe est conservée en annexe B comme trace du raisonnement. Le §10 (photos) est réécrit. Les arbitrages 9 à 12 sont ajoutés au §12.
+
 ---
 
 ## 0. Ce que j'ai regardé avant de proposer
@@ -51,7 +73,8 @@ Le commanditaire l'a demandée. Voici ce que j'ai regardé et ce que j'en retire
 J'ai lu la mise en œuvre décrite par **Saahil Jaffer** (« How I Designed a Digital Invitation That Opens Like a Real Card »), la plus détaillée techniquement de celles trouvées : trois temps — le rabat s'ouvre, la carte sort, la carte pivote — avec `rotateX` de 180° à 0° en trois paliers (120°, 60°), `transform-origin: center top`, `transformStyle: 'flat'`, et un empilement de `z-index`. Les tutoriels type CodePen (`MrBlank/JjXxovL`, `robsonsilva/OWeNRL`) reposent sur le même squelette : `.top-part` en rabat, faces gauche/droite détourées pour simuler le volume.
 
 > **Ce que j'en retiens.** Le squelette DOM est juste et je le reprends : un panneau arrière, une carte, un panneau avant opaque qui sert de poche, un rabat à deux faces. **Ce que tous omettent est exactement ce qui compte ici** : aucune durée, aucun easing, aucun `prefers-reduced-motion`, aucun garde-fou si l'animation ne se déclenche pas, aucune sortie possible. Ce sont des démonstrations, pas des produits. La partie du travail qui a de la valeur est celle qu'ils ne font pas — et c'est le §8.
-> **Ce que je rejette explicitement :** la rotation de la carte (cause du symptôme iOS), et le `rotateX` jusqu'à 180° pile (à 180° le rabat devient coplanaire avec le dos de l'enveloppe et produit un scintillement de tri de profondeur sur WebKit — je m'arrête à **172°**).
+> **Ce que je rejette explicitement :** la rotation de la carte (cause du symptôme iOS), et le `rotateX` jusqu'à 180° pile (à 180° le rabat devient coplanaire avec le dos de l'enveloppe et produit un scintillement de tri de profondeur sur WebKit).
+> **Note de révision 2 :** ce paragraphe et le précédent décrivent l'état de mon raisonnement avant réception des références du commanditaire. La version retenue (§8) est une **pochette à encoche** : elle n'a plus de rabat du tout, donc plus de `rotateX`, plus de coplanarité, plus de re-rastérisation. Le raisonnement ci-dessus reste consigné parce qu'il explique **pourquoi** le mécanisme sans 3D a été préféré dès qu'il a été proposé.
 
 ### 1.3 Les palettes bordeaux / ivoire de la papeterie imprimée
 
@@ -71,6 +94,103 @@ Recherche sur les suites d'invitation letterpress et dorure. Les valeurs qui rev
 Réponse observée, constante sur les suites imprimées : **par la séparation physique**. Le carton principal porte les noms, la date, le lieu — centrés, aérés, presque rien d'autre. Les informations pratiques (accès, tenue, hébergement, parking) sont sur un **carton séparé, plus petit, composé en fer à gauche**, souvent dans un corps plus petit et une graisse différente.
 
 > **Ce que j'en retiens, et c'est la décision de composition la plus structurante du document :** la page reproduit cette séparation par **l'alignement**. Le héros est **centré** — c'est le carton de cérémonie. Tout ce qui suit est **aligné à gauche** — ce sont les cartons d'information. Le basculement d'axe fait à lui seul le travail que des ornements feraient mal. Aucune ligne décorative n'est nécessaire pour dire « on change de registre ».
+
+### 1.5 Les références du commanditaire, et ses photos
+
+Ajouté en révision 2. J'ai ouvert les six fichiers de `images/`, échantillonné les couleurs au pixel et recadré les détails pour les regarder de près.
+
+#### a) `WhatsApp…09.34.56.jpeg` — la pochette à trois volets
+
+Ce que je vois : une pochette bordeaux mat à rabat triangulaire, fermée par un **cachet de cire doré** embossé, ouverte sur deux panneaux ivoire. Sur le volet gauche, les prénoms en script doré, encadrés en haut-gauche et bas-droite par des **aquarelles florales** (roses bordeaux, roses poudrées, eucalyptus). Sur le volet droit, le texte, entouré d'un **cadre heptagonal en filet doré fin**. Une carte de remerciement assortie, plus petite, avec les mêmes coins fleuris.
+
+Relevés : bordeaux du rabat `#74222D`, bordeaux du haut `#5B1014`, carte `#FCFBF9`, cachet de cire `#A25421`.
+
+> **Ce que je prends.** Le **cachet de cire** — ma « pastille dorée » du §8 était déjà à cet endroit, elle est maintenant justifiée par sa propre référence. Et le rapport de matières : bordeaux mat profond contre ivoire vif, qui est ce qu'on ressent en tenant l'objet et qui est parfaitement « épuré ».
+> **Ce que je laisse.** Les **aquarelles florales** : ce sont des roses de banque d'images sur un modèle du commerce roumain, elles ne racontent rien d'eux. Le **cadre heptagonal** : un cadre géométrique fermé est un dispositif d'imprimé, il suppose un format de coupe fixe ; sur une page fluide de 320 à 1440 px, il rogne le texte ou l'écrase à chaque point de rupture. C'est un piège de mise en page, pas un ornement.
+> **Le problème que ça pose.** Les prénoms y sont **en doré**. C'est de la dorure à chaud : elle est lisible parce qu'elle *réfléchit*. Un écran ne réfléchit rien, notre or mesure 2,92:1, et la règle arrêtée tient. Voir §1.5.d pour l'équivalent écran que je propose.
+
+#### b) `WhatsApp…09.34.56 (1).jpeg` — la pochette de velours à encoche
+
+Ce que je vois : une pochette **portrait** en velours bordeaux, script doré à chaud, et une **carte ivoire qui coulisse hors de la pochette** par une **encoche en demi-lune** découpée dans le panneau avant. Un gland de fil doré passé dans un œillet sert de tirette. La pochette est posée sur un papier beige clair, pas sur un fond sombre.
+
+Relevés : velours `#3E0A17` / `#3F0915` / `#420915` (mat, moucheté, éclairé par le haut), script `#AC784C`.
+
+> **Ce que je prends, et c'est la découverte de la révision 2 :** **le mécanisme**. Le coordinateur a raison, et l'argument est plus fort que le goût. Comparaison chiffrée avec l'enveloppe C6 de la v1 :
+>
+> | | Enveloppe C6 (v1) | **Pochette à encoche (v2)** |
+> |---|---|---|
+> | Orientation | paysage 1,42:1 → 311 × 219 | **portrait 1:1,4 → 280 × 392** |
+> | Part de l'écran mobile occupée | 219/812 = **27 %** | 392/812 = **48 %** |
+> | Transformations requises | `rotateX`, `perspective`, `preserve-3d`, `backface-visibility` | **`translateY` seul** |
+> | Classes de risque | scintillement de tri de profondeur à 180°, re-rastérisation du texte sur WebKit, coût de compositing 3D | **aucune** |
+> | Éléments animés | 5 | **3** |
+> | Sens du geste | bascule horizontale | **montée verticale — celle du pouce, et celle du défilement qui suit** |
+>
+> La dernière ligne est décisive. Le rabat qui bascule est un geste de page horizontale importé sur un écran vertical. La carte qui monte hors de sa pochette est le geste que l'écran demande.
+> **Ce que je prends aussi :** le **fond clair**. Sa référence photographie la pochette sur un papier beige. Ma v1 posait une surcouche bordeaux plein écran ; je l'abandonne pour un champ crème `#F2EAE0`. C'est sa référence, c'est plus net (9,22:1 de séparation contre 1,46:1 d'une pochette bordeaux sur fond bordeaux), et le fondu final devient invisible (crème → ivoire = 1,13:1). Le bordeaux profond garde sa scène : la bande de pied de page.
+> **Ce que je laisse.** Le **gland**. Sur écran c'est un objet pendant qu'il faudrait dessiner, animer et justifier ; l'encoche suffit à dire « ça se tire ». Et la **texture de velours photographique** : je la suggère par un seul dégradé radial statique (§8.1), pas par une image.
+
+#### c) Les photos du couple
+
+`DSC_3541.jpg` (6016 × 4016, paysage) et `DSC_3536.jpg` (4016 × 6016, portrait) sont des portraits de fiançailles professionnels. `DSC_2817.jpg` (6016 × 4016) est du même reportage. Les deux instantanés de plage `(2)` et `(3)` sont écartés : dominante bleu-vert, t-shirts blancs, registre en conflit frontal avec un bordeaux profond.
+
+Ce que je vois sur `DSC_3541`, en recadrant : tenues traditionnelles malgaches **ivoire**, avec **ceinture tissée bordeaux** à motif de vigne, **broderies bordeaux** sur la jupe et à l'ourlet, **`lamba` rayé rouge et blanc** porté à l'épaule, pochette de costume bordeaux. **La palette du mariage est déjà dans leurs vêtements**, et elle y arrive avec ses propres motifs.
+
+**Les deux difficultés, dites franchement :**
+
+1. **Le couple est petit dans le cadre.** Sur `DSC_3541`, il occupe environ 19 % de la largeur. Un recadrage serré est indispensable, et un seul recadrage ne servira pas à la fois le portrait mobile et le paysage bureau. Il faut **deux recadrages art-dirigés**, pas un `object-position`.
+2. **La dominante est franchement froide.** Un bandeau LED magenta baigne la verrière, le ciel est en heure bleue, les haies sont très vertes. Preuve chiffrée : le tissu ivoire de la robe s'échantillonne à **`#C8C5CC`** — bleu-magenta et sous-exposé, là où il devrait être un ivoire chaud autour de `#F4F0EA`. Un `filter` CSS ne corrige pas ça : appliqué à une photo de personnes, il déplace les carnations. **Il faut un étalonnage réel, livré en JPEG.** Voir §10 réécrit.
+
+#### d) Les broderies : exploitables, et voici comment
+
+Réponse courte : **oui**, et par deux dispositifs, pas par un.
+
+**Le motif d'ourlet — le bon.** En recadrant l'ourlet de la robe, on découvre que le motif n'est **pas une broderie pleine mais un tracé au fil d'épaisseur constante** : une longue tige ondulante qui court le long de l'ourlet, une petite vrille en spirale, et une fleur stylisée à cinq ou six pétales pointus **dessinée en contour, pas remplie**.
+
+> C'est le cas rare où un motif textile se transpose à l'écran **sans rien perdre** : un trait d'épaisseur constante *est* un `stroke` SVG. Pas de remplissage à approximer, pas de dégradé, pas de matière. Et sa structure — une longue ligne fine ponctuée d'une forme — **est déjà celle d'un filet éditorial**. C'est le motif que je propose comme **signature**, à la place du filet doré nu de la v1.
+>
+> **Spécification.** SVG en ligne, `aria-hidden="true"`, `focusable="false"`. Largeur 96 px (mobile) / 128 px (≥768). `stroke-width: 1.25`, `stroke-linecap: round`, `fill: none`, `vector-effect: non-scaling-stroke`. **Bicolore :** la tige en **`#B08D57`** (or, décoratif, discret comme une vraie dorure) et la fleur en **`#6E1F35`** (bordeaux 700, **10,38:1** — la partie visible du motif est celle qui porte le contraste). C'est la réponse à la dorure de sa référence : on garde le geste doré, la lisibilité passe par le bordeaux. Cible de poids : **< 900 octets** non compressés.
+> **Ce dont j'ai besoin pour le dessiner correctement :** **une photo à plat de l'ourlet brodé** — vêtement posé, lumière égale, prise perpendiculaire, ~2000 px de large. Le portrait est à grande ouverture et le motif y est légèrement flou ; tracer là-dedans donnerait une approximation de leur vraie robe, ce qui est pire que de ne rien faire. À défaut, je trace depuis `DSC_3541` et j'assume une lecture stylisée — à dire au commanditaire.
+
+**Les rayures du `lamba` — le second, et il est gratuit.** En échantillonnant une ligne de pixels en travers de la bande à `y = 2500` sur `DSC_3541`, le rythme se lit directement : **4 / 8 / 28 / 8 / 4** pixels (rouge / vide / rouge large / vide / rouge), soit normalisé **1 / 2 / 5 / 2 / 1**. Rouge relevé `#8B011B`.
+
+> Une rayure est de la géométrie pure : elle se reproduit **exactement**, en un `linear-gradient`, pour **zéro octet**. Rien n'est perdu à la traduction. Je la propose comme **filet de section**, à la place du trait neutre de la v1 :
+>
+> ```css
+> --rule-lamba: linear-gradient(to bottom,
+>   var(--color-bordeaux-700) 0 1px,  transparent 1px 3px,
+>   var(--color-bordeaux-700) 3px 6px, transparent 6px 8px,
+>   var(--color-bordeaux-700) 8px 9px);
+> /* hauteur 9 px, rythme 1/2/3/2/1 — relevé sur le lamba de DSC_3541 */
+> ```
+> Largeur **64 px**, pas la colonne entière : un onglet tissé, pas un surligneur. Sous chaque titre de section, 16 px en dessous.
+
+**La vigne de la ceinture — celui que je laisse.** Le motif de la ceinture tissée est une frise de volutes claires sur fond cramoisi. Contrairement à l'ourlet, c'est une forme **pleine et tissée**, pas un trait. Un SVG plat en donnerait une imitation de clipart, et à 1 px elle se boucherait. **On prend le dispositif qui survit au médium, on laisse celui qui n'y survit pas.**
+
+#### e) La tension « épuré » contre une référence chargée — comment je la tranche
+
+Le commanditaire dit **épuré**. Sa référence a huit ornements : coins fleuris sur trois panneaux, cadre heptagonal, script doré, cachet de cire, carte assortie fleurie. Ce n'est pas épuré, c'est dense. **Je ne fais pas la moyenne.** Je regarde à quoi il réagit dans cette référence, et ce n'est presque jamais la quantité d'ornement :
+
+| Ce à quoi il réagit | Reproductible ? | Décision |
+|---|---|---|
+| Le contraste de matières — bordeaux mat profond contre ivoire vif | Oui, et c'est **déjà épuré** | **Pris intégralement** |
+| L'or comme métal — le cachet, le filet fin | Oui, en **un** élément et non cinq | **Pris, rationné** |
+| Le geste — un objet qui s'ouvre | Oui, c'est tout le §8 | **Pris intégralement** |
+| Les fleurs à l'aquarelle | Oui, mais c'est du stock roumain | **Remplacées par leurs propres broderies** |
+
+**La réconciliation n'est pas « moins d'ornement que sa référence ». C'est *un* ornement au lieu de huit, et cet ornement est le sien.** L'argument à lui donner tel quel : la densité est bon marché sur papier — on tient l'objet, on voit tout d'un coup ; elle est chère sur un téléphone — on défile, et chaque ornement coûte un écran d'attention. Un motif tiré de la robe de sa fiancée bat une rose de banque d'images, et il en aura *plus*, pas moins.
+
+**Budget d'ornement de toute la page — quatre dispositifs, pas un de plus :**
+
+| # | Dispositif | Où | Combien de fois |
+|---|---|---|---|
+| 1 | Le filet doré 1 px en retrait sur la pochette, et l'arc doré du bord de l'encoche | scène uniquement | 2, pendant 2,5 s |
+| 2 | La pastille dorée — le cachet de cire | scène uniquement | 1, pendant 200 ms |
+| 3 | **Le motif d'ourlet** — or + bordeaux, 96 px | héros, sous les prénoms | **1** — la signature |
+| 4 | **Le filet `lamba`** — bordeaux, 64 × 9 px | sous chaque titre de section | n — c'est un dispositif **structurel**, et sa répétition est ce qui le rend structurel plutôt que décoratif |
+| 5 | Un filet doré nu 64 × 1 px | pied de page bordeaux 900 | 1 — le seul endroit où l'or est lumineux (**5,18:1**) |
+
+Les dispositifs 3 et 4 sortent du **même vêtement** : ils se lisent comme un système, pas comme deux ornements. Le 4 est ce qui porte l'identité **sous la ligne de flottaison**, sur une page de quatre écrans où un unique ornement dans le héros laisserait trois écrans nus.
 
 ---
 
@@ -185,7 +305,8 @@ Calcul WCAG 2.1 (luminance relative), vérifié par script.
 > **Règle d'emploi de l'or, exhaustive.** Trois usages, aucun autre.
 > 1. Un filet horizontal de 1 px sous les prénoms (héros et pied de page).
 > 2. Un filet de 1 px en retrait de 12 px sur le panneau avant de l'enveloppe, pendant la scène.
-> 3. Une pastille pleine de 24 px sur le rabat, qui se retire au premier temps de la scène.
+> 3. Une pastille pleine de 24 px — le cachet de cire — posée sur l'encoche de la pochette, qui se retire au premier temps de la scène.
+> 4. La tige du motif d'ourlet, 1 px, dans le héros. La fleur, elle, est en bordeaux (10,38:1) : la partie signifiante du motif ne repose jamais sur l'or.
 >
 > **Interdits, pour mémoire, y compris quand ça sera tentant :** icône signifiante, anneau de focus, bordure d'état actif, texte de tout corps, libellé de bouton, séparateur porteur de structure, **et filet sur `bordeaux-500` (2,37:1)**. La décision arrêtée le 2026-08-22 est confirmée sans réserve : la mesure la soutient.
 
@@ -526,85 +647,123 @@ Trois conséquences directes, à vérifier en revue de code :
 
 ---
 
-## 8. La chorégraphie de l'enveloppe, image par image
+## 8. La chorégraphie, image par image — **version pochette (révision 2)**
+
+> Remplace la version « enveloppe C6 à rabat » de la révision 1, conservée en **annexe B**. Motif du changement : §1.5.b.
 
 ### 8.1 La scène
 
-- **Surcouche** : `position: fixed; inset: 0; background: #3E1220` (bordeaux 900), `display: grid; place-items: center; padding-bottom: 8svh`, `contain: layout paint`, `pointer-events: none`.
-- **Enveloppe** : rapport **1,42:1** (proportion réelle d'une enveloppe C6, 162 × 114 mm).
+- **Surcouche** : `position: fixed; inset: 0; background: #F2EAE0` (crème), `display: grid; place-items: center`, `contain: layout paint`, `pointer-events: none`.
+  *Champ clair, pas sombre* — c'est la composition de sa référence (pochette bordeaux posée sur papier beige). Séparation pochette/fond : **9,22:1**. Une pochette bordeaux sur champ bordeaux n'aurait mesuré que **1,46:1**.
+- **Pochette** : rapport **1:1,4**, **portrait**.
 
 | | Mobile (< 768) | ≥ 768 |
 |---|---|---|
-| Enveloppe | **311 × 219** | **480 × 338** |
-| Carte à l'intérieur | 279 × 187 | 432 × 288 |
-| Hauteur du rabat | **96** (44 % de la hauteur) | 148 |
-| Course de sortie de la carte | **−64 px** | **−88 px** |
-| Pastille dorée | 24 px | 28 px |
+| Pochette | **280 × 392** | **380 × 532** |
+| Carte à l'intérieur | 256 × 368 | 348 × 500 |
+| Rayon de l'encoche | **44** | 56 |
+| **Course de montée de la carte** | **−140 px** | **−190 px** |
+| Pastille dorée (cachet) | 24 px | 28 px |
 
-- **Panneau arrière** : `#6E1F35` (bordeaux 700). Contraste avec la surcouche bordeaux 900 : la forme se détache sans coupure brutale.
-- **Panneau avant / la poche** : `#6E1F35`, opaque, `z-index: 3`. C'est lui qui masque la carte et lui donne l'air de sortir d'une poche.
-- **Filet doré** : 1 px `#B08D57`, en retrait de 12 px sur le panneau avant. **3,56:1 sur bordeaux 700** — usage graphique, conforme.
-- **Doublure du rabat** (la face intérieure) : `#8E3A50` (bordeaux 500). Elle n'apparaît qu'après le passage des 90°.
-- **Carte** : `#FBF8F4` (ivoire), `--shadow-card` **statique**, `--radius-surface` 4 px, `z-index: 2`.
-- **Sur le rabat fermé** : `Famille Raveloson` (`household.displayName`), Marcellus 20 px / 1,3, `#FBF8F4` — **10,38:1 sur bordeaux 700**. Sous le nom, 8 px plus bas : `INVITATION`, Source Sans 3 500, 11 px, `+0,18 em`, capitales, `#FBF8F4`. *(Ce libellé n'est pas en or : l'or ne porte jamais de texte.)*
-- **Sur la carte** : les deux prénoms en Marcellus 44 px `#3E1220`, le filet doré 96 × 1 px, la ligne de date en Marcellus 20 px `#6E1F35`. Rien d'autre. Le reste du héros (le nom du foyer en exergue, le lieu) n'est pas sur la carte — la carte est un fragment, la page est le tout.
+**Géométrie verticale, et pourquoi elle n'est pas centrée.** Sur 375 × 812, le centre du viewport est à `y = 406`. La carte doit **finir centrée** pour se confondre avec le héros. Elle monte de 140 px, donc :
+
+```
+carte au repos      : top = 362   (y 362 → 730)
+carte à l'arrivée   : top = 222   (y 222 → 590)  ← centrée
+pochette            : top = 350   (y 350 → 742)  ← 70 px du bas de l'écran
+encoche             : centrée sur y = 350, rayon 44
+```
+
+La pochette est donc **tenue basse**, et tout le tiers supérieur de l'écran est vide au premier plan. Ce vide n'est pas un défaut de composition : **c'est la place que la carte va occuper.** Le vide est une promesse.
+
+**Les couches, de l'arrière vers l'avant :**
+
+| z | Élément | Traitement |
+|---|---|---|
+| 1 | Dos de la pochette | `#6E1F35` |
+| 2 | Ombre portée de la carte | Élément **séparé**, même géométrie que la carte, portant `--shadow-card`. Séparé **exprès** : l'ombre doit pouvoir s'effacer en `opacity` (règle n° 3 interdit d'animer `box-shadow`). |
+| 3 | **La carte** | `#FBF8F4`, `--radius-surface` 4 px |
+| 4 | **Le panneau avant, avec l'encoche** | voir ci-dessous |
+| 5 | L'arc doré du bord de l'encoche | cercle de 88 px, `border: 1px solid #B08D57`, `border-radius: 50%`, débordement masqué par le panneau — seul l'arc visible apparaît. **3,56:1 sur bordeaux 700**, décoratif, conforme |
+| 6 | La pastille dorée | disque plein `#B08D57` de 24 px, centré sur l'encoche, sur le bord supérieur |
+
+**Le panneau avant et son encoche** — c'est le cœur du mécanisme, et il tient en trois lignes :
+
+```css
+.pochette-avant {
+  background: radial-gradient(120% 80% at 50% 0%, #7E2A3E 0%, #6E1F35 46%, #571828 100%);
+  -webkit-mask-image: radial-gradient(circle 44px at 50% 0, transparent 0 44px, #000 44px);
+          mask-image: radial-gradient(circle 44px at 50% 0, transparent 0 44px, #000 44px);
+}
+```
+
+- Le **masque est statique** : rastérisé une fois, jamais animé.
+- **Aucun `overflow` n'est nécessaire.** Le panneau ne couvre que le rectangle de la pochette ; au-dessus de son bord supérieur, la carte est libre de monter. Le bas de la carte reste caché derrière le panneau, sauf le croissant visible par l'encoche. Le mécanisme se dessine tout seul, sans une seule règle de découpe.
+- **Le dégradé est un modelé de lumière, pas un ornement.** Il suggère le velours de sa référence — une pièce mate éclairée par le haut. Amplitude totale : 8 points de valeur (L 30 % → L 22 %). L'ivoire reste à **8,67:1** au point le plus clair du dégradé. Ce n'est pas un dégradé de marque, c'est une source lumineuse.
+
+**Ce qui est écrit sur la pochette :** `Famille Raveloson` (`household.displayName`), Marcellus 20 px / 1,3, `#FBF8F4` (**8,67 à 12,66:1** selon la zone du dégradé), centré à 40 % de la hauteur du panneau. 12 px plus bas : `INVITATION`, Source Sans 3 500, 11 px, `+0,18 em`, capitales, `#FBF8F4`. *(Pas en or : l'or ne porte jamais de texte — c'est exactement l'écart assumé avec sa référence, où les prénoms sont dorés.)*
+Filet doré 1 px en retrait de 12 px du bord du panneau.
+
+**Ce qui est sur la carte :** les deux prénoms en Marcellus 44 px `#3E1220`, le motif d'ourlet 96 px, la ligne de date en Marcellus 20 px `#6E1F35`. **Rien d'autre.** La carte est un fragment ; la page est le tout.
 
 ### 8.2 La séquence
 
-Toutes les valeurs `transform` et `opacity`. Aucune autre propriété n'est animée.
+Toutes les valeurs sont des `transform` et des `opacity`. **Aucune autre propriété n'est animée. Aucune transformation 3D.**
 
 | # | t (ms) | Durée | Ce qui bouge | De → vers | Easing |
 |---|---|---|---|---|---|
-| 1 | **0** | **320** | L'enveloppe entière | `opacity 0 → 1` · `scale(0.96) → scale(1)` · `translateY(8px) → 0` | `--ease-in` |
-| 2 | **320** | **240** | *Rien* | — | — |
-| 3 | **560** | **160** | La pastille dorée | `scale(1) → scale(0.6)` · `opacity 1 → 0` | `--ease-out` |
-| 4 | **640** | **640** | Le rabat | `rotateX(0) → rotateX(-172deg)` · `z-index 4 → 1` à 50 % | `--ease-in` |
-| 5 | **1120** | **600** | La carte | `translateY(0) → translateY(-64px)` (mobile) / `-88px` (≥768) | `--ease-in` |
-| 6 | **1560** | **600** | Le champ bordeaux **et** l'enveloppe | surcouche `opacity 1 → 0` · enveloppe `opacity 1 → 0` et `translateY(0) → 24px` | `--ease-out` |
-| 7 | **2160** | **160** | La carte | `opacity 1 → 0` | `--ease-out` |
-| 8 | **2320** | **280** | Le filet doré **de la page** | `scaleX(0) → scaleX(1)`, origine `50% 50%` | `--ease-in` |
-| — | **2600** | — | Surcouche retirée du DOM | — | — |
+| 1 | **0** | **320** | La pochette entière (carte comprise) | `opacity 0 → 1` · `scale(0.97) → 1` · `translateY(16px) → 0` | `--ease-in` |
+| 2 | **320** | **200** | *Rien* — temps de lecture du nom du foyer | — | — |
+| 3 | **520** | **200** | La pastille dorée | `scale(1) → scale(0.5)` · `opacity 1 → 0` | `--ease-out` |
+| 4 | **680** | **640** | **La carte monte** | `translateY(0) → translateY(-140px)` mobile · `-190px` ≥768 | `--ease-in` |
+| 5 | **1320** | **160** | *Rien* — temps de lecture des prénoms | — | — |
+| 6 | **1480** | **600** | La pochette, l'ombre de la carte **et** le champ crème | pochette `opacity 1 → 0` et `translateY(0) → 48px` · ombre `opacity 1 → 0` · surcouche `opacity 1 → 0` | `--ease-out` |
+| 7 | **2080** | **160** | La carte | `opacity 1 → 0` | `--ease-out` |
+| 8 | **2240** | **320** | **Le motif d'ourlet**, sur la page | conteneur `overflow: hidden` · SVG `translateX(-100%) → 0` | `--ease-in` |
+| — | **2560** | — | Surcouche retirée du DOM | — | — |
+
+**Trois éléments animés au total** (la pochette, la carte, la pastille), contre cinq en v1. Deux temps de lecture. 2 560 ms.
 
 ### 8.3 Ce que l'invité voit, et pourquoi
 
 **Image 1 — 0 à 320 ms. « C'est pour moi. »**
-L'invité ne voit jamais un champ bordeaux vide : l'enveloppe arrive dès la première image, portant **son propre nom de famille**. C'est le seul enseignement de Paperless Post que je reprends, et c'est le plus important. Une entrée de 320 ms en `--ease-in` : rapide, sans emphase, l'objet est simplement là.
+Il ne voit jamais un champ vide : la pochette arrive dès la première image, portant **son propre nom de famille**. C'est le seul enseignement de Paperless Post que je reprends, et c'est le plus important. Le croissant d'ivoire visible par l'encoche annonce déjà qu'il y a quelque chose dedans.
 
-**Image 2 — 320 à 560 ms. Le temps mort.**
-240 ms où rien ne bouge. C'est délibéré et c'est la partie que tous les tutoriels sautent. Sans cette pause, la séquence est perçue comme un indicateur de chargement — quelque chose que la machine fait pendant qu'on attend. Avec elle, l'invité a le temps de lire son nom et la séquence est perçue comme un objet qu'on lui tend. 240 ms est le temps de fixation d'un mot court en lecture.
+**Image 2 — 320 à 520 ms. Le temps mort.**
+200 ms où rien ne bouge. Délibéré, et c'est la partie que tous les tutoriels sautent. Sans cette pause, la séquence est lue comme un indicateur de chargement — ce que la machine fait pendant qu'on attend. Avec elle, elle est lue comme un objet qu'on vous tend. 200 ms est l'ordre de grandeur d'une fixation de lecture sur un nom court.
 
-**Image 3 — 560 à 720 ms. La pastille se retire.**
-Le disque doré de 24 px sur la pointe du rabat rétrécit à 60 % et disparaît en 160 ms, en easing de sortie. Ce n'est pas un sceau de cire embossé — pas de monogramme, pas de relief, pas de texture. Un disque plein. C'est l'usage le plus concentré possible de l'or : un point, et il s'en va. C'est aussi le signal de causalité : quelque chose vient d'être retiré, donc l'enveloppe peut s'ouvrir.
+**Image 3 — 520 à 720 ms. Le cachet se retire.**
+Le disque doré de 24 px posé sur l'encoche rétrécit à 50 % et disparaît. C'est **le cachet de cire de sa référence n° 1**, réduit à sa forme : un disque plein, sans monogramme, sans relief, sans texture. L'usage le plus concentré possible de l'or — un point, et il s'en va.
+**Et c'est le signal de causalité :** le cachet ferme la bouche de la pochette. Il part, donc la carte peut monter. Rien dans la scène n'arrive sans cause.
 
-**Image 4 — 640 à 1280 ms. Le rabat s'ouvre.**
-Recouvre la pastille de 80 ms : c'est un geste, pas une file d'attente. `rotateX` autour de `transform-origin: 50% 0%`, sur un parent en `perspective: 1400px`. La face intérieure `#8E3A50` apparaît au passage des 90° — le rabat a une doublure, comme sur du papier.
+**Image 4 — 680 à 1320 ms. La carte monte.**
+Recouvre le cachet de 40 ms : c'est un geste, pas une file d'attente.
+**Une seule `translateY`.** Pas de rotation, pas de perspective, pas de `preserve-3d`, pas de `backface-visibility`, pas de `z-index` qui saute en cours de keyframe. C'est la totalité du gain de la version pochette : la classe de risque qui produit le symptôme iOS Safari du §1.1 **n'existe plus**, parce qu'aucun texte n'est jamais soumis à une transformation 3D.
+Le bas de la carte reste derrière le panneau, le croissant de l'encoche laisse glisser un fragment du contenu — un détail que sa référence a par accident et qui est joli.
+640 ms : dans la bande « Scène » du design system, et c'est le mouvement le plus long de la séquence, ce qui est correct — c'est l'événement principal.
 
-- **−172° et non −180° :** à 180° pile, le rabat devient coplanaire avec le dos de l'enveloppe et WebKit produit un scintillement de tri de profondeur. Les 8° restants se lisent comme un rabat réellement ouvert et suppriment l'artefact.
-- **`z-index` de 4 à 1 au palier 50 %** de la keyframe (t = 960 ms) : le rabat doit passer derrière la poche une fois ouvert. Le saut est invisible parce qu'à cet instant précis le rabat est vu par la tranche.
-- **`backface-visibility: hidden`** sur les deux faces, empilées et l'une tournée de 180°. `transform-style: preserve-3d` **uniquement** sur le conteneur du rabat — nulle part ailleurs, le 3D coûte cher en compositing.
-- 640 ms : dans la bande « Scène » du design system, et suffisamment lent pour que le rabat ait l'air d'avoir une masse. Plus court, il claque ; plus long, on attend.
+**Image 5 — 1320 à 1480 ms. Le second temps mort.**
+160 ms. Les prénoms sont sortis, l'invité les lit, la pochette est encore là. Sans ce battement, l'emballage disparaît avant qu'on ait regardé ce qu'il contenait.
 
-**Image 5 — 1120 à 1720 ms. La carte sort.**
-Démarre à 75 % de la rotation du rabat. Ce recouvrement est ce qui fait lire l'ensemble comme un seul geste continu au lieu de trois étapes enchaînées.
+**Image 6 — 1480 à 2080 ms. Tout part sauf la carte.**
+Le champ crème s'efface, la pochette s'efface **et descend de 48 px** — elle retombe, elle a fait son travail — et l'ombre de la carte s'efface avec elle. La carte reste **rigoureusement immobile**.
+**C'est cette immobilité qui fait la scène.** Tout ce qui part est de l'emballage ; ce qui reste est la chose. Si la carte bougeait aussi, on aurait un générique de début ; comme elle ne bouge pas, on a un objet qu'on vient de sortir de sa pochette.
 
-**Translation pure. La carte ne pivote pas.** C'est le correctif direct du symptôme iOS Safari relevé au §1.1 : une carte qui porte du texte et qui pivote en 3D est re-rastérisée à chaque image sur WebKit. En translation, la couche est mise en cache une fois et déplacée par le compositeur. La référence de Saahil Jaffer ajoute un `rotate` à la carte — je ne le reprends pas, et c'est une divergence assumée.
+**Image 7 — 2080 à 2240 ms. La carte se confond avec la page.**
+Elle s'efface en 160 ms. Derrière elle, le héros porte les mêmes prénoms, au même corps, à la même place, sur le même ivoire. Le fondu est **doublement** imperceptible : l'ombre est déjà partie, et une carte ivoire sans ombre sur un champ crème mesure **1,13:1**. Il n'y a rien à raccorder.
 
-**Image 6 — 1560 à 2160 ms. Le champ se retire, la carte ne bouge pas.**
-La surcouche bordeaux s'efface, l'enveloppe s'efface **et descend de 24 px** — elle retombe, elle a fait son travail. La carte, elle, reste rigoureusement immobile. **C'est cette immobilité qui fait la scène.** Tout ce qui part est de l'emballage ; ce qui reste est la chose. Si la carte bougeait aussi, on aurait un générique ; comme elle ne bouge pas, on a un objet qu'on vient de sortir de son enveloppe.
+**Image 8 — 2240 à 2560 ms. Le motif se déroule.**
+Le motif d'ourlet — la tige dorée et la fleur bordeaux, 96 px — se **découvre de gauche à droite** : le SVG passe de `translateX(-100%)` à `0` dans un conteneur en `overflow: hidden`.
+**Pourquoi pas `stroke-dashoffset`**, qui serait le réflexe pour « tracer » un trait : ce n'est ni `transform` ni `opacity`, c'est une propriété de peinture, et elle force un repaint du tracé à chaque image. La règle n° 3 l'interdit. La translation sous masque produit le même effet **sur le compositeur**.
+**C'est la signature.** L'unique ornement du héros est celui que la pochette dépose en partant, et il est tiré de l'ourlet de sa robe. Un ornement qui a une cause narrative n'est plus une décoration.
 
-**Image 7 — 2160 à 2320 ms. La carte se confond avec la page.**
-La carte s'efface en 160 ms. Derrière elle, le héros de la page porte les mêmes prénoms, au même corps, à la même place, sur le même ivoire. Le fondu est imperceptible : il n'y a rien à raccorder. La surcouche est retirée du DOM.
-
-**Image 8 — 2320 à 2600 ms. Le filet se trace.**
-Le trait doré de 96 × 1 px sous les prénoms passe de `scaleX(0)` à `scaleX(1)` depuis son centre, en 280 ms. **C'est la signature.** L'unique ornement de toute l'identité est celui que l'enveloppe dépose en partant. Un ornement qui a une cause narrative n'est plus une décoration.
-
-**Total : 2 600 ms.** L'invité lit son nom à 0 ms et les prénoms des mariés à 1 120 ms. Il n'attend jamais : il regarde.
+**Total : 2 560 ms.** L'invité lit son nom à 0 ms, les prénoms à 1 320 ms. Il n'attend jamais : il regarde.
 
 ### 8.4 Les issues de secours — la partie qui décide si la fonctionnalité est acceptable
 
-**Interruption.** Un bouton `Passer l'animation` en haut à droite, présent **dès t = 0**, focusable, cible 44 × 44 px minimum, texte `#FBF8F4` sur `#3E1220` (15,12:1), anneau de focus `#FBF8F4`.
+**Interruption.** Un bouton `Passer l'animation` en haut à droite, présent **dès t = 0**, focusable, cible 44 × 44 px minimum. Le champ étant crème depuis la révision 2 : texte `#6E1F35` sur `#F2EAE0` (**9,22:1**), anneau de focus `#6E1F35`.
 Interrompent également : `pointerdown`, `keydown`, `wheel`, `touchmove`, `scroll` sur `window`.
-L'interruption applique une classe `.scene-done` : la surcouche passe en `opacity: 0` sur **200 ms**, puis est démontée sur `transitionend`. Le filet doré de la page apparaît alors **directement à `scaleX(1)`, sans animation** — l'invité a demandé moins, on lui donne moins.
+L'interruption applique une classe `.scene-done` : la surcouche passe en `opacity: 0` sur **200 ms**, puis est démontée sur `transitionend`. Le motif d'ourlet de la page apparaît alors **directement en place, sans animation** — l'invité a demandé moins, on lui donne moins.
 
 **`prefers-reduced-motion: reduce`.** La surcouche **n'est pas montée du tout** (test `matchMedia` avant le rendu, pas une animation neutralisée après coup). L'invité arrive sur la page finie, filet doré compris, immédiatement. Ce n'est pas une version dégradée : c'est la même page, sans le préambule. Plus, globalement :
 
@@ -635,10 +794,11 @@ Clé indexée sur le `linkId` : sur un téléphone partagé, l'ouverture du lien
 **Rejeu :** un bouton texte `Revoir l'ouverture` dans le pied de page, Source Sans 3 14 px, `#FBF8F4` souligné sur la bande bordeaux 900. Il vide la clé et remonte la surcouche.
 
 **Performance.**
-- 5 éléments animés, `transform` et `opacity` exclusivement.
-- `will-change: transform, opacity` sur le rabat et la carte **uniquement**, posé au montage et **retiré au démontage**. Un `will-change` laissé en place promeut une couche à vie et coûte de la mémoire sur les téléphones d'entrée de gamme.
-- Aucun `filter`, aucun `backdrop-filter` : coût de compositing prohibitif sur iOS et incompatible avec un rendu à 60 images/s sur mobile d'entrée de gamme.
-- `box-shadow` **statique**. Jamais animée.
+- **3 éléments animés**, `transform` et `opacity` exclusivement. **Aucune transformation 3D nulle part.**
+- `will-change: transform` sur **la carte uniquement**, posé au montage et **retiré au démontage**. Un `will-change` laissé en place promeut une couche à vie et coûte de la mémoire sur les téléphones d'entrée de gamme.
+- Aucun `filter`, aucun `backdrop-filter` : coût de compositing prohibitif sur iOS.
+- `box-shadow` **statique**, portée par un élément séparé dont on anime l'`opacity`. Jamais animée directement.
+- Le masque de l'encoche est **statique** : rastérisé une fois.
 - `contain: layout paint` sur la surcouche.
 
 **Critère de recette :** en throttling CPU ×6 dans les outils de développement, la scène doit tenir **≥ 50 images/s** et ne provoquer **aucun** événement de layout dans le panneau Performance.
@@ -683,7 +843,8 @@ Rappel du parti (§1.4) : **le héros est centré, tout ce qui suit est aligné 
 │                 &                    │  ← Marcellus 28 · bordeaux-700
 │              [Prénom]                │
 │                                      │     24px
-│         ──────────────               │  ← FILET DORÉ 96×1px  ★ signature
+│         ⌇⌇⌇⌇✿                        │  ← MOTIF D'OURLET 96px  ★ signature
+│                                      │     tige or #B08D57 · fleur #6E1F35
 │                                      │     24px
 │      samedi 12 juin 2027, 18 h       │  ← Marcellus 20 · bordeaux-700
 │     Domaine d'Ambohimanga            │  ← Source Sans 16 · ink-muted
@@ -758,11 +919,11 @@ Rappel du parti (§1.4) : **le héros est centré, tout ce qui suit est aligné 
 
 **§1 — Le héros.** `min-height: 100svh` (`svh`, pas `vh` : la barre d'adresse mobile fausse `vh` et coupe le bas). Fond ivoire. Contenu centré verticalement et horizontalement, `padding: 0 24px`.
 
-L'exergue est **le nom du foyer** — `household.displayName`, en capitales, Source Sans 3 500, 12 px, `+0,16 em`, `ink-muted` (6,03:1). C'est la même chaîne que sur le rabat de l'enveloppe. La page s'ouvre en nommant son lecteur : c'est la seule information de la page qui soit propre à ce lien, et c'est ce qui fait passer une page web pour du courrier.
+L'exergue est **le nom du foyer** — `household.displayName`, en capitales, Source Sans 3 500, 12 px, `+0,16 em`, `ink-muted` (6,03:1). C'est la même chaîne que sur la face de la pochette. La page s'ouvre en nommant son lecteur : c'est la seule information de la page qui soit propre à ce lien, et c'est ce qui fait passer une page web pour du courrier.
 
 Les prénoms : voir la règle de dimensionnement §4.3. L'esperluette sur sa propre ligne, Marcellus 28 px (mobile) / 40 px (≥768), `bordeaux-700`, 8 px d'air au-dessus et au-dessous. *(L'esperluette de Marcellus mesure 0,77 em — c'est un beau dessin, il mérite sa ligne.)*
 
-Le filet doré : `width: 96px; height: 1px; background: #B08D57`, centré, 24 px de part et d'autre. À `scaleX(0)` au repos si la scène va jouer, à `scaleX(1)` sinon.
+**Le motif d'ourlet** (révision 2 — remplace le filet doré nu) : SVG en ligne, 96 px de large (128 px ≥ 768), centré, 24 px de part et d'autre. Tige `#B08D57`, fleur `#6E1F35`, `stroke-width: 1.25`, `fill: none`. Spécification complète au §1.5.d. Dans un conteneur `overflow: hidden` ; au repos il est à `translateX(-100%)` si la scène va jouer, à `0` sinon.
 
 La date en Marcellus 20 px `bordeaux-700`, le lieu en Source Sans 3 16 px `ink-muted`.
 
@@ -775,7 +936,7 @@ Si `memberNames` est vide : le libellé et les prénoms disparaissent, la ligne 
 **§3 — La photo.** Voir §10. Si aucune photo n'est fournie, **la bande est absente** et les 96 px de part et d'autre fusionnent en 96 px. La page est conçue pour tenir sans elle.
 
 **§4 — Les informations pratiques.** Bande crème `#F2EAE0` **pleine largeur** (bord à bord, elle traverse la gouttière), contenu dans la colonne de 520 px, `padding: 64px 24px`.
-Titre `Le jour J` en Marcellus 28/32 px `bordeaux-900`, aligné à gauche, suivi 16 px plus bas d'un filet `--color-rule` de 1 px sur toute la colonne.
+Titre `Le jour J` en Marcellus 28/32 px `bordeaux-900`, aligné à gauche, suivi 16 px plus bas du **filet `lamba`** — 64 × 9 px, `--color-bordeaux-700`, rythme 1/2/3/2/1 relevé sur leur `lamba` (§1.5.d). *Révision 2 : remplace le trait `--color-rule` pleine colonne.* Même traitement pour tous les titres de section de la page.
 Puis la `<dl>` : `dt` = libellé 12 px capitales `+0,16 em` `ink-muted` · 8 px · `dd` = Source Sans 3 17 px / 1,55 `ink`. **32 px entre les entrées, et aucun filet entre elles** — les capitales structurent déjà.
 Les quatre entrées ne sont rendues que si le champ est rempli (comportement actuel, correct, à conserver).
 
@@ -824,23 +985,57 @@ Estimation à 375 × 812, photo comprise :
 
 ---
 
-## 10. Les photos : ce dont j'ai besoin
+## 10. Les photos — **réécrit en révision 2, les fichiers sont arrivés**
 
-Aucune photo n'a encore été fournie. Voici la commande exacte.
+### 10.1 Le choix
 
-**Une seule photo. Un seul emplacement.** Bande pleine largeur entre le bloc d'adressage et les informations pratiques. Pas de photo dans le héros : un texte posé sur une image demande un voile, et un voile sur une identité bordeaux/ivoire la salit. Pas de seconde photo : on en retire une plutôt que d'en ajouter une.
+| Fichier | Verdict |
+|---|---|
+| `old images - fiancailles/DSC_3541.jpg` — 6016 × 4016 | **Retenu.** C'est la photo de la page. |
+| `old images - fiancailles/DSC_3536.jpg` — 4016 × 6016 | Réserve. Le couple y est encore plus petit dans le cadre, et le bâtiment mange les deux tiers hauts. |
+| `old images - fiancailles/DSC_2817.jpg` — 6016 × 4016 | Non examiné en détail, du même reportage. À regarder si `3541` ne suffit pas. |
+| `WhatsApp…(2)` et `(3)` — plage | **Écartés de la composition principale.** Dominante bleu-vert, t-shirts blancs, registre d'instantané. Ils se battraient avec le bordeaux et rompraient le registre. Ils pourraient servir ailleurs (un remerciement après le mariage), pas ici. |
+
+### 10.2 Le recadrage — la découverte utile
+
+**Le problème apparent** de `DSC_3541` — verrière baignée de LED magenta, haies très vertes, couple occupant 19 % de la largeur — **disparaît en recadrant serré.** J'ai produit et regardé le recadrage ; à hauteur de buste, il ne reste que des carnations, de l'ivoire et du bordeaux. La verrière devient un flou mauve très désaturé qui fonctionne comme une atmosphère, pas comme une couleur concurrente. Les haies sortent du cadre. **Le recadrage serré est déjà dans la palette.**
+
+**Deux recadrages art-dirigés, pas un `object-position`.** Le couple est trop petit dans le cadre d'origine pour qu'un seul `cover` serve à la fois le portrait mobile et le paysage bureau.
+
+| Sortie | Rapport | Rectangle source dans `DSC_3541.jpg` | Contenu |
+|---|---|---|---|
+| **Mobile** (< 768) | **3:4** | `x=2860 y=1500 w=1050 h=1400` | Le couple à mi-cuisse. Broderie de ceinture, motif de jupe, `lamba` et pochette tous lisibles. **Recadrage vérifié.** |
+| **Bureau** (≥ 768) | **3:2** | à cadrer, base `x≈2100 y≈1450 w≈2550 h≈1700` | Plan plus large. À valider — il réintroduit une partie de la verrière ; réduire encore si la dominante mauve remonte. |
+
+Servis par `<picture>` avec deux `<source media>` — **direction artistique, pas simple redimensionnement**.
+
+### 10.3 L'étalonnage — ce qu'il faut, et qui le fait
+
+**Un `filter` CSS n'est pas une réponse.** Appliqué à une photo de personnes, `sepia()` / `saturate()` / `hue-rotate()` déplace les carnations. Il faut des **JPEG étalonnés**, livrés.
+
+Cibles chiffrées, mesurables après coup :
+
+| Ce qu'il faut corriger | Relevé actuel | Cible |
+|---|---|---|
+| Balance des blancs et exposition sur le tissu ivoire de la robe | **`#C8C5CC`** — bleu-magenta et sous-exposé | **≈ `#F4F0EA`** — ivoire chaud, L ≈ 93 % |
+| Rouge des broderies | `#8B011B` sous la dominante | **≈ `#9C1B33`** — un cramoisi voisin du bordeaux |
+| Fond mauve de la verrière | saturé par le bandeau LED | désaturer de **~30 %** |
+| Verts des haies | très saturés | **hors cadre** grâce au recadrage 3:4 ; à défaut, désaturer de 30 % |
+
+> **Qui fait l'étalonnage — à trancher.** Le plus propre est de le demander au photographe qui a les fichiers RAW. Sinon, un passage manuel sur les deux recadrages suffit ; ce n'est pas un sauvetage, c'est un réchauffement.
+
+### 10.4 L'emplacement et la production
+
+**Une seule photo, un seul emplacement.** Bande pleine largeur, bord à bord, entre le bloc d'adressage et les informations pratiques. Pas de photo dans le héros : un texte posé sur une image demande un voile, et un voile sur une identité bordeaux/ivoire la salit. **Pas de seconde photo** — on en retire une plutôt que d'en ajouter une.
 
 | Exigence | Valeur |
 |---|---|
-| **Cadrage** | Le couple, **cadrage horizontal**, avec de la marge au-dessus des têtes et sur les côtés. Le même fichier doit se recadrer en **4/5** (mobile) et **3/2** (≥ 768) via `object-fit: cover; object-position: 50% 35%` sans couper un visage. |
-| **Définition source** | **2400 × 1600 px minimum**, sRGB. |
-| **Livraison** | JPEG qualité 90 ou fichier d'origine. **Sans texte incrusté, sans filigrane, sans cadre, sans logo de photographe.** |
-| **Colorimétrie** | Étalonnage **chaud à neutre**. Une photo à dominante bleue ou verte prononcée se battra avec le bordeaux. Si la dominante est froide, j'applique un multiply fixe `#3E1220` à 6 % — **statique, jamais animé**. |
-| **Ce que je produis** | AVIF + WebP + JPEG, trois largeurs (480 / 960 / 1440), servis par `<picture>` + `srcset` + `sizes`. Cible : **≤ 120 Ko** pour l'AVIF 960. `loading="lazy"`, `decoding="async"`, `width`/`height` déclarés pour réserver la place. |
-| **Traitement** | Aucun arrondi, aucune ombre, aucun cadre, aucune légende. La bande est bord à bord. |
-| **En plus** | Un recadrage **1200 × 630** pour l'aperçu de lien. L'invitation arrive par message : la vignette est la première chose vue, avant même la page. C'est un livrable à part entière. |
+| **Ce que je produis** | AVIF + WebP + JPEG, trois largeurs (480 / 960 / 1440) pour chacun des deux recadrages, en `<picture>` + `srcset` + `sizes`. Cible **≤ 120 Ko** pour l'AVIF 960. `loading="lazy"`, `decoding="async"`, `width`/`height` déclarés pour réserver la place. |
+| **Traitement** | Aucun arrondi, aucune ombre, aucun cadre, aucune légende. |
+| **Aperçu de lien** | Un recadrage **1200 × 630** en plus. L'invitation arrive par message : la vignette est la première chose vue, **avant** la page. C'est un livrable à part entière, pas une option. |
+| **Ce que je demande en plus** | **Une photo à plat de l'ourlet brodé de la robe** — vêtement posé, lumière égale, prise perpendiculaire, ~2000 px de large. Elle ne va pas dans la page : elle sert à **tracer le motif de signature** (§1.5.d). Sans elle, je trace depuis `DSC_3541` et le motif sera une lecture stylisée, pas un relevé fidèle. |
 
-**Si aucune photo n'arrive :** la bande est absente et la page est complète sans elle. Le héros et le filet doré portent seuls. Ce n'est pas un repli de secours — c'est un état conçu.
+**Si le commanditaire refuse la photo :** la bande est absente et la page est complète sans elle. Le héros, le motif d'ourlet et le filet `lamba` portent seuls. Ce n'est pas un repli de secours — c'est un état conçu.
 
 ---
 
@@ -874,6 +1069,51 @@ Mêmes jetons, registre inversé : **dense, sobre, rien ne bouge.**
 | **6** | **L'olive `#3F5D45`** ajoutée pour le statut `CONFIRMED` en admin. C'est une quatrième teinte hors palette. | Acceptée, contenue au back-office, jamais côté invité. L'alternative monochrome (trois puces bordeaux différenciées par la forme seule) est possible mais ralentit le balayage d'un tableau de 40 lignes. | Les puces de statut. |
 | **7** | **Le fuseau affiché.** `(heure de Madagascar)` en permanence après l'heure. | Oui — permanent plutôt que conditionnel. | Le rendu de la date, qui est déjà à corriger pour le bug de fuseau. |
 | **8** | **Afficher `allocatedSeats` à l'invité** (« 2 places vous sont réservées »). Ce n'est aujourd'hui jamais montré. | Oui, à deux endroits : le bloc d'adressage et sous le sélecteur de convives. | Deux lignes de la composition. |
+
+### Arbitrages ajoutés en révision 2
+
+| # | Question | Ma recommandation | Ce qui est bloqué sans réponse |
+|---|---|---|---|
+| **9** | **Le doré.** La décision arrêtée le 2026-08-22 fixe `#B08D57` et je ne la rouvre pas. Mais j'ai relevé le doré de **sa propre référence** : le script de la pochette de velours est **`#AC784C`**. Il mesure **3,58:1 sur ivoire** là où `#B08D57` échoue à **2,92:1** — il franchit donc le seuil 3:1 des éléments non textuels. En contrepartie il descend à 4,23:1 sur bordeaux 900 (contre 5,18) et reste sous 4,5 : **il ne porterait toujours jamais de texte.** Ce n'est pas « assombrir l'or pour le rendre utilisable » — c'est *son* or, et il se trouve qu'il est plus lisible. | **Signalé, pas décidé.** Ma préférence va à `#B08D57` par respect de la décision arrêtée : `#AC784C` est plus orangé (H 27° contre 36°) et perd un peu du caractère patiné. Mais le commanditaire mérite de savoir que sa propre référence est plus conforme que notre jeton. | Rien. Un changement d'une ligne dans `@theme`, à tout moment. |
+| **10** | **La pochette à encoche remplace l'enveloppe à rabat.** Décision technique et de composition, argumentée au §1.5.b. | Oui, sans réserve. Elle supprime toute la classe de risque 3D et le geste est vertical, comme l'écran. | Le §8, donc toute l'intégration de la scène. **À valider avant d'écrire une ligne de CSS.** |
+| **11** | **Le motif d'ourlet comme signature**, tiré de la broderie de la robe, en remplacement du filet doré nu. Et le **filet `lamba`** comme filet de section. | Oui aux deux. C'est ce qui distingue leur invitation de tous les faire-part bordeaux du web, et ça ne pèse rien. | Le tracé du motif — et il me faut **une photo à plat de l'ourlet** (§10.4). |
+| **12** | **Les aquarelles florales et le cadre heptagonal de sa référence sont abandonnés.** À lui dire explicitement, avec l'argument du §1.5.e : la densité est bon marché sur papier, chère sur un téléphone, et un motif tiré de la robe de sa fiancée bat une rose de banque d'images. | Assumer la conversation plutôt que de livrer un écart silencieux. C'est le point le plus susceptible de le surprendre. | Rien techniquement. Tout, en confiance. |
+| **13** | **Qui étalonne les photos** — le photographe sur les RAW, ou nous sur les JPEG ? Cibles chiffrées au §10.3. | Le photographe, si les RAW sont accessibles. | La bande photo. La page fonctionne sans. |
+
+---
+
+## 13. La suite — état au moment de la révision 2
+
+### Ce qui est terminé
+
+§1 recherche · §1.5 références et photos du commanditaire · §2 parti pris · §3 palette complète avec tous les ratios mesurés · §4 typographie complète avec métriques, échelle, chargement et replis · §5 espacement · §6 mouvement · §7 architecture de la scène · §8 chorégraphie version pochette · §10 photos · §11 admin · §12 arbitrages.
+
+Le §9 (composition) a été mis en cohérence avec la révision 2 : le filet doré nu du héros est devenu le motif d'ourlet, et le trait neutre sous les titres de section est devenu le filet `lamba`. **Il ne subsiste aucune contradiction connue dans le document.**
+
+### Ce qui reste à faire, dans l'ordre
+
+1. **Tracer le motif d'ourlet en SVG**, après réception de la photo à plat de l'ourlet (§10.4). Sans elle, tracé stylisé depuis `DSC_3541`, à assumer devant le commanditaire.
+2. **Produire les deux recadrages étalonnés** (§10.2, §10.3) et leurs six dérivés AVIF/WebP/JPEG, plus la vignette 1200 × 630.
+3. **Valider le recadrage 3:2 bureau** — le rectangle donné au §10.2 est une base, pas un relevé : il réintroduit une partie de la verrière mauve. Le 3:4 mobile, lui, est vérifié.
+4. **Faire valider les arbitrages 3, 10, 11 et 12** — ce sont les quatre qui bloquent réellement. Le n° 3 (les prénoms exacts) est le plus dur : il conditionne le dimensionnement du héros, la carte de la scène, le pied de page, le `<title>` et l'aperçu de lien.
+5. **Annexe B** — la chorégraphie « enveloppe C6 à rabat » de la révision 1 n'a pas été recopiée en annexe faute de budget. Elle est intégralement récupérable dans l'historique git de ce fichier (premier commit de `docs/design/`). Son intérêt est documentaire : elle explique *pourquoi* la version pochette a été préférée, argument par argument, au §1.5.b — lequel suffit en pratique.
+
+### Les décisions qui ne se devinent pas en relisant le document
+
+Cinq raisonnements qui ont coûté cher à établir et qu'un relecteur pressé défera sans le savoir.
+
+1. **La carte de la scène et le héros de la page sont le même dessin, à la même place.** Ce n'est pas une coïncidence de maquette : c'est ce qui permet au fondu final de n'avoir *rien à raccorder*. Si quelqu'un « améliore » le héros sans toucher la carte, ou l'inverse, la scène se met à sauter et personne ne comprendra pourquoi. **Les deux doivent partager le même composant.**
+2. **La pochette est tenue basse, pas centrée.** `top: 350` sur 812, soit 70 px du bas. C'est calculé pour que la carte, après ses 140 px de montée, **finisse centrée**. Recentrer la pochette « parce que c'est plus propre » casse le point n° 1.
+3. **L'ombre de la carte est un élément séparé.** Elle n'est pas un `box-shadow` sur la carte. Elle est isolée pour pouvoir s'effacer en `opacity`, la règle n° 3 interdisant d'animer une ombre. Fusionner les deux éléments « pour simplifier le DOM » réintroduit une animation de peinture.
+4. **Le champ de la scène est crème, pas bordeaux.** J'ai écrit la v1 avec une surcouche bordeaux plein écran, puis je l'ai abandonnée en voyant sa référence : elle photographie la pochette **sur un papier beige**. Le champ clair donne 9,22:1 de séparation contre 1,46:1, et rend le fondu final invisible. Le bordeaux profond n'a pas disparu — il est au pied de page, où l'or mesure 5,18:1.
+5. **Le `setTimeout(dismiss, 3200)` n'est pas une ceinture et bretelles.** C'est ce qui empêche un défaut de peinture de transformer l'invitation en écran bloqué. `animationend` n'est pas garanti. **Ne pas le retirer**, même si les tests passent sans lui.
+
+### Les pièges de cet environnement, pour le suivant
+
+- **Les captures d'écran ne fonctionnent pas.** Tout ce qui est mesuré ici l'a été par `getComputedStyle`, par canevas via `javascript_tool`, et par téléchargement effectif des fichiers de police. C'est plus fiable qu'une capture, mais plus lent à écrire.
+- **Ni Python, ni ImageMagick, ni `sharp`.** Pour recadrer et échantillonner les photos, j'ai appelé `System.Drawing` depuis PowerShell (`powershell.exe -NoProfile -Command`). Ça marche bien, y compris `GetPixel` pour l'échantillonnage. Le `convert` du `PATH` est l'outil de disque Windows, pas ImageMagick.
+- **Les polices ne se chargent pas via un `<link>` injecté** dans la page de dev — `document.fonts.check` renvoie `false`. Il faut passer par l'API `FontFace` avec l'URL `gstatic` directe, puis `document.fonts.add`.
+- **Je ne me suis pas connecté à l'admin** — je ne saisis pas de mot de passe dans un formulaire. Le §11 est établi depuis les sources et l'API, ce qui suffit largement pour un registre sobre et dense.
 
 ---
 
