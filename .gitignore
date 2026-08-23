@@ -17,3 +17,7 @@ coverage/
 
 # Sauvegardes de base de donnees locales
 .db-backups/
+
+# Photos sources fournies par le commanditaire (37 Mo de brut).
+# Seules les versions optimisees pour le web seront versionnees, dans apps/web/public/.
+images/
