@@ -1,6 +1,9 @@
 import { Controller, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
+import { resolveFrontendUrl } from '../config/frontend-url';
+import { THROTTLE_LOGIN } from '../config/throttle.config';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -45,11 +48,15 @@ export class AuthController {
   }
 
   private frontendUrl() {
-    return (
-      this.config.get<string>('FRONTEND_URL') || 'http://localhost:5173'
-    );
+    return resolveFrontendUrl(this.config);
   }
 
+  /**
+   * Strict: this password is the only thing between the internet and the whole
+   * guest list, and an unauthenticated caller can retry as fast as the network
+   * allows. Everything else on this controller keeps the ambient default.
+   */
+  @Throttle({ default: THROTTLE_LOGIN })
   @UseGuards(LocalAuthGuard)
   @Post('login')
   login(
