@@ -1132,3 +1132,24 @@ Cinq raisonnements qui ont coûté cher à établir et qu'un relecteur pressé d
 - [MadeGoodDesigns — Best Wedding Fonts 2026](https://madegooddesigns.com/wedding-fonts/) — Marcellus, ses serifs, ses appariements usuels
 
 **Mesures faites moi-même, non issues d'une source :** tous les ratios de contraste (script WCAG 2.1), toutes les métriques de police (canevas, à 100 px, polices chargées via `FontFace`), tous les poids de fichiers (téléchargement effectif depuis `fonts.gstatic.com`), le poids de `framer-motion` v13 (API Bundlephobia : 62 054 o gzip / 185 337 o), et les mesures de la page actuelle (`getComputedStyle` sur `/i/:linkId` à 375 × 812).
+
+---
+
+## ADDENDUM — 2026-08-23, après visionnage de la vidéo de référence
+
+La vidéo que le commanditaire citait a été décomposée avec `ffmpeg` (planches dans `images/video/`, non versionnées). **Elle ne contient aucune enveloppe.**
+
+Sa séquence d'ouverture, relevée à 2 images/seconde :
+
+1. **0 → 1,5 s** — la photo du couple se dévoile par un **balayage vertical**, un voile blanc descendant du haut vers le bas
+2. **1,5 → 4,5 s** — le titre puis les prénoms **s'écrivent trait par trait**, en calligraphie, par-dessus la photo. Ce n'est pas un fondu : le tracé se dépose comme sous une main
+3. En parallèle, le bloc de date et la ligne de présentation apparaissent en fondu simple
+
+**La conséquence pour ce projet.** Le motif brodé de l'ourlet est lui aussi un tracé — tige ondulante, fleur en contour, épaisseur constante. La technique qui écrit les prénoms (`stroke-dasharray` / `stroke-dashoffset` sur un tracé SVG) est **exactement** celle qui brode le motif. Un seul geste peut donc porter toute la page : elle s'écrit et se brode, comme la robe l'a été.
+
+**Décision du commanditaire :** les deux mises en scène seront construites et comparées sur pièce.
+
+- **Version A — la pochette** (§8 ci-dessus, inchangé) : la carte coulisse hors de sa pochette bordeaux. **À construire en premier.**
+- **Version B — le tracé** : balayage de la photo, puis prénoms et motif brodé qui s'écrivent.
+
+Les deux partagent la même page composée (§9) ; elles ne diffèrent que par la surcouche. C'est ce qui rend la comparaison honnête et le travail non perdu : la composition sert dans les deux cas.
