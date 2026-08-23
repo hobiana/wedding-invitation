@@ -1,9 +1,15 @@
 <!doctype html>
-<html lang="en">
+<html lang="fr">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Le chrome du navigateur prend l'ivoire du fond plutôt que le blanc
+         système : sur Android, la barre d'adresse se fond dans la page au lieu
+         de poser un bandeau blanc froid au-dessus d'un fond chaud. -->
+    <meta name="theme-color" content="#FBF8F4" />
+
     <link
       rel="preload"
       href="/fonts/marcellus-latin-400.woff2"
@@ -18,7 +24,73 @@
       type="font/woff2"
       crossorigin
     />
-    <title>web</title>
+
+    <!-- Les prénoms et la date sont des constantes de build, pas des données :
+         le produit est mono-événement par construction. Si la date bouge, elle
+         bouge ici ET dans apps/api/prisma/seed.ts — un document statique ne
+         peut pas lire l'API.
+         Le nom du foyer n'apparaît JAMAIS ici : le titre se retrouve dans les
+         captures d'écran que les invités se partagent entre eux. -->
+    <title>Invitation — Hobiana &amp; Lovasoa, 12 juin 2027</title>
+    <meta
+      name="description"
+      content="Hobiana et Lovasoa se marient le 12 juin 2027. Ouvrez votre invitation et confirmez votre présence."
+    />
+
+    <!-- Aperçu de lien. L'invitation arrive par SMS ou WhatsApp : cette
+         vignette est la première chose vue, avant la page elle-même.
+
+         ATTENTION AU DÉPLOIEMENT : `og:image` est ici en chemin racine. Les
+         moteurs de Facebook et WhatsApp le résolvent contre l'URL de la page,
+         mais la spécification Open Graph réclame une URL absolue et certains
+         clients s'y tiennent. Dès que le domaine de production est arrêté,
+         repasser en absolu (https://…/og-hobiana-lovasoa.jpg). -->
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="fr_FR" />
+    <meta property="og:title" content="Invitation — Hobiana &amp; Lovasoa" />
+    <meta
+      property="og:description"
+      content="Nous nous marions le 12 juin 2027. Ouvrez votre invitation et confirmez votre présence."
+    />
+    <meta property="og:image" content="/og-hobiana-lovasoa.jpg" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Hobiana et Lovasoa, en tenue de fiançailles ivoire et bordeaux."
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!--
+      og-hobiana-lovasoa.jpg — régénérable à l'identique.
+
+      Source : images/old images - fiancailles/DSC_3541.jpg (6016 × 4016).
+      `images/` est ignoré par git ; la sortie, elle, est versionnée ici.
+
+      ffmpeg -y -i "images/old images - fiancailles/DSC_3541.jpg" \
+        -vf "crop=1700:893:2630:1470,scale=1200:630:flags=lanczos,colorchannelmixer=rr=1.004:gg=1.018:bb=0.978" \
+        -q:v 2 -map_metadata -1 apps/web/public/og-hobiana-lovasoa.jpg
+
+      Le recadrage (1700 × 893 à partir de x=2630 y=1470) sort de la contrainte
+      du §10.2 de la direction artistique : au-delà de x≈4330 revient la verrière
+      à LED magenta, en dessous de x≈2630 reviennent les haies vertes. C'est la
+      seule bande propre du cliché au format 1,905:1 — mesurée, pas estimée :
+      recadrage large 3,93 % de vert saturé et 2,70 % de magenta saturé contre
+      0,10 % et 0,80 % ici, et le reliquat est le liseré LED sur les cheveux,
+      pas le décor.
+
+      Le `colorchannelmixer` corrige une dominante magenta mesurée sur quatre
+      surfaces ivoire indépendantes (veste, manche, mur, jupe) : le vert y était
+      systématiquement le canal le plus bas. Les gains ramènent ces surfaces sur
+      la teinte de --color-ivory (R ≥ V > B) sans toucher aux carnations
+      (#b77b6c avant, #b77e69 après). Ce n'est PAS l'étalonnage complet du
+      §10.3 — la sous-exposition d'environ un diaphragme reste à arbitrer.
+
+      -map_metadata -1 : retire le bloc EXIF de 7 353 o. Vérifié, il ne porte
+      aucune coordonnée GPS — mais il porte « NIKON D610 » et une date. Autant
+      ne pas les servir à chaque invité pour du poids mort.
+    -->
   </head>
   <body>
     <div id="root"></div>
