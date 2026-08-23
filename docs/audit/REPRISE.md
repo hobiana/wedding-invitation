@@ -68,6 +68,25 @@ Deux agents ont travaillé en parallèle, **sans commiter** (l'architecte relit 
 
 **Attention :** le travail des agents peut être **non commité** dans l'arbre. Vérifie `git status` avant toute opération destructive. Un agent a déjà écrasé une modification du `.gitignore` avec un `git checkout` trop large — ne fais pas confiance à un arbre propre sans l'avoir regardé.
 
+## Trouvé en faisant tourner l'app — à traiter au lot 1
+
+**[MAJEUR] L'heure du mariage s'affiche dans le fuseau de l'invité, pas dans celui du lieu.**
+
+`weddingDate` est un timestamp UTC, rendu par `toLocaleString` sans `timeZone`. Une cérémonie enregistrée à `2027-06-12T15:00:00Z` s'affiche donc :
+
+| Fuseau de l'invité | Heure lue |
+|---|---|
+| Indian/Antananarivo | 18:00 |
+| Indian/Mauritius | 19:00 |
+| Europe/Paris | 17:00 |
+| America/Montreal | 11:00 |
+
+Un invité qui ouvre son lien depuis la France lit 17:00 pour un mariage à 18:00. L'heure d'un événement physique est celle de son lieu : elle doit être identique pour tous les lecteurs. Même problème sur `rsvpDeadline`, qui affiche « 04:00 » là où la base porte minuit.
+
+Aucun test ne pouvait l'attraper — ils s'exécutent tous dans le fuseau de la machine — et l'audit ne l'a pas vu faute de données. C'est apparu à la première exécution réelle.
+
+Correction attendue : figer un fuseau de référence (celui du lieu) et le passer explicitement à tous les rendus de date, côté invité comme côté admin.
+
 ## Ce qui vient après
 
 Ordre validé, détaillé dans le rapport consolidé :

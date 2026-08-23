@@ -14,3 +14,6 @@ apps/api/.claude/skills/
 
 # Rapports de couverture générés par les suites de tests
 coverage/
+
+# Sauvegardes de base de donnees locales
+.db-backups/
