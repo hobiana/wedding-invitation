@@ -26,12 +26,18 @@ const STATUS_LABELS: Record<RsvpStatus, string> = {
   DECLINED: "Décliné",
 };
 
+const COUNT_ERROR_ID = "confirmedCount-error";
+
 export function HouseholdFormDialog({ initial, onSubmit, onClose }: HouseholdFormDialogProps) {
   const isEdit = initial !== undefined;
   const [displayName, setDisplayName] = useState(initial?.displayName ?? "");
   const [allocatedSeats, setAllocatedSeats] = useState(initial?.allocatedSeats ?? 1);
   const [status, setStatus] = useState<RsvpStatus>(initial?.status ?? "PENDING");
-  const [confirmedCount, setConfirmedCount] = useState(initial?.confirmedCount ?? 0);
+  // null, not 0: a household that never answered has no count, and the input
+  // must show an empty field the admin has to fill in deliberately. Defaulting
+  // to 0 is what shipped a CONFIRMED household seating nobody.
+  const [confirmedCount, setConfirmedCount] = useState<number | null>(initial?.confirmedCount ?? null);
+  const [countError, setCountError] = useState<string | null>(null);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -39,6 +45,24 @@ export function HouseholdFormDialog({ initial, onSubmit, onClose }: HouseholdFor
       onSubmit({ displayName, allocatedSeats });
       return;
     }
+    // CONFIRMED requires a count of at least 1 — the API now rejects anything
+    // else, and a confirmed household holding zero seats silently disappears
+    // from the table plan. Say it in French here rather than let the server's
+    // English message surface.
+    if (status === "CONFIRMED") {
+      if (confirmedCount === null || confirmedCount < 1) {
+        setCountError("Indiquez le nombre de personnes : un foyer confirmé compte au moins une personne.");
+        return;
+      }
+      // The upper bound (invariant: confirmedCount <= allocatedSeats) is held
+      // by max={allocatedSeats} below — native constraint validation blocks the
+      // submit before this handler runs — and by the API. No JS check here: it
+      // would be unreachable code.
+      setCountError(null);
+      onSubmit({ displayName, allocatedSeats, status, confirmedCount });
+      return;
+    }
+    setCountError(null);
     onSubmit({
       displayName,
       allocatedSeats,
@@ -47,7 +71,7 @@ export function HouseholdFormDialog({ initial, onSubmit, onClose }: HouseholdFor
       // A still-pending household hasn't confirmed anything — omit the field
       // entirely rather than overwrite its null (no answer yet) with 0, which
       // would make the seating capacity maths treat it as holding zero seats.
-      ...(status !== "PENDING" && { confirmedCount: status === "DECLINED" ? 0 : confirmedCount }),
+      ...(status === "DECLINED" && { confirmedCount: 0 }),
     });
   }
 
@@ -83,7 +107,10 @@ export function HouseholdFormDialog({ initial, onSubmit, onClose }: HouseholdFor
               <select
                 id="status"
                 value={status}
-                onChange={(e) => setStatus(e.target.value as RsvpStatus)}
+                onChange={(e) => {
+                  setStatus(e.target.value as RsvpStatus);
+                  setCountError(null);
+                }}
                 className="w-full border rounded-md px-3 py-2"
               >
                 {(Object.keys(STATUS_LABELS) as RsvpStatus[]).map((value) => (
@@ -93,18 +120,34 @@ export function HouseholdFormDialog({ initial, onSubmit, onClose }: HouseholdFor
                 ))}
               </select>
             </div>
-            {status !== "DECLINED" && (
+            {/*
+              Only CONFIRMED carries a count. DECLINED is always 0 and PENDING
+              has none yet, so showing an editable field for those two offered a
+              value the form then threw away on submit.
+            */}
+            {status === "CONFIRMED" && (
               <div className="space-y-1">
                 <label htmlFor="confirmedCount" className="text-sm font-medium">Personnes confirmées</label>
                 <input
                   id="confirmedCount"
                   type="number"
-                  min={0}
+                  min={1}
                   max={allocatedSeats}
-                  value={confirmedCount}
-                  onChange={(e) => setConfirmedCount(Number(e.target.value))}
+                  value={confirmedCount ?? ""}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    setConfirmedCount(raw === "" ? null : Number(raw));
+                    setCountError(null);
+                  }}
+                  aria-invalid={countError !== null}
+                  aria-describedby={countError ? COUNT_ERROR_ID : undefined}
                   className="w-full border rounded-md px-3 py-2"
                 />
+                {countError && (
+                  <p id={COUNT_ERROR_ID} role="alert" className="text-sm text-red-700">
+                    {countError}
+                  </p>
+                )}
               </div>
             )}
           </>

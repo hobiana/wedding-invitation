@@ -89,4 +89,89 @@ describe("HouseholdFormDialog", () => {
       status: "PENDING",
     });
   });
+
+  // The other half of that same bug, and the one the dialog exists for: an
+  // organiser recording an answer taken over the phone. The count field used to
+  // be pre-filled with 0 (from `?? 0` on a null), so saving without touching it
+  // sent {status: "CONFIRMED", confirmedCount: 0} — a household that confirmed
+  // its attendance yet occupies zero seats on the table plan.
+  describe("PENDING → CONFIRMED", () => {
+    const pending: HouseholdAdminDto = { ...existing, status: "PENDING", confirmedCount: null };
+
+    it("leaves the confirmed count empty rather than pre-filling it with 0", () => {
+      render(<HouseholdFormDialog initial={pending} onSubmit={vi.fn()} onClose={() => {}} />);
+
+      fireEvent.change(screen.getByLabelText(/statut/i), { target: { value: "CONFIRMED" } });
+
+      expect((screen.getByLabelText(/personnes confirmées/i) as HTMLInputElement).value).toBe("");
+    });
+
+    it("refuses to submit a confirmed household without a count, and says so in French", () => {
+      const onSubmit = vi.fn();
+      render(<HouseholdFormDialog initial={pending} onSubmit={onSubmit} onClose={() => {}} />);
+
+      fireEvent.change(screen.getByLabelText(/statut/i), { target: { value: "CONFIRMED" } });
+      fireEvent.click(screen.getByRole("button", { name: /enregistrer/i }));
+
+      expect(onSubmit).not.toHaveBeenCalled();
+      expect(screen.getByRole("alert")).toHaveTextContent(/au moins une personne/i);
+    });
+
+    it("submits once the count is filled in, and clears the error", () => {
+      const onSubmit = vi.fn();
+      render(<HouseholdFormDialog initial={pending} onSubmit={onSubmit} onClose={() => {}} />);
+
+      fireEvent.change(screen.getByLabelText(/statut/i), { target: { value: "CONFIRMED" } });
+      fireEvent.click(screen.getByRole("button", { name: /enregistrer/i }));
+      fireEvent.change(screen.getByLabelText(/personnes confirmées/i), { target: { value: "2" } });
+      fireEvent.click(screen.getByRole("button", { name: /enregistrer/i }));
+
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+      expect(onSubmit).toHaveBeenCalledWith({
+        displayName: "Famille Rakoto",
+        allocatedSeats: 4,
+        status: "CONFIRMED",
+        confirmedCount: 2,
+      });
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("refuses a count the admin blanked out on an already-confirmed household", () => {
+      const onSubmit = vi.fn();
+      render(<HouseholdFormDialog initial={existing} onSubmit={onSubmit} onClose={() => {}} />);
+
+      fireEvent.change(screen.getByLabelText(/personnes confirmées/i), { target: { value: "" } });
+      fireEvent.click(screen.getByRole("button", { name: /enregistrer/i }));
+
+      expect(onSubmit).not.toHaveBeenCalled();
+      expect(screen.getByRole("alert")).toHaveTextContent(/au moins une personne/i);
+    });
+
+    // Invariant 3: confirmedCount <= allocatedSeats. This one is already held
+    // by max={allocatedSeats} — native constraint validation refuses the submit
+    // and shows the browser's own localised message — so this test passed
+    // before any change was made. It is here to keep that attribute honest: drop
+    // `max` and the dialog starts posting counts the API will reject.
+    it("cannot submit a count above the allocated seats", () => {
+      const onSubmit = vi.fn();
+      render(<HouseholdFormDialog initial={existing} onSubmit={onSubmit} onClose={() => {}} />);
+
+      fireEvent.change(screen.getByLabelText(/personnes confirmées/i), { target: { value: "5" } });
+      fireEvent.click(screen.getByRole("button", { name: /enregistrer/i }));
+
+      expect(onSubmit).not.toHaveBeenCalled();
+      expect(screen.getByLabelText(/personnes confirmées/i)).toHaveAttribute("max", "4");
+    });
+
+    it("flags the invalid field to assistive tech, not by colour alone", () => {
+      render(<HouseholdFormDialog initial={pending} onSubmit={vi.fn()} onClose={() => {}} />);
+
+      fireEvent.change(screen.getByLabelText(/statut/i), { target: { value: "CONFIRMED" } });
+      fireEvent.click(screen.getByRole("button", { name: /enregistrer/i }));
+
+      const field = screen.getByLabelText(/personnes confirmées/i);
+      expect(field).toHaveAttribute("aria-invalid", "true");
+      expect(field).toHaveAccessibleDescription(/au moins une personne/i);
+    });
+  });
 });
