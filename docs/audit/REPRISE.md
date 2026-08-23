@@ -23,7 +23,23 @@ Arbitrées le 2026-08-22 :
 3. **Le doré `#B08D57` reste tel quel**, cantonné au filet décoratif (mesuré 2,92:1, ne portera jamais de texte).
 4. **Les primitives d'interface s'appuient sur Radix** (`@radix-ui/react-dialog`), pas sur `<dialog>` natif.
 
-## Lot 0 — en cours
+## Lot 0 — 3 bloquants sur 5 corrigés
+
+Mise à jour du 2026-08-23. Branche `fix/lot-0-bloquants`.
+
+| # | Bloquant | État |
+|---|---|---|
+| 1 | Un foyer confirmé occupe zéro siège | **fait** — `fe98be1` (api) + `296b487` (web) |
+| 2 | Capacité contournable en une requête | **fait** — `fe98be1` |
+| 5 | L'invitation ne dit pas quand venir | **fait** — `296b487` |
+| 3 | Force brute sur `/auth/login` | en cours |
+| 4 | Aucune défense CSRF | en cours |
+
+Suites vertes : **70 tests backend** (57 avant), **58 frontend** (44 avant), build à exit 0.
+
+Piège payé une fois, à ne pas repayer : la coupure a surpris l'agent backend **au milieu d'un refactor**. `tables.service.ts` appelait `seatsTaken()` sans import et `this.seatsTaken()` alors que la méthode venait d'être supprimée — cinq tests rouges pour deux lignes manquantes. D'où la règle de sauvegarde d'état à 60 % du budget, désormais inscrite dans les six définitions d'agents.
+
+## Historique — lot 0 au démarrage
 
 Branche `fix/lot-0-bloquants`, partant de `5cafe2f`.
 

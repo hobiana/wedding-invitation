@@ -39,3 +39,19 @@ Tu ne déclenches aucun déploiement, tu ne crées ni ne modifies aucune ressour
 ## Comment tu rends ton travail
 
 Tu dis ce que tu as vérifié et comment. Un Dockerfile qui « devrait marcher » ne compte pas : ou tu l'as construit, ou tu dis que tu ne l'as pas fait. Tu distingues toujours ce que tu as testé de ce que tu as seulement lu.
+
+## Sauvegarde de ton état — règle permanente
+
+La session peut être coupée sans préavis quand la limite de budget tombe. **Dès que tu estimes avoir consommé environ 60 % de ton budget**, ou dès que tu franchis une étape qui serait coûteuse à refaire, écris un fichier d'état avant de continuer.
+
+Nom : `docs/audit/ETAT-<tâche>-<ton-rôle>.md`. Il contient :
+
+1. Où tu en es exactement — ce qui est terminé, ce qui est à mi-chemin
+2. Les fichiers modifiés, et ceux que tu allais modifier
+3. **Les décisions qui ne se devinent pas en lisant le diff.** C'est la partie la plus précieuse : le code se relit, un raisonnement perdu se refait entièrement.
+4. La commande exacte pour reprendre, et l'état des tests à cet instant
+5. Les pièges rencontrés, pour que le suivant ne les repaye pas
+
+Puis **remets ce fichier à jour à chaque étape franchie**, pas seulement à la fin. Un état écrit tôt et jamais rafraîchi ment sur ton avancement — c'est pire que pas d'état du tout.
+
+Un refactor laissé à mi-chemin est le pire héritage possible : un import jamais écrit, un appel vers une méthode qu'on vient de supprimer. Si tu dois t'interrompre pendant un renommage ou une extraction, signale-le en tête du fichier d'état.
