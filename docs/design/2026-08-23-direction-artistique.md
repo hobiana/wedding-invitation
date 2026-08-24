@@ -1,5 +1,11 @@
 # Direction artistique — invitation de mariage
 
+> **AVERTISSEMENT — l or de ce document est périmé.** Les §1.5.d et §3.2 donnent
+> `#B08D57` (2,92:1). Le commanditaire a arbitré le 2026-08-22 en faveur de
+> **`#AC784C`** (3,58:1), relevé sur son faire-part papier, qui franchit le
+> seuil des éléments non textuels. **Le jeton `--color-gold` du code fait foi.**
+> Tout le reste du document reste valable.
+
 **Date :** 2026-08-23 · **Lot 3, tâche 1** · **Statut :** proposition, en attente d'arbitrage
 **Périmètre :** `apps/web` — page publique `/i/:linkId` et back-office `/admin/*`
 **Ce document ne modifie aucun fichier.** Il spécifie. L'intégration est faite par `frontend-react`.
