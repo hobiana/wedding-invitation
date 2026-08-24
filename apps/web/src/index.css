@@ -77,6 +77,19 @@
      passe le seuil des éléments NON textuels, jamais celui du texte. */
   --color-gold: #ac784c;
 
+  /* Le filet lamba — rythme 1/2/3/2/1 sur 9 px de haut, relevé sur les rayures
+     du lamba du couple. Une rayure est de la géométrie pure : elle se reproduit
+     exactement en dégradé, pour zéro octet d'image. Il se pose sous chaque
+     titre de section, sur 64 px : un onglet tissé, pas un surligneur. */
+  --rule-lamba: linear-gradient(
+    to bottom,
+    var(--color-bordeaux-700) 0 1px,
+    transparent 1px 3px,
+    var(--color-bordeaux-700) 3px 6px,
+    transparent 6px 8px,
+    var(--color-bordeaux-700) 8px 9px
+  );
+
   /* Statuts — admin uniquement, et toujours doublés d'un libellé. */
   --color-status-yes: #3f5d45;
   --color-status-pending: #8e3a50;
@@ -97,7 +110,16 @@
   --text-hero--line-height: 1.08;
 
   /* Colonnes */
-  --container-prose: 520px;
+  /* `--container-column`, et surtout PAS `--container-prose`.
+     Tailwind v4 livre `max-w-prose` en utilitaire **statique** câblé sur
+     `65ch` ; il masque intégralement un jeton `--container-prose`, qui est
+     alors émis dans `:root` sans que rien ne le lise. Mesuré : la colonne
+     sortait à 549 px (65ch de Source Sans 3 à 17 px) au lieu de 520, et sa
+     largeur dépendait de la police chargée — elle changeait donc au moment du
+     `swap`. Aucune erreur n'était levée.
+     Règle : ne jamais nommer un jeton `--container-*` comme un utilitaire
+     `max-w-*` intégré (`prose`, `screen`, `full`, `min`, `max`, `fit`). */
+  --container-column: 520px;
   --container-hero: 640px;
 
   /* Rayons. 2 px et non 0 : un rayon nul lit « journal » et se comporte mal
