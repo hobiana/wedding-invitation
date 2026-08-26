@@ -1,11 +1,11 @@
 # Où on en est — reprise de session
 
-**Dernière mise à jour :** 2026-08-23, par l'architecte.
+**Dernière mise à jour :** 2026-08-23 (soir), par l'architecte.
 À lire en premier si tu reprends ce projet sans le contexte de la conversation précédente.
 
 ## L'état en une phrase
 
-L'audit est livré, les décisions sont prises, le **lot 0 est terminé et fusionné**. Le **lot 3 — la refonte design — vient de s'ouvrir**, en attente de la direction artistique et des photos du couple.
+L'audit est livré, le **lot 0 est terminé et fusionné**, et le **lot 3 — la refonte design — est en cours** : la direction artistique est livrée, les photos sont fournies, et **les tâches 1 à 4 et 7 sont faites**. La page d'invitation existe et se regarde. Il reste les deux mises en scène d'ouverture, puis l'admin.
 
 ## Le dépôt
 
@@ -26,7 +26,7 @@ Chacun porte aussi la règle de **sauvegarde d'état à 60 % du budget** — éc
 ## Les décisions du commanditaire — ne pas les rouvrir
 
 1. **Prénoms des mariés et photo** : constantes de build, pas de champs en base.
-2. **Le doré `#B08D57` reste tel quel**, cantonné au filet décoratif — mesuré à 2,92:1, il ne portera jamais de texte.
+2. **Le doré est `#AC784C`** (3,58:1), relevé sur leur faire-part papier — il franchit le seuil des éléments non textuels mais ne porte jamais de texte. Le `#B08D57` qu'on lit encore dans les §1.5.d et §3.2 de la direction artistique est **périmé** ; le jeton `--color-gold` du code fait foi.
 3. **Les primitives d'interface s'appuient sur Radix**, pas sur `<dialog>` natif.
 4. **Le lot 3 est découpé en petites tâches** commitables une par une, pour suivre l'avancement.
 
@@ -72,21 +72,22 @@ Découpé en onze tâches, chacune commitable seule :
 
 | # | Tâche | Dépend de |
 |---|---|---|
-| 1 | Direction artistique : palette, typographies, chorégraphie de l'enveloppe | — |
-| 2 | Fondations : tokens `@theme`, polices, espacement | 1 |
-| 3 | `index.html` : `lang="fr"`, titre, image de partage | 2 |
-| 4 | Primitives de saisie : `Field`, `Input`, `Textarea`, `Select` | 2 |
+| ✅ 1 | Direction artistique : palette, typographies, chorégraphie de l'enveloppe | — |
+| ✅ 2 | Fondations : tokens `@theme`, polices, espacement | 1 |
+| ✅ 3 | `index.html` : `lang="fr"`, titre, image de partage | 2 |
+| ✅ 4 | Primitives de saisie : `Field`, `Input`, `Textarea`, `Select` | 2 |
 | 5 | Primitives de dialogue : `Dialog`, `AlertDialog` via Radix | 2 |
 | 6 | Primitives d'affichage : `Badge`, `Card`, `Table`, `Skeleton`, `EmptyState` | 2 |
-| 7 | Invitation : composition et respiration | 2, 4 |
-| 8 | Invitation : la mise en scène d'enveloppe | 7 |
+| ✅ 7 | Invitation : composition et respiration | 2, 4 |
+| 8a | Invitation : **la pochette qui coulisse** | 7 |
+| 8b | Invitation : **le tracé qui s'écrit** | 7 |
 | 9 | Admin : navigation, tableau de bord en ratios | 4, 6 |
 | 10 | Admin : foyers, copie du lien, recherche | 4, 5, 6 |
 | 11 | Admin : plan de table utilisable au doigt, chemin sans glisser | 6 |
 
-**Les photos du couple sont attendues** pour les tâches 7 et 8. Portrait ou carré, haute résolution.
+**Les photos sont fournies** dans `images/` (ignoré par git). Les portraits de fiançailles sont la matière : tenues traditionnelles malgaches blanches à broderies bordeaux. Le motif de l'ourlet est tracé en SVG dans `components/invitation/HemMotif.tsx` — la palette du mariage vient de leurs propres vêtements. Deux recadrages art-dirigés sont livrés dans `apps/web/public/` : portrait 3:4 pour mobile, paysage 3:2 pour bureau.
 
-## Trouvé en faisant tourner l'app — à traiter au lot 1
+## Trouvé en faisant tourner l'app — CORRIGÉ le 2026-08-23 (commit ea5f410)
 
 **[MAJEUR] L'heure du mariage s'affiche dans le fuseau de l'invité, pas dans celui du lieu.**
 
@@ -94,7 +95,7 @@ Découpé en onze tâches, chacune commitable seule :
 
 Aucun test ne pouvait l'attraper — ils s'exécutent tous dans le fuseau de la machine — et l'audit ne l'a pas vu faute de données. C'est apparu à la première exécution réelle.
 
-Correction attendue : figer le fuseau du lieu et le passer explicitement à tous les rendus de date, côté invité comme côté admin.
+**Corrigé** dans `apps/web/src/lib/datetime.ts` : le fuseau `Indian/Antananarivo` est figé et passé explicitement à tous les rendus, et la page affiche « (heure de Madagascar) ». 18 tests simulent trois fuseaux. La correction attendue était : figer le fuseau du lieu et le passer explicitement à tous les rendus de date, côté invité comme côté admin.
 
 ## Ce qui reste après le lot 3
 
@@ -130,3 +131,15 @@ Correction attendue : figer le fuseau du lieu et le passer explicitement à tous
 **Vidéo de référence** : `https://www.youtube.com/shorts/fYVUDkunFGg` — modèle Canva de faire-part numérique animé avec RSVP. **Non visionnable** : je ne lis pas la vidéo. `ffmpeg` n'est pas installé (`winget` est disponible si on veut l'ajouter, décision du commanditaire). En attente soit de captures d'écran déposées dans `images/`, soit d'une description du mouvement.
 
 **Ce qui bloque quoi :** la tâche 1 (direction artistique) est en cours chez `ui-ux-designer`, livrable attendu dans `docs/design/2026-08-23-direction-artistique.md`. Les tâches 2 à 6 démarrent dès sa validation par le commanditaire. Les tâches 7 et 8 dépendent en plus du choix de photo.
+
+---
+
+## Trouvé pendant la tâche 7 — à traiter
+
+**[MAJEUR] Au plan de table, un voisin qui n'a pas répondu s'affiche « 0 ».**
+
+`apps/api/src/invitation/invitation.service.ts:40` écrit `confirmedCount: h.confirmedCount ?? 0` en construisant la liste des voisins de table. Un foyer `PENDING` apparaît donc à l'invité comme « Fara Rakotomavo — 0 » : on lui prête un refus alors qu'il n'a simplement pas encore répondu.
+
+C'est **l'invariant `confirmedCount` nullable cassé une troisième fois**, par un troisième chemin — après le dialogue d'édition et les écritures admin. Ici la faute est dans le contrat lui-même : `SeatingNeighborDto` type `confirmedCount` en `number` non nullable, donc l'information est détruite avant d'atteindre le front, qui ne peut plus la rattraper.
+
+Correction : rendre le champ nullable dans `packages/shared`, retirer le `?? 0`, et afficher un tiret côté invité comme le fait déjà le tableau de bord admin.
