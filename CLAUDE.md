@@ -32,17 +32,51 @@ Chaque agent écrit un fichier d'état dès 60 % de son budget consommé, et le 
 
 Monorepo pnpm. `apps/api` (NestJS 11, Prisma 7, PostgreSQL), `apps/web` (React 19, Vite 8, Tailwind **v4**, TanStack Query v5, React Router v7, dnd-kit), `packages/shared` pour les types du contrat d'API.
 
+## Architecture
+
+**Deux publics, une seule API.** `/invitation/:linkId` est la seule route publique : le `nanoid(8)` **est** la clé d'accès, il n'y a délibérément aucune garde devant (`api/src/invitation/invitation.controller.ts`). Tout le reste est admin, derrière un cookie JWT `httpOnly`.
+
+**La protection admin est opt-in, contrôleur par contrôleur** — `@UseGuards(JwtAuthGuard)` en tête de classe. Il n'y a pas de garde globale avec échappatoire `@Public()` : **un nouveau contrôleur admin sans le décorateur est public.** Seuls `OriginCheckGuard` (CSRF) puis `ThrottlerGuard` sont globaux, dans cet ordre — `app.module.ts` dit pourquoi l'ordre compte.
+
+**Le contrat traverse `packages/shared`** en TypeScript nu : `main: src/index.ts`, aucun build, aucune génération. Le chemin complet est Prisma → service → DTO partagé → `web/src/lib/api.ts` → composant. Un champ dont la nullabilité se perd en route dans le DTO est perdu pour de bon côté front, qui ne peut plus la rattraper : c'est exactement par là que `confirmedCount` s'est cassé la troisième fois.
+
+**`api/src/common/seating.ts` est la définition unique de l'occupation d'une table.** Trois portes y mènent — placer un foyer, éditer la table, éditer un foyer déjà placé. Si l'une recalcule à sa façon, elle devient une porte dérobée vers un état que les deux autres refusent. On l'importe, on ne la réécrit pas.
+
 ## Commandes
 
+Démarrage à froid — sur un clone frais, rien ne compile ni ne tourne avant ces lignes :
+
 ```bash
-docker compose up -d                                    # Postgres
-pnpm --filter @invitation-app/api seed:demo             # 40 foyers, 6 tables
+docker compose up -d                                          # Postgres
+cp apps/api/.env.example apps/api/.env                        # renseigner DATABASE_URL et JWT_SECRET
+pnpm --filter @invitation-app/api exec prisma generate
+pnpm --filter @invitation-app/api exec prisma migrate deploy
+pnpm --filter @invitation-app/api seed:demo                   # 40 foyers, 6 tables
+```
+
+Le seed termine en imprimant les identifiants admin et quelques liens à ouvrir : `http://localhost:5173/i/<linkId>` côté invité, `http://localhost:5173/login` côté admin (`admin@invitation-app.local` / `motdepasse-de-dev`, sauf `ADMIN_SEED_*` dans l'environnement).
+
+Au quotidien :
+
+```bash
 pnpm --filter @invitation-app/api test                  # Jest
 pnpm --filter @invitation-app/api test:e2e              # exige la base
 pnpm --filter @invitation-app/web test -- --run         # Vitest
 pnpm --filter @invitation-app/web build                 # inclut le typecheck
 pnpm --filter @invitation-app/web lint                  # oxlint, sûr
 ```
+
+Un seul test :
+
+```bash
+pnpm --filter @invitation-app/api test configure-app                            # motif de nom de fichier
+pnpm --filter @invitation-app/api test configure-app -t "forwarded client IP"   # un seul cas
+pnpm --filter @invitation-app/web test --run src/lib/datetime.test.ts           # un seul fichier
+```
+
+**Pas de `--` devant les arguments de Vitest.** pnpm 11 le transmet littéralement et il avale le filtre : `test -- --run src/lib/datetime.test.ts` relance les 20 fichiers et 164 tests au lieu d'un seul fichier et 18 tests, sans rien signaler. La forme `-- --run` ci-dessus reste juste pour la suite entière, mais ne lui ajoute jamais de nom de fichier.
+
+**Jest tourne en `passWithNoTests`** : un motif mal orthographié affiche « No tests found » et sort en **0**. Un run filtré qui ne trouve rien ressemble trait pour trait à un run vert.
 
 **`pnpm --filter @invitation-app/api lint` tourne avec `--fix` et modifie le dépôt.** Ce n'est pas une commande de vérification.
 
