@@ -85,6 +85,31 @@ describe('TablesService.assignHousehold', () => {
   });
 });
 
+describe('TablesService.create', () => {
+  let service: TablesService;
+  let prisma: { table: { create: jest.Mock } };
+
+  beforeEach(async () => {
+    prisma = { table: { create: jest.fn().mockResolvedValue({}) } };
+    const moduleRef = await Test.createTestingModule({
+      providers: [TablesService, { provide: PrismaService, useValue: prisma }],
+    }).compile();
+    service = moduleRef.get(TablesService);
+  });
+
+  // `TableDto` porte ses foyers : c'est la même forme aux quatre routes de
+  // `/admin/tables`, sinon le front reçoit tantôt une table, tantôt une
+  // demi-table sous le même type. Sans `include`, Prisma ne rend que la ligne.
+  it('asks Prisma for the households so a created table is a whole table', async () => {
+    await service.create({ name: 'Table 7' });
+
+    expect(prisma.table.create).toHaveBeenCalledWith({
+      data: { name: 'Table 7', capacity: 10 },
+      include: { households: true },
+    });
+  });
+});
+
 describe('TablesService.update', () => {
   let service: TablesService;
   let prisma: {
@@ -140,6 +165,7 @@ describe('TablesService.update', () => {
     expect(prisma.table.update).toHaveBeenCalledWith({
       where: { id: 't1' },
       data: { capacity: 7 },
+      include: { households: true },
     });
   });
 

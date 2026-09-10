@@ -2,6 +2,7 @@ import { Controller, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
+import type { CurrentAdminDto } from '@invitation-app/shared';
 import { resolveFrontendUrl } from '../config/frontend-url';
 import { THROTTLE_LOGIN } from '../config/throttle.config';
 import { AuthService } from './auth.service';
@@ -76,7 +77,7 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Get('me')
-  me(@Req() req: { user: { userId: string; email: string } }) {
+  me(@Req() req: { user: { userId: string; email: string } }): CurrentAdminDto {
     return { id: req.user.userId, email: req.user.email };
   }
 

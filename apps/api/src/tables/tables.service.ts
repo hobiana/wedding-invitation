@@ -12,9 +12,13 @@ import { UpdateTableDto } from './dto/update-table.dto';
 export class TablesService {
   constructor(private readonly prisma: PrismaService) {}
 
+  // `include` partout où une table sort d'ici : les quatre routes de
+  // `/admin/tables` répondent la même forme — celle de `TableDto`, qui porte
+  // ses foyers. Une table sans sa liste serait une demi-table sous le même nom.
   create(dto: CreateTableDto) {
     return this.prisma.table.create({
       data: { name: dto.name, capacity: dto.capacity ?? 10 },
+      include: { households: true },
     });
   }
 
@@ -50,7 +54,11 @@ export class TablesService {
       }
     }
 
-    return this.prisma.table.update({ where: { id }, data: dto });
+    return this.prisma.table.update({
+      where: { id },
+      data: dto,
+      include: { households: true },
+    });
   }
 
   async remove(id: string) {

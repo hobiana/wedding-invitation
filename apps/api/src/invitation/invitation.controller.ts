@@ -1,5 +1,9 @@
 import { Body, Controller, Get, Param, Patch } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import type {
+  HouseholdPublicDto,
+  InvitationResponseDto,
+} from '@invitation-app/shared';
 import { InvitationService } from './invitation.service';
 import { THROTTLE_INVITATION } from '../config/throttle.config';
 import { SubmitRsvpDto } from './dto/submit-rsvp.dto';
@@ -18,12 +22,15 @@ export class InvitationController {
   constructor(private readonly invitationService: InvitationService) {}
 
   @Get(':linkId')
-  get(@Param('linkId') linkId: string) {
+  get(@Param('linkId') linkId: string): Promise<InvitationResponseDto> {
     return this.invitationService.getInvitation(linkId);
   }
 
   @Patch(':linkId/rsvp')
-  submitRsvp(@Param('linkId') linkId: string, @Body() dto: SubmitRsvpDto) {
+  submitRsvp(
+    @Param('linkId') linkId: string,
+    @Body() dto: SubmitRsvpDto,
+  ): Promise<HouseholdPublicDto> {
     return this.invitationService.submitRsvp(linkId, dto);
   }
 }

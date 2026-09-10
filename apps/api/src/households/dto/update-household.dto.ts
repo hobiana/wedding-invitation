@@ -6,8 +6,9 @@ import {
   IsString,
   Min,
 } from 'class-validator';
+import type { UpdateHouseholdDto as UpdateHouseholdContract } from '@invitation-app/shared';
 
-export class UpdateHouseholdDto {
+export class UpdateHouseholdDto implements UpdateHouseholdContract {
   @IsOptional()
   @IsString()
   displayName?: string;

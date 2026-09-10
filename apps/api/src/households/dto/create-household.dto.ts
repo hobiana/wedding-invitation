@@ -1,6 +1,7 @@
 import { IsArray, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import type { CreateHouseholdDto as CreateHouseholdContract } from '@invitation-app/shared';
 
-export class CreateHouseholdDto {
+export class CreateHouseholdDto implements CreateHouseholdContract {
   @IsString()
   displayName!: string;
 

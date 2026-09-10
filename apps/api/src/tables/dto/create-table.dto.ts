@@ -1,6 +1,7 @@
 import { IsInt, IsOptional, IsString, Min } from 'class-validator';
+import type { CreateTableDto as CreateTableContract } from '@invitation-app/shared';
 
-export class CreateTableDto {
+export class CreateTableDto implements CreateTableContract {
   @IsString()
   name!: string;
 

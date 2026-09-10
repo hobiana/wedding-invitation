@@ -4,14 +4,20 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import type {
+  HouseholdPublicDto,
+  InvitationResponseDto,
+  SeatingPlanDto,
+} from '@invitation-app/shared';
 import { PrismaService } from '../prisma/prisma.service';
+import { toHouseholdPublicDto, toWeddingInfoDto } from '../common/contract';
 import { SubmitRsvpDto } from './dto/submit-rsvp.dto';
 
 @Injectable()
 export class InvitationService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getInvitation(linkId: string) {
+  async getInvitation(linkId: string): Promise<InvitationResponseDto> {
     const household = await this.prisma.household.findUnique({
       where: { id: linkId },
     });
@@ -25,10 +31,10 @@ export class InvitationService {
     // encore répondu », `0` = « il a répondu que personne ne vient ». Typer ce
     // champ `number` rendrait un `?? 0` structurellement obligatoire et
     // écraserait la distinction avant même qu'elle quitte l'API.
-    let seatingPlan: {
-      tableName: string;
-      neighbors: { displayName: string; confirmedCount: number | null }[];
-    } | null = null;
+    //
+    // Le type vient maintenant du contrat partagé : la forme n'est plus
+    // décrite deux fois, et le front ne peut plus s'en écarter tout seul.
+    let seatingPlan: SeatingPlanDto | null = null;
     if (wedding.seatingPlanActivated && household.tableId) {
       const table = await this.prisma.table.findUnique({
         where: { id: household.tableId },
@@ -47,10 +53,17 @@ export class InvitationService {
       }
     }
 
-    return { household, wedding, seatingPlan };
+    return {
+      household: toHouseholdPublicDto(household),
+      wedding: toWeddingInfoDto(wedding),
+      seatingPlan,
+    };
   }
 
-  async submitRsvp(linkId: string, dto: SubmitRsvpDto) {
+  async submitRsvp(
+    linkId: string,
+    dto: SubmitRsvpDto,
+  ): Promise<HouseholdPublicDto> {
     const household = await this.prisma.household.findUnique({
       where: { id: linkId },
     });
@@ -76,7 +89,7 @@ export class InvitationService {
       }
     }
 
-    return this.prisma.household.update({
+    const updated = await this.prisma.household.update({
       where: { id: linkId },
       data: {
         status: dto.status,
@@ -86,5 +99,6 @@ export class InvitationService {
         message: dto.message,
       },
     });
+    return toHouseholdPublicDto(updated);
   }
 }
