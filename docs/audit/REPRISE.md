@@ -1,11 +1,11 @@
 # Où on en est — reprise de session
 
-**Dernière mise à jour :** 2026-08-23 (soir), par l'architecte.
+**Dernière mise à jour :** 2026-09-10, par l'architecte.
 À lire en premier si tu reprends ce projet sans le contexte de la conversation précédente.
 
 ## L'état en une phrase
 
-L'audit est livré, le **lot 0 est terminé et fusionné**, et le **lot 3 — la refonte design — est en cours** : la direction artistique est livrée, les photos sont fournies, et **les tâches 1 à 4 et 7 sont faites**. La page d'invitation existe et se regarde. Il reste les deux mises en scène d'ouverture, puis l'admin.
+L'audit est livré, le **lot 0 est terminé et fusionné**, et le **lot 3 — la refonte design — est en cours** : la direction artistique est livrée, les photos sont fournies, et **les tâches 1 à 4 et 7 sont faites**. La page d'invitation existe et se regarde. Restent les deux mises en scène d'ouverture (8a, 8b), et les primitives de dialogue et d'affichage (5, 6) — ce sont elles qui tiennent tout l'admin : tant qu'elles manquent, les tâches 9 à 11 ne peuvent pas commencer.
 
 ## Le dépôt
 
@@ -134,12 +134,26 @@ Aucun test ne pouvait l'attraper — ils s'exécutent tous dans le fuseau de la 
 
 ---
 
-## Trouvé pendant la tâche 7 — à traiter
+## Trouvé pendant la tâche 7 — CORRIGÉ le 2026-09-10 (commit `421aace`)
 
-**[MAJEUR] Au plan de table, un voisin qui n'a pas répondu s'affiche « 0 ».**
+**[MAJEUR] Au plan de table, un voisin qui n'a pas répondu s'affichait « 0 ».**
 
-`apps/api/src/invitation/invitation.service.ts:40` écrit `confirmedCount: h.confirmedCount ?? 0` en construisant la liste des voisins de table. Un foyer `PENDING` apparaît donc à l'invité comme « Fara Rakotomavo — 0 » : on lui prête un refus alors qu'il n'a simplement pas encore répondu.
+`invitation.service.ts` écrivait `confirmedCount: h.confirmedCount ?? 0` en construisant la liste des voisins. Un foyer `PENDING` apparaissait donc à l'invité comme « Fara Rakotomavo — 0 » : on lui prêtait un refus alors qu'il n'avait simplement pas encore répondu. **L'invariant `confirmedCount` nullable cassé une troisième fois**, par un troisième chemin — après le dialogue d'édition et les écritures admin.
 
-C'est **l'invariant `confirmedCount` nullable cassé une troisième fois**, par un troisième chemin — après le dialogue d'édition et les écritures admin. Ici la faute est dans le contrat lui-même : `SeatingNeighborDto` type `confirmedCount` en `number` non nullable, donc l'information est détruite avant d'atteindre le front, qui ne peut plus la rattraper.
+**Corrigé des deux côtés**, et il fallait bien les deux : `SeatingNeighborDto.confirmedCount` est nullable dans `packages/shared`, le `?? 0` et le type inline du service ont suivi, et `SeatingPlanSection` n'affiche plus que le nom quand la valeur est `null`. Le tiret étant déjà le séparateur dans le JSX, la seule correction API aurait remplacé un faux refus par un tiret orphelin — « Fara Rakotomavo — ». Le motif `?? "—"` de l'admin ne vaut pas ici, et un libellé « en attente » révélerait à un invité le statut de réponse d'un autre foyer.
 
-Correction : rendre le champ nullable dans `packages/shared`, retirer le `?? 0`, et afficher un tiret côté invité comme le fait déjà le tableau de bord admin.
+Suites après correction : **101 tests backend, 166 frontend**, build à exit 0.
+
+**À savoir pour la prochaine fois — le test exigeait le bug.** L'ancien cas affirmait `confirmedCount: 0` pour un voisin sans réponse, commentaire à l'appui : `// a neighbour who has not answered yet reads as 0, never null`. La régression était écrite comme si c'était la spec ; quiconque corrigeait le service voyait rouge et concluait qu'il se trompait. Les nouveaux tests posent `PENDING → null` et `DECLINED → 0` **dans le même plan de table** : séparés, chacun se laisse satisfaire par un service faux ; côte à côte, non.
+
+**Vérification restante :** le rendu n'a pas été regardé dans le navigateur sur une table mixte (`null` + un nombre + `0` réunis). Les trois états sont couverts unitairement, mais ce projet a déjà vu un défaut n'apparaître qu'à l'exécution réelle.
+
+---
+
+## Ouvert — la porte par laquelle cet invariant revient
+
+**[MAJEUR] Le contrat partagé n'est pas vérifié à la compilation côté API.**
+
+Aucun DTO de `@invitation-app/shared` n'est importé dans `apps/api/src`. Les services décrivent leur retour avec des types inline écrits à la main, et rien ne les confronte à `packages/shared`. Le front peut donc typer `number | null` pendant que l'API renvoie `0`, sans qu'aucune compilation ne bronche — c'est très exactement le mécanisme qui a laissé `confirmedCount` casser trois fois par trois chemins.
+
+Annoter le retour des services avec les DTO partagés fermerait ce chemin. Ça touche plus d'un service : **décision du commanditaire**, à prendre avant le lot 1 plutôt qu'après, sinon le lot 1 s'écrit encore sans filet.
