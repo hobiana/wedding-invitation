@@ -1,6 +1,6 @@
 # invitation-app
 
-Application d'invitation et de gestion d'un mariage : **Hobiana T. Razakanaivo & Lovasoa S. Ramarojaona**, le 12 juin 2027 à Antananarivo. Chaque foyer reçoit un lien unique, découvre les informations, répond ; les organisateurs suivent les réponses et composent le plan de table.
+Application d'invitation et de gestion d'un mariage : **Hobiana T. Razakanaivo & Lovasoa S. Ramarojaona**, le 2 janvier 2027 à Antananarivo. Chaque foyer reçoit un lien unique, découvre les informations, répond ; les organisateurs suivent les réponses et composent le plan de table.
 
 ## À LIRE EN PREMIER
 

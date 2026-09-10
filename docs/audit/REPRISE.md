@@ -30,6 +30,13 @@ Chacun porte aussi la règle de **sauvegarde d'état à 60 % du budget** — éc
 3. **Les primitives d'interface s'appuient sur Radix**, pas sur `<dialog>` natif.
 4. **Le lot 3 est découpé en petites tâches** commitables une par une, pour suivre l'avancement.
 
+Arbitré le 2026-09-10, à partir du design fourni dans `images/html/` :
+
+5. **Le mariage est le samedi 2 janvier 2027**, pas le 12 juin. Cérémonie à 09h00 à l'Église FJKM Ambatobe, réception à 13h00 à l'Espace Ny Akanintsika, Antananarivo. Réponses attendues avant le 1er décembre 2026. Les seeds portent la nouvelle date ; `weddingDate` est l'heure de la cérémonie, celle à laquelle un invité doit être quelque part.
+6. **Confirmer veut dire « nous venons tous ».** L'invité ne saisit pas de nombre : `confirmedCount` prend la valeur de `allocatedSeats` à la confirmation, `0` au refus, et **reste `null` tant que le foyer n'a pas répondu** — l'invariant ne bouge pas. Un foyer qui vient en partie se corrige **depuis l'admin**, et l'invitation invite à téléphoner en cas de changement.
+7. **Le formulaire invité ne demande plus le régime alimentaire**, seulement un mot libre (`message`). Conséquence à traiter : plus personne ne peut renseigner `dietaryNotes`, donc la tuile « Régimes particuliers » du tableau de bord affichera `0` indéfiniment tant que le champ n'est pas ajouté au formulaire admin.
+8. **Les photos du couple viennent de leurs vraies photos.** Le design fourni en contenait quatre portant une signature de provenance C2PA (images générées) ; elles ne servent que pour le décor — enveloppe, fleurs, texture de papier — là où rien ne prétend représenter les mariés.
+
 ## Lot 0 — terminé
 
 Les cinq bloquants du rapport d'audit, corrigés et fusionnés dans `main` (`fe98be1` → `fc15f1a`).

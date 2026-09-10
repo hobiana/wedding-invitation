@@ -29,10 +29,10 @@ async function main() {
     update: {},
     create: {
       id: "singleton",
-      weddingDate: new Date("2027-06-12T14:00:00Z"),
-      venueName: "À définir",
-      address: "À définir",
-      rsvpDeadline: new Date("2027-05-01T00:00:00Z"),
+      weddingDate: new Date("2027-01-02T06:00:00Z"), // samedi 2 janvier 2027, 9 h à Antananarivo
+      venueName: "Espace Ny Akanintsika",
+      address: "Antananarivo, Madagascar",
+      rsvpDeadline: new Date("2026-12-01T20:59:59Z"), // fin du 1er décembre à Antananarivo
       seatingPlanActivated: false,
     },
   });
