@@ -84,9 +84,18 @@ describe('InvitationService.getInvitation', () => {
       id: 't1',
       name: "Table d'honneur",
       households: [
-        { id: 'h1', displayName: 'Famille A', confirmedCount: 2 },
-        { id: 'h2', displayName: 'Famille B', confirmedCount: 3 },
-        { id: 'h3', displayName: 'Famille C', confirmedCount: null },
+        {
+          id: 'h1',
+          displayName: 'Famille A',
+          status: 'CONFIRMED',
+          confirmedCount: 2,
+        },
+        {
+          id: 'h2',
+          displayName: 'Famille B',
+          status: 'CONFIRMED',
+          confirmedCount: 3,
+        },
       ],
     });
 
@@ -94,15 +103,57 @@ describe('InvitationService.getInvitation', () => {
 
     expect(result.seatingPlan).toEqual({
       tableName: "Table d'honneur",
-      neighbors: [
-        { displayName: 'Famille B', confirmedCount: 3 },
-        // a neighbour who has not answered yet reads as 0, never null
-        { displayName: 'Famille C', confirmedCount: 0 },
-      ],
+      neighbors: [{ displayName: 'Famille B', confirmedCount: 3 }],
     });
     expect(
       result.seatingPlan?.neighbors.map((n) => n.displayName),
     ).not.toContain('Famille A');
+  });
+
+  // The whole point of the nullable confirmedCount: `null` means "has not
+  // answered yet", `0` means "answered that nobody is coming". Collapsing the
+  // first onto the second tells a guest that their neighbour declined when in
+  // fact nobody has heard from them. This has now broken three times.
+  it('reports a PENDING neighbour as null and a DECLINED one as 0', async () => {
+    prisma.household.findUnique.mockResolvedValue({
+      id: 'h1',
+      displayName: 'Famille A',
+      tableId: 't1',
+    });
+    prisma.weddingSettings.findUniqueOrThrow.mockResolvedValue({
+      seatingPlanActivated: true,
+    });
+    prisma.table.findUnique.mockResolvedValue({
+      id: 't1',
+      name: "Table d'honneur",
+      households: [
+        {
+          id: 'h1',
+          displayName: 'Famille A',
+          status: 'CONFIRMED',
+          confirmedCount: 2,
+        },
+        {
+          id: 'h2',
+          displayName: 'Famille Sans-Reponse',
+          status: 'PENDING',
+          confirmedCount: null,
+        },
+        {
+          id: 'h3',
+          displayName: 'Famille Absente',
+          status: 'DECLINED',
+          confirmedCount: 0,
+        },
+      ],
+    });
+
+    const result = await service.getInvitation('h1');
+
+    expect(result.seatingPlan?.neighbors).toEqual([
+      { displayName: 'Famille Sans-Reponse', confirmedCount: null },
+      { displayName: 'Famille Absente', confirmedCount: 0 },
+    ]);
   });
 
   it('returns the household and wedding settings alongside the plan', async () => {

@@ -16,6 +16,14 @@ import {
  *
  * La section emporte son propre espacement de 96/128 px : quand elle
  * disparaît, l'air disparaît avec elle plutôt que de laisser un trou.
+ *
+ * Second `null`, à ne pas confondre avec le premier : celui de
+ * `confirmedCount`. `null` = ce voisin n'a pas encore répondu, `0` = il a
+ * répondu que personne ne vient. On n'affiche alors que son nom, sans
+ * séparateur ni nombre — le nombre est une précision, et il n'y en a pas à
+ * donner. Le motif `?? "—"` du dashboard ne vaut pas ici, le tiret est déjà
+ * le séparateur ; et un libellé « en attente » exposerait à un invité le
+ * statut de réponse d'un autre foyer.
  */
 export function SeatingPlanSection({ seatingPlan }: { seatingPlan: SeatingPlanDto | null }) {
   const eyebrowId = useId();
@@ -47,7 +55,16 @@ export function SeatingPlanSection({ seatingPlan }: { seatingPlan: SeatingPlanDt
               // parenthèses — c'est une précision, pas un aparté.
               <li key={neighbor.displayName} className="list-none">
                 {neighbor.displayName}
-                <span className="text-ink-muted"> — {neighbor.confirmedCount}</span>
+                {/*
+                  `typeof === "number"` plutôt que `!== null` : le contrat dit
+                  `number | null`, mais un champ absent d'une réponse d'API
+                  ressusciterait le tiret orphelin sans qu'aucun type ne
+                  bronche. Zéro reste affiché — c'est toute la distinction
+                  qu'on répare.
+                */}
+                {typeof neighbor.confirmedCount === "number" && (
+                  <span className="text-ink-muted"> — {neighbor.confirmedCount}</span>
+                )}
               </li>
             ))}
           </ul>

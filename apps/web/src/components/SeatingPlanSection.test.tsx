@@ -35,6 +35,40 @@ describe("SeatingPlanSection", () => {
     expect(items[1]).toHaveTextContent(/Famille Andria\s*—\s*2/);
   });
 
+  // L'invariant `confirmedCount` nullable, jusque dans la liste des voisins :
+  // `null` dit « ce foyer n'a pas encore répondu », `0` dit « il a répondu que
+  // personne ne vient ». Rendre « — 0 » sur un `null` prête un refus à un
+  // voisin qui n'a rien dit — et le tiret est déjà le séparateur, donc le
+  // « ?? "—" » du dashboard donnerait ici « — — ». Le nom seul, sans
+  // séparateur : le nombre est une précision, et il n'y en a pas à donner.
+  it("shows only the name of a neighbour who has not answered yet", () => {
+    render(
+      <SeatingPlanSection
+        seatingPlan={{
+          tableName: "Table des Baobabs",
+          neighbors: [{ displayName: "Fara Rakotomavo", confirmedCount: null }],
+        }}
+      />,
+    );
+
+    const item = screen.getByRole("listitem");
+    expect(item).toHaveTextContent(/^Fara Rakotomavo$/);
+    expect(item.textContent).not.toContain("—");
+  });
+
+  it("still shows the zero of a neighbour who answered that nobody is coming", () => {
+    render(
+      <SeatingPlanSection
+        seatingPlan={{
+          tableName: "Table des Baobabs",
+          neighbors: [{ displayName: "Famille Rasoanaivo", confirmedCount: 0 }],
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("listitem")).toHaveTextContent(/^Famille Rasoanaivo\s*—\s*0$/);
+  });
+
   // Un foyer seul à sa table doit tout de même savoir où s'asseoir : c'est
   // l'information qui compte, la liste de voisins est le supplément.
   it("still names the table when the household sits alone at it", () => {

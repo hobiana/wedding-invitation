@@ -29,7 +29,13 @@ export interface WeddingInfoDto {
 
 export interface SeatingNeighborDto {
   displayName: string;
-  confirmedCount: number;
+  /**
+   * Nullable, et il doit le rester. `null` dit « ce foyer n'a pas encore
+   * répondu », `0` dit « il a répondu que personne ne vient ». Les écraser
+   * l'un sur l'autre ici détruit l'information avant qu'elle atteigne le
+   * front, qui n'a alors plus aucun moyen de la rattraper.
+   */
+  confirmedCount: number | null;
 }
 
 export interface SeatingPlanDto {

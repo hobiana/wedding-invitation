@@ -21,9 +21,13 @@ export class InvitationService {
       where: { id: 'singleton' },
     });
 
+    // `confirmedCount` reste nullable jusqu'ici : `null` = « ce foyer n'a pas
+    // encore répondu », `0` = « il a répondu que personne ne vient ». Typer ce
+    // champ `number` rendrait un `?? 0` structurellement obligatoire et
+    // écraserait la distinction avant même qu'elle quitte l'API.
     let seatingPlan: {
       tableName: string;
-      neighbors: { displayName: string; confirmedCount: number }[];
+      neighbors: { displayName: string; confirmedCount: number | null }[];
     } | null = null;
     if (wedding.seatingPlanActivated && household.tableId) {
       const table = await this.prisma.table.findUnique({
@@ -37,7 +41,7 @@ export class InvitationService {
             .filter((h) => h.id !== household.id)
             .map((h) => ({
               displayName: h.displayName,
-              confirmedCount: h.confirmedCount ?? 0,
+              confirmedCount: h.confirmedCount,
             })),
         };
       }
