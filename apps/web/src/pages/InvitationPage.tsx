@@ -19,11 +19,19 @@ import { PhotoCarousel } from "@/components/invitation/PhotoCarousel";
 import { Schedule } from "@/components/invitation/Schedule";
 import { Venue } from "@/components/invitation/Venue";
 import { COUPLE } from "@/components/invitation/couple";
-import { CONTACT_PHONES, MALAGASY } from "@/components/invitation/wedding-content";
-import { eyebrowClassName, guestTextButtonClassName } from "@/components/invitation/guest-styles";
+import {
+  CONTACT_PHONES,
+  MALAGASY,
+} from "@/components/invitation/wedding-content";
+import {
+  eyebrowClassName,
+  guestTextButtonClassName,
+} from "@/components/invitation/guest-styles";
 
 function peopleSentence(count: number): string {
-  return count > 1 ? `${count} personnes présentes` : `${count} personne présente`;
+  return count > 1
+    ? `${count} personnes présentes`
+    : `${count} personne présente`;
 }
 
 /**
@@ -56,10 +64,13 @@ export function InvitationPage() {
   });
 
   const rsvpMutation = useMutation({
-    mutationFn: (dto: SubmitRsvpDto) => api.patch(`/invitation/${linkId}/rsvp`, dto),
+    mutationFn: (dto: SubmitRsvpDto) =>
+      api.patch(`/invitation/${linkId}/rsvp`, dto),
     onSuccess: () => {
       setIsEditing(false);
-      return queryClient.invalidateQueries({ queryKey: ["invitation", linkId] });
+      return queryClient.invalidateQueries({
+        queryKey: ["invitation", linkId],
+      });
     },
   });
 
@@ -74,7 +85,8 @@ export function InvitationPage() {
   if (error || !data) {
     return (
       <p role="alert" className="mx-auto max-w-column p-12 text-center">
-        Cette invitation est introuvable. Vérifiez le lien reçu, ou contactez les organisateurs.
+        Cette invitation est introuvable. Vérifiez le lien reçu, ou contactez
+        les organisateurs.
       </p>
     );
   }
@@ -90,7 +102,8 @@ export function InvitationPage() {
   // du cache pour reformuler ce que l'invité vient de choisir.
   const submitted = rsvpMutation.isSuccess ? rsvpMutation.variables : null;
   const answeredStatus =
-    submitted?.status ?? (household.status === "PENDING" ? null : household.status);
+    submitted?.status ??
+    (household.status === "PENDING" ? null : household.status);
   // Le nombre ne vient plus de ce que l'invité a envoyé — il n'en envoie plus.
   // Il vient du serveur, qui l'a posé depuis les places accordées ; et si
   // l'organisateur l'a corrigé depuis, c'est sa valeur qu'on relit.
@@ -126,7 +139,10 @@ export function InvitationPage() {
       />
       <PracticalInformation wedding={wedding} />
 
-      <section aria-labelledby="votre-reponse" className="px-6 pb-14 pt-4 text-center">
+      <section
+        aria-labelledby="votre-reponse"
+        className="px-6 pb-14 pt-4 text-center"
+      >
         <p className="font-sans text-[0.75rem] uppercase tracking-[0.4em] text-bordeaux-500">
           Réponse souhaitée
         </p>
@@ -142,7 +158,8 @@ export function InvitationPage() {
             s'affichait était fausse. */}
         {!rsvpClosed && (
           <p className="mt-1.5 font-sans text-[0.8125rem] leading-[1.7] text-ink-muted">
-            Merci de nous répondre avant le {formatRsvpDeadline(wedding.rsvpDeadline)}.
+            Merci de nous répondre avant le{" "}
+            {formatRsvpDeadline(wedding.rsvpDeadline)}.
           </p>
         )}
 
@@ -161,11 +178,17 @@ export function InvitationPage() {
               householdName={household.displayName}
               memberNames={household.memberNames}
               allocatedSeats={household.allocatedSeats}
-              defaultStatus={household.status === "PENDING" ? undefined : household.status}
+              defaultStatus={
+                household.status === "PENDING" ? undefined : household.status
+              }
               defaultMessage={household.message ?? ""}
               onSubmit={(dto) => rsvpMutation.mutate(dto)}
               isPending={rsvpMutation.isPending}
-              errorMessage={rsvpMutation.isError ? frenchRsvpError(rsvpMutation.error) : null}
+              errorMessage={
+                rsvpMutation.isError
+                  ? frenchRsvpError(rsvpMutation.error)
+                  : null
+              }
             />
           )}
         </div>
@@ -178,7 +201,8 @@ export function InvitationPage() {
           {COUPLE.firstNames[0]} &amp; {COUPLE.firstNames[1]}
         </p>
         <p className="mt-2.5 font-sans text-[0.75rem] uppercase tracking-[0.34em] text-ink-muted">
-          {formatWeddingDate(wedding.weddingDate, { weekday: false })} · {COUPLE.city}
+          {formatWeddingDate(wedding.weddingDate, { weekday: false })} ·{" "}
+          {COUPLE.city}
         </p>
 
         {/* Les numéros vivent aussi dans le formulaire, mais le formulaire
@@ -217,12 +241,6 @@ function PracticalInformation({ wedding }: { wedding: WeddingInfoDto }) {
   return (
     <section className="px-6 pb-10">
       <dl className="mx-auto max-w-column space-y-6 text-center">
-        {wedding.dressCode && (
-          <div>
-            <dt className={eyebrowClassName}>Tenue</dt>
-            <dd className="mt-2">{wedding.dressCode}</dd>
-          </div>
-        )}
         {wedding.parkingInfo && (
           <div>
             <dt className={eyebrowClassName}>Stationnement</dt>
@@ -253,14 +271,20 @@ function RecordedAnswer({
 }) {
   return (
     <div className="border border-gold/40 bg-ivory px-6 py-9">
-      <p className="font-script text-[2.375rem] text-bordeaux-500">{MALAGASY.thanks}</p>
+      <p className="font-script text-[2.375rem] text-bordeaux-500">
+        {MALAGASY.thanks}
+      </p>
       <p className="mt-3">
         {status === "CONFIRMED"
           ? `C'est noté : vous serez ${peopleSentence(countedSeats)}.`
           : "Vous ne pourrez pas être des nôtres. Nous le regrettons, et nous comprenons."}
       </p>
       {message && <p className="mt-2 text-ink-muted">Votre mot : {message}</p>}
-      <button type="button" onClick={onEdit} className={`mt-4 ${guestTextButtonClassName}`}>
+      <button
+        type="button"
+        onClick={onEdit}
+        className={`mt-4 ${guestTextButtonClassName}`}
+      >
         Modifier notre réponse
       </button>
     </div>
@@ -271,19 +295,27 @@ function RecordedAnswer({
 function ClosedRsvpSummary({ household }: { household: HouseholdPublicDto }) {
   return (
     <div className="border border-gold/40 bg-ivory px-6 py-9">
-      <p className="font-display text-[1.625rem] text-bordeaux-700">Les réponses sont closes.</p>
+      <p className="font-display text-[1.625rem] text-bordeaux-700">
+        Les réponses sont closes.
+      </p>
       {household.status === "CONFIRMED" && (
         <p className="mt-2">
-          Votre réponse : {peopleSentence(household.confirmedCount ?? household.allocatedSeats)}.
+          Votre réponse :{" "}
+          {peopleSentence(household.confirmedCount ?? household.allocatedSeats)}
+          .
         </p>
       )}
       {household.status === "DECLINED" && (
-        <p className="mt-2">Votre réponse : vous ne pourrez pas être des nôtres.</p>
+        <p className="mt-2">
+          Votre réponse : vous ne pourrez pas être des nôtres.
+        </p>
       )}
       {household.status === "PENDING" && (
         <p className="mt-2">Nous n'avons pas reçu votre réponse.</p>
       )}
-      {household.message && <p className="mt-2 text-ink-muted">Votre mot : {household.message}</p>}
+      {household.message && (
+        <p className="mt-2 text-ink-muted">Votre mot : {household.message}</p>
+      )}
     </div>
   );
 }
