@@ -232,8 +232,23 @@
   --duration-micro: 140ms;
   --duration-transition: 280ms;
 
+  /* Le flottement des aquarelles. Lent et de faible amplitude : 10 px sur 7 s,
+     c'est une respiration, pas un mouvement. Il est coupé net par la règle
+     `prefers-reduced-motion` plus bas, comme tout le reste. */
+  --animate-float: float 7s ease-in-out infinite;
+
   /* Une seule ombre, statique, jamais animée. */
   --shadow-card: 0 1px 2px rgb(42 33 36 / 0.06), 0 8px 24px rgb(42 33 36 / 0.08);
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 /* ---------------------------------------------------------------------------

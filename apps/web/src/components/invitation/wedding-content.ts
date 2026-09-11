@@ -26,15 +26,15 @@ export const VERSE = {
  * Les deux mères, dans l'ordre du faire-part — celle du marié, puis celle de
  * la mariée.
  *
- * Le libellé « Sa mère » est celui du design, repris mot pour mot : le texte
- * d'un faire-part appartient aux familles. Il se répète pourtant à l'identique
- * au-dessus des deux colonnes, où « sa » n'a plus de référent — signalé au
- * commanditaire, à lui de trancher s'il préfère « La mère du marié » et « La
- * mère de la mariée ».
+ * Le design les surmontait chacune d'un « Sa mère » identique, où « sa » perd
+ * son référent. Le commanditaire a tranché pour les noms seuls : la disposition
+ * côte à côte, sous les deux noms de famille qu'on retrouve ligne suivante,
+ * dit la parenté sans avoir à l'écrire. C'est aussi l'« épuré » qu'il demandait
+ * depuis le début.
  */
 export const PARENTS = [
-  { label: "Sa mère", name: "Mme veuve Razafindraibe Razakanaivo" },
-  { label: "Sa mère", name: "Mme veuve Rasolonirina Ramarojaona" },
+  "Mme veuve Razafindraibe Razakanaivo",
+  "Mme veuve Rasolonirina Ramarojaona",
 ] as const;
 
 /** L'annonce, entre les parents et les mariés. */
