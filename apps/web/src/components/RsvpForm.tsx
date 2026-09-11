@@ -174,11 +174,6 @@ export function RsvpForm({
       ? `${allocatedSeats} places vous sont réservées.`
       : `${allocatedSeats} place vous est réservée.`;
 
-  const compte =
-    allocatedSeats > 1
-      ? `Nous comptons donc sur vous ${allocatedSeats}.`
-      : "Nous comptons donc sur vous.";
-
   return (
     <form onSubmit={handleSubmit} className="space-y-8 text-left">
       {/* L'en-tête du design : la seule information de la page propre à ce
@@ -239,7 +234,7 @@ export function RsvpForm({
       */}
       {answer === "CONFIRMED" && (
         <p className="text-[0.9375rem] leading-relaxed text-ink-muted">
-          {places} {compte}
+          Nous sommes ravis de vous compter parmi nous, {places}
           <br />
           Si l'un d'entre vous ne peut finalement pas venir, appelez-nous :{" "}
           {CONTACT_PHONES.map((phone, i) => (
