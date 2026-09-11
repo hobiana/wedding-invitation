@@ -93,7 +93,7 @@ describe("RsvpForm — le nombre, désormais décidé par l'organisateur", () =>
     fireEvent.click(screen.getByRole("radio", { name: YES }));
 
     expect(screen.getByText(/4 places vous sont réservées/i)).toBeInTheDocument();
-    expect(screen.getByText(/nous comptons donc sur vous 4/i)).toBeInTheDocument();
+    expect(screen.getByText(/ravis de vous compter parmi nous/i)).toBeInTheDocument();
     expect(screen.getByText(/appelez-nous/i)).toBeInTheDocument();
   });
 

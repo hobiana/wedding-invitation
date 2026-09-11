@@ -129,7 +129,13 @@ describe("InvitationPage practical information", () => {
     expect(line.textContent).not.toMatch(/\d{1,2}\s*[h:]\s*\d{2}/);
   });
 
-  it("renders dress code, parking and a map link when they are filled in", async () => {
+  /**
+   * La tenue a disparu de la page invité le 2026-09-11, décision du
+   * commanditaire. Le champ, lui, existe toujours — colonne en base, champ du
+   * DTO, saisie dans les réglages — et il est encore rempli par le seed. Rien
+   * d'autre que cette assertion n'empêche la section de revenir par mégarde.
+   */
+  it("renders parking and a map link, but no longer the dress code", async () => {
     renderPage(
       invitation(
         FUTURE_DEADLINE,
@@ -137,13 +143,13 @@ describe("InvitationPage practical information", () => {
         {
           mapUrl: "https://maps.example.com/domaine-des-roses",
           dressCode: "Tenue de soirée, bordeaux bienvenu",
-          parkingInfo: "Parking gratuit derrière la chapelle",
+          parkingInfo: "Parking disponible sur place",
         },
       ),
     );
 
-    expect(await screen.findByText(/tenue de soirée, bordeaux bienvenu/i)).toBeInTheDocument();
-    expect(screen.getByText(/parking gratuit derrière la chapelle/i)).toBeInTheDocument();
+    expect(await screen.findByText(/parking disponible sur place/i)).toBeInTheDocument();
+    expect(screen.queryByText(/tenue de soirée, bordeaux bienvenu/i)).not.toBeInTheDocument();
     const mapLink = screen.getByRole("link", { name: /itinéraire/i });
     expect(mapLink).toHaveAttribute("href", "https://maps.example.com/domaine-des-roses");
     expect(mapLink).toHaveAttribute("rel", expect.stringContaining("noopener"));
@@ -157,6 +163,20 @@ describe("InvitationPage practical information", () => {
     expect(practical.queryByText(/^tenue$/i)).not.toBeInTheDocument();
     expect(practical.queryByText(/^stationnement$/i)).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /itinéraire/i })).not.toBeInTheDocument();
+  });
+
+  /**
+   * Le seed remplit encore la tenue, et le formulaire de réglages la propose
+   * toujours. Un mariage où elle serait le seul champ pratique rempli ne doit
+   * pas ouvrir une section sur une liste vide : depuis que la tenue ne s'affiche
+   * plus, c'est le stationnement seul qui décide si la section existe.
+   */
+  it("draws no practical section at all when only the dress code is filled in", async () => {
+    renderPage(invitation(FUTURE_DEADLINE, {}, { dressCode: "Tenue de cocktail" }));
+
+    await screen.findByText("1 rue des Fleurs");
+    // `<dt>` a le rôle « term », et c'est le seul de la page.
+    expect(screen.queryByRole("term")).not.toBeInTheDocument();
   });
 
   // mapUrl is free text in the admin form. A javascript: URL reaching href
@@ -353,7 +373,9 @@ describe("InvitationPage — lisible sans aucune animation", () => {
    * page — pas une page vide en attendant.
    */
   it("renders every section of the invitation on first paint", async () => {
-    renderPage(invitation(FUTURE_DEADLINE, {}, { dressCode: "Tenue de cocktail" }));
+    renderPage(
+      invitation(FUTURE_DEADLINE, {}, { parkingInfo: "Parking disponible sur place" }),
+    );
 
     await screen.findByRole("heading", { level: 1 });
     for (const titre of [
@@ -367,7 +389,7 @@ describe("InvitationPage — lisible sans aucune animation", () => {
       expect(screen.getByRole("region", { name: titre })).toBeInTheDocument();
     }
     expect(screen.getByRole("radio", { name: YES })).toBeInTheDocument();
-    expect(screen.getByText(/tenue de cocktail/i)).toBeInTheDocument();
+    expect(screen.getByText(/parking disponible sur place/i)).toBeInTheDocument();
   });
 });
 

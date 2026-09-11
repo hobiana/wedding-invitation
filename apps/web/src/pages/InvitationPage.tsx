@@ -230,13 +230,17 @@ export function InvitationPage() {
 /**
  * Ce que l'organisateur a saisi et que le design ne prévoyait nulle part.
  *
- * Le jour et le lieu sont désormais portés par le programme et la section du
- * lieu ; restent la tenue et le stationnement, deux champs facultatifs qui
- * n'apparaissent que s'ils sont remplis — un intitulé « Tenue » sans valeur
- * n'apprend rien et ressemble à une panne.
+ * Le jour et le lieu sont portés par le programme et la section du lieu ; la
+ * tenue a été retirée le 2026-09-11 à la demande du commanditaire. Il ne reste
+ * que le stationnement, qui ne s'affiche que s'il est rempli — un intitulé
+ * sans valeur n'apprend rien et ressemble à une panne.
+ *
+ * La garde ne regarde donc plus que `parkingInfo` : tant qu'elle lisait aussi
+ * `dressCode`, un réglage où seule la tenue était saisie ouvrait la section sur
+ * une liste vide.
  */
 function PracticalInformation({ wedding }: { wedding: WeddingInfoDto }) {
-  if (!wedding.dressCode && !wedding.parkingInfo) return null;
+  if (!wedding.parkingInfo) return null;
 
   return (
     <section className="px-6 pb-10">
