@@ -28,17 +28,29 @@ describe("Venue", () => {
 
   /**
    * Le design posait ici un carré gris hachuré portant « carte du lieu ·
-   * capture ». Une fausse carte est pire que pas de carte : elle promet une
-   * image qui n'arrivera jamais, et un invité qui la touche ne comprend pas
-   * pourquoi rien ne se passe. Ce qu'on avait déjà, c'est le lien.
+   * capture ». C'est une vraie carte maintenant — mais elle se construit à
+   * partir du **nom et de l'adresse** saisis par l'organisateur, pas de
+   * `mapUrl` qui est du texte libre et peut pointer n'importe où. Si le lieu
+   * change dans l'admin, la carte suit.
    */
-  it("shows no map placeholder when there is no map", () => {
+  it("embeds a real map built from the venue the organiser typed", () => {
+    render(<Venue {...LIEU} />);
+
+    const carte = screen.getByTitle(/carte — espace ny akanintsika/i);
+    const src = carte.getAttribute("src") ?? "";
+    expect(src).toContain(encodeURIComponent("Espace Ny Akanintsika, Antananarivo, Madagascar"));
+    // Elle est loin dans la page : personne ne paie une carte qu'il ne verra pas.
+    expect(carte).toHaveAttribute("loading", "lazy");
+  });
+
+  it("still shows the map when no directions URL was filled in", () => {
     render(<Venue {...LIEU} mapUrl={null} />);
 
+    // La carte vient de l'adresse, le lien vient du champ libre : le second
+    // peut manquer sans emporter le premier.
+    expect(screen.getByTitle(/carte —/i)).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /itinéraire/i })).toBeNull();
-    expect(screen.queryByText(/capture|carte du lieu/i)).toBeNull();
-    // Le lieu et l'adresse restent : c'est l'information, le lien n'est que
-    // la commodité.
+    expect(screen.queryByText(/capture|carte du lieu ·/i)).toBeNull();
     expect(screen.getByRole("heading", { name: "Espace Ny Akanintsika" })).toBeInTheDocument();
   });
 

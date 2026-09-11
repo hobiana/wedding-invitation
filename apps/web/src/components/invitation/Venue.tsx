@@ -41,17 +41,54 @@ export function Venue({
       </p>
       <div aria-hidden="true" className="mx-auto mt-5 h-px w-14 bg-gold" />
 
+      {/* Le cadre du design, avec une vraie carte dedans au lieu du carré
+          hachuré. Hauteur fixe et modeste : la carte situe le lieu, elle ne
+          remplace pas l'application de navigation de l'invité. */}
+      <div className="mt-7 border border-gold/40 bg-page p-2.5">
+        <iframe
+          title={`Carte — ${venueName}`}
+          src={carteEmbarquee(venueName, address)}
+          // Chargée seulement quand l'invité arrive dessus : elle est loin dans
+          // la page, et personne ne doit payer une carte qu'il ne verra pas.
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+          className="block h-[17rem] w-full border-0"
+        />
+      </div>
+
       {route && (
         <a
           href={route}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-8 block bg-bordeaux-700 px-4 py-4 font-sans text-[0.75rem] uppercase tracking-[0.28em] text-on-bordeaux shadow-[inset_0_0_0_1px_var(--color-gold)] transition-colors duration-(--duration-micro) ease-(--ease-in) hover:bg-bordeaux-500"
+          // Un contour fin plutôt qu'un aplat pleine largeur : la carte
+          // au-dessus porte déjà le poids visuel de la section, et deux blocs
+          // pleins l'un sur l'autre feraient panneau publicitaire.
+          className="mt-5 inline-flex items-center gap-2 border border-gold px-6 py-3 font-sans text-[0.6875rem] uppercase tracking-[0.24em] text-bordeaux-700 transition-colors duration-(--duration-micro) ease-(--ease-in) hover:border-bordeaux-700 hover:bg-bordeaux-700 hover:text-on-bordeaux"
         >
           Itinéraire vers la réception
+          <span aria-hidden="true">→</span>
           <span className="sr-only"> (nouvel onglet)</span>
         </a>
       )}
     </section>
   );
+}
+
+/**
+ * L'adresse de la carte embarquée, construite depuis le nom et l'adresse que
+ * l'organisateur a saisis — pas depuis `mapUrl`, qui est du texte libre et
+ * peut pointer n'importe où. Si le lieu change dans l'admin, la carte suit.
+ *
+ * Cette forme de Google Maps ne demande **aucune clé d'API** : rien à créer,
+ * rien à facturer, rien à mettre dans le bundle. En contrepartie elle n'est pas
+ * documentée par Google et pourrait changer un jour — d'où le bouton
+ * d'itinéraire en dessous, qui reste la voie sûre si la carte ne s'affiche pas.
+ *
+ * Elle charge aussi des ressources Google chez chaque invité. Pour un
+ * faire-part c'est l'usage, mais c'est dit.
+ */
+function carteEmbarquee(venueName: string, address: string): string {
+  const lieu = encodeURIComponent(`${venueName}, ${address}`);
+  return `https://maps.google.com/maps?q=${lieu}&hl=fr&z=15&output=embed`;
 }
