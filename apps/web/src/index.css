@@ -1,53 +1,140 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
-   Polices — auto-hébergées, sous-ensemble latin.
-   43 292 o au total, soit 36 % du budget de 120 Ko.
+   Polices — auto-hébergées, extraites du design fourni par le commanditaire.
 
-   Le repli n'est pas un pis-aller : les métriques ci-dessous sont calées sur
-   celles des vraies polices, si bien que la substitution au chargement ne
-   déplace pas la page. Un invité sur un réseau lent lit la même mise en page,
-   pas une version qui saute sous ses yeux.
+   Trois familles, six fontes, découpées par alphabet. Le `unicode-range` n'est
+   pas décoratif : il fait que le latin étendu (147 Ko) n'est téléchargé que si
+   un caractère l'exige. Une page française n'en tire que le latin, 186 Ko.
+
+   C'est quatre fois le budget des anciennes Marcellus + Source Sans 3 (43 Ko).
+   Le design en a besoin : Parisienne porte les prénoms, Cormorant les titres et
+   les chiffres, Jost les capitales espacées. Cormorant 500, Cormorant 300
+   italique et Jost 500 sont déclarées par le design mais ne servent qu'une fois
+   ou pas du tout — elles ne sont pas embarquées.
+
+   MANQUE ENCORE : les métriques de repli. Les anciennes polices avaient des
+   `size-adjust` mesurés, qui empêchaient la page de sauter au moment du `swap`.
+   Il faut les remesurer dans le navigateur pour ces trois familles — à faire
+   quand le serveur de développement tourne, avant que la page soit montrée.
    --------------------------------------------------------------------------- */
 
 @font-face {
-  font-family: "Marcellus";
+  font-family: "Cormorant Garamond";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/cormorant-garamond-400-italic-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Cormorant Garamond";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/cormorant-garamond-400-italic-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Cormorant Garamond";
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("/fonts/cormorant-garamond-300-normal-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Cormorant Garamond";
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("/fonts/cormorant-garamond-300-normal-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Cormorant Garamond";
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("/fonts/marcellus-latin-400.woff2") format("woff2");
+  src: url("/fonts/cormorant-garamond-400-normal-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
 @font-face {
-  font-family: "Source Sans 3";
+  font-family: "Cormorant Garamond";
   font-style: normal;
-  font-weight: 400 700;
+  font-weight: 400;
   font-display: swap;
-  src: url("/fonts/source-sans-3-latin-var.woff2") format("woff2");
-}
-
-/* Hauteur d'x mesurée : Georgia 48, Marcellus 50 — d'où les 104 %. */
-@font-face {
-  font-family: "Marcellus Fallback";
-  src: local("Georgia"), local("Noto Serif"), local("Times New Roman");
-  size-adjust: 104%;
-  ascent-override: 93%;
-  descent-override: 27%;
-  line-gap-override: 0%;
+  src: url("/fonts/cormorant-garamond-400-normal-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
 @font-face {
-  font-family: "Source Sans Fallback";
-  src: local("Segoe UI"), local("Roboto"), local("Helvetica Neue"), local("Arial");
-  size-adjust: 98%;
-  ascent-override: 104%;
-  descent-override: 41%;
-  line-gap-override: 0%;
+  font-family: "Jost";
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("/fonts/jost-300-normal-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Jost";
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("/fonts/jost-300-normal-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Jost";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/jost-400-normal-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Jost";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/jost-400-normal-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Parisienne";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/parisienne-400-normal-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Parisienne";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/parisienne-400-normal-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
 /* ---------------------------------------------------------------------------
    Jetons. Tailwind v4 : la configuration est ici, il n'y a pas de
    tailwind.config.js et il ne faut pas en créer — il ne serait pas lu.
+
+   Les NOMS sont ceux d'avant, les VALEURS viennent du design. C'est délibéré :
+   l'admin s'appuie sur `bordeaux-700`, `cream`, `ink-muted`, `rule` ; garder les
+   noms la fait suivre sans qu'on y touche, et sans qu'un écran reste en arrière
+   avec l'ancienne palette.
    --------------------------------------------------------------------------- */
 
 /* `static` : sans lui, Tailwind v4 n'émet que les variables qu'il voit
@@ -57,30 +144,50 @@
    vides sans qu'aucune erreur ne soit levée. */
 @theme static {
   /* Encre */
-  --color-ink: #2a2124;
-  --color-ink-muted: #6b5b60;
+  --color-ink: #5c1024;
+  --color-ink-muted: #7a5049;
+  --color-ink-label: #8a5f52;
 
   /* Bordeaux */
-  --color-bordeaux-900: #3e1220;
-  --color-bordeaux-700: #6e1f35;
-  --color-bordeaux-500: #8e3a50;
+  --color-bordeaux-900: #3a0a14;
+  --color-bordeaux-700: #6e1023;
+  --color-bordeaux-500: #8c1c34;
   --color-bordeaux-200: #e8cdd4;
   --color-bordeaux-50: #f9eff1;
 
-  /* Papier */
-  --color-ivory: #fbf8f4;
-  --color-cream: #f2eae0;
+  /* Papier. `page` est le fond hors de la carte, `cream` la carte elle-même,
+     `ivory` les encarts posés dessus, `sand` le bandeau de pied de page. */
+  --color-page: #ffffff;
+  --color-ivory: #fffdfa;
+  --color-cream: #f5eddf;
+  --color-sand: #e7d9c6;
   --color-rule: #e1d5c4;
-  --color-rule-strong: #8c7a68;
+  --color-rule-strong: #8a5f52;
 
-  /* Or — relevé sur le faire-part papier du couple. 3,58:1 sur ivoire : il
-     passe le seuil des éléments NON textuels, jamais celui du texte. */
+  /* Sur fond bordeaux — 11,08:1 et 9,01:1. */
+  --color-on-bordeaux: #fbf6ee;
+  --color-on-bordeaux-muted: #f0dcd1;
+
+  /* Or. Une seule teinte — 27,5° — à trois clartés, parce que la dorure d'un
+     faire-part ne se lit pas pareil sur papier clair et sur bordeaux.
+
+     `gold`       #ac784c  3,26:1 sur la carte, 3,79:1 sur blanc — passe le
+                           seuil des éléments NON textuels, jamais celui du
+                           texte. Valeur relevée sur leur faire-part papier,
+                           arbitrée par le commanditaire, on n'y touche pas.
+     `gold-light` #d0b095  5,86:1 sur bordeaux — le doré qui porte du texte
+                           sur le bandeau sombre.
+     `gold-ink`   #785435  5,79:1 sur la carte, 6,63:1 sur les encarts — le
+                           doré qui porte du texte sur fond clair.
+
+     Le design proposait #c9a24a, mesuré à 2,40:1 sur blanc : sous le seuil,
+     et il l'employait en filets. Écarté. */
   --color-gold: #ac784c;
+  --color-gold-light: #d0b095;
+  --color-gold-ink: #785435;
 
   /* Le filet lamba — rythme 1/2/3/2/1 sur 9 px de haut, relevé sur les rayures
-     du lamba du couple. Une rayure est de la géométrie pure : elle se reproduit
-     exactement en dégradé, pour zéro octet d'image. Il se pose sous chaque
-     titre de section, sur 64 px : un onglet tissé, pas un surligneur. */
+     du lamba du couple. Sort avec l'ornement malgache à l'étape suivante. */
   --rule-lamba: linear-gradient(
     to bottom,
     var(--color-bordeaux-700) 0 1px,
@@ -92,15 +199,17 @@
 
   /* Statuts — admin uniquement, et toujours doublés d'un libellé. */
   --color-status-yes: #3f5d45;
-  --color-status-pending: #8e3a50;
+  --color-status-pending: #8c1c34;
   --color-status-no: #6e635a;
   --color-status-yes-bg: #e4eae2;
   --color-status-pending-bg: #f5e4e8;
   --color-status-no-bg: #ede7de;
 
-  /* Familles */
-  --font-display: "Marcellus", "Marcellus Fallback", Georgia, serif;
-  --font-sans: "Source Sans 3", "Source Sans Fallback", system-ui, sans-serif;
+  /* Familles. `script` ne porte que les prénoms et les deux ou trois phrases
+     manuscrites : jamais un paragraphe, jamais une étiquette. */
+  --font-display: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  --font-sans: "Jost", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-script: "Parisienne", "Segoe Script", cursive;
 
   /* Corps. 17 px de texte courant dans une colonne de 520 px donne ~63
      caractères par ligne — la longueur où l'œil retrouve la ligne suivante. */
@@ -113,20 +222,20 @@
   /* `--container-column`, et surtout PAS `--container-prose`.
      Tailwind v4 livre `max-w-prose` en utilitaire **statique** câblé sur
      `65ch` ; il masque intégralement un jeton `--container-prose`, qui est
-     alors émis dans `:root` sans que rien ne le lise. Mesuré : la colonne
-     sortait à 549 px (65ch de Source Sans 3 à 17 px) au lieu de 520, et sa
-     largeur dépendait de la police chargée — elle changeait donc au moment du
-     `swap`. Aucune erreur n'était levée.
+     alors émis dans `:root` sans que rien ne le lise. Aucune erreur n'est
+     levée.
      Règle : ne jamais nommer un jeton `--container-*` comme un utilitaire
      `max-w-*` intégré (`prose`, `screen`, `full`, `min`, `max`, `fit`). */
   --container-column: 520px;
   --container-hero: 640px;
+  /* La carte du design : 680 px, et la page blanche tout autour. */
+  --container-card: 680px;
 
   /* Rayons. 2 px et non 0 : un rayon nul lit « journal » et se comporte mal
-     sur les densités de pixels non entières. 2 px et non 8 : au-delà de 4 on
-     quitte l'imprimé pour l'application. */
+     sur les densités de pixels non entières. */
   --radius-control: 2px;
   --radius-surface: 4px;
+  --radius-photo: 12px;
 
   /* Mouvement */
   --ease-in: cubic-bezier(0.22, 1, 0.36, 1);
@@ -143,9 +252,8 @@
    --------------------------------------------------------------------------- */
 
 @layer base {
-  /* Aucune graisse ni italique synthétique : Marcellus n'a qu'un poids, et un
-     faux gras de capitale romaine est laid. Pour appuyer, on change de taille
-     ou on passe en Source Sans 3 600. */
+  /* Aucune graisse ni italique synthétique : on embarque les vraies fontes, et
+     un faux gras de Cormorant est laid. Pour appuyer, on change de taille. */
   * {
     font-synthesis: none;
   }
@@ -158,7 +266,7 @@
   }
 
   body {
-    background-color: var(--color-ivory);
+    background-color: var(--color-page);
     color: var(--color-ink);
     font-family: var(--font-sans);
     font-size: var(--text-body);
