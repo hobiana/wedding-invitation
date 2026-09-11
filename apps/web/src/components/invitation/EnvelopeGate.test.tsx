@@ -119,6 +119,41 @@ describe("EnvelopeGate", () => {
   });
 
   /**
+   * Le défilement est verrouillé tant que la porte est là : défiler derrière
+   * une page qu'on ne voit pas fait arriver l'invité au milieu de nulle part
+   * quand le voile s'en va.
+   */
+  it("locks the page behind it, and gives the scroll back when it leaves", () => {
+    vi.useFakeTimers();
+    render(<EnvelopeGate onReveal={() => {}} />);
+
+    expect(document.documentElement.style.overflow).toBe("hidden");
+    expect(document.body.style.overflow).toBe("hidden");
+
+    fireEvent.click(screen.getByTestId("porte"));
+    act(() => vi.advanceTimersByTime(1750));
+
+    expect(document.documentElement.style.overflow).toBe("");
+    expect(document.body.style.overflow).toBe("");
+  });
+
+  /**
+   * Et il le rend **depuis le nettoyage de l'effet**, pas depuis le clic. Un
+   * démontage imprévu — une erreur, un changement de route, une porte retirée
+   * par le filet de sécurité — laisserait sinon la page verrouillée pour de
+   * bon, et il n'y aurait plus rien pour la rouvrir.
+   */
+  it("gives the scroll back even if it is torn down without ever being opened", () => {
+    const { unmount } = render(<EnvelopeGate onReveal={() => {}} />);
+    expect(document.body.style.overflow).toBe("hidden");
+
+    unmount();
+
+    expect(document.documentElement.style.overflow).toBe("");
+    expect(document.body.style.overflow).toBe("");
+  });
+
+  /**
    * `prefers-reduced-motion` : la porte n'est **pas montée du tout**, décidé
    * avant le premier rendu plutôt que neutralisé après coup. L'invité arrive
    * directement sur l'invitation, entière.

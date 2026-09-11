@@ -17,6 +17,7 @@ import { Countdown } from "@/components/invitation/Countdown";
 import { EnvelopeGate } from "@/components/invitation/EnvelopeGate";
 import { InvitationHeader } from "@/components/invitation/InvitationHeader";
 import { PhotoCarousel } from "@/components/invitation/PhotoCarousel";
+import { Reveal } from "@/components/invitation/Reveal";
 import { Schedule } from "@/components/invitation/Schedule";
 import { Venue } from "@/components/invitation/Venue";
 import { COUPLE } from "@/components/invitation/couple";
@@ -160,97 +161,115 @@ export function InvitationPage() {
           <Calendar weddingDate={wedding.weddingDate} />
         </div>
         <Schedule weddingDate={wedding.weddingDate} />
-        <Venue
-          venueName={wedding.venueName}
-          address={wedding.address}
-          mapUrl={wedding.mapUrl}
-        />
-        <PracticalInformation wedding={wedding} />
 
-        <section
-          aria-labelledby="votre-reponse"
-          className="px-6 pb-14 pt-4 text-center"
-        >
-          <p className="font-sans text-[0.75rem] uppercase tracking-[0.4em] text-bordeaux-500">
-            Réponse souhaitée
-          </p>
-          <h2
-            id="votre-reponse"
-            className="mt-2.5 font-script text-[3.125rem] leading-[1.1] text-bordeaux-700"
+        {/* À partir d'ici, c'est le défilement qui déclenche et non l'ouverture
+            de l'enveloppe : la cascade du design s'arrête au septième bloc,
+            c'est-à-dire au premier écran. Ce qui suit se lève quand l'invité y
+            arrive — et reste visible si le navigateur ne sait pas le faire. */}
+        <Reveal>
+          <Venue
+            venueName={wedding.venueName}
+            address={wedding.address}
+            mapUrl={wedding.mapUrl}
+          />
+        </Reveal>
+        <Reveal>
+          <PracticalInformation wedding={wedding} />
+        </Reveal>
+
+        <Reveal>
+          <section
+            aria-labelledby="votre-reponse"
+            className="px-6 pb-14 pt-4 text-center"
           >
-            Serez-vous là ?
-          </h2>
-          {/* La date limite se lit **avant** de répondre. Elle n'apparaissait
-              qu'une fois passée, pour verrouiller le formulaire. Et sans heure :
-              une heure limite ne veut rien dire pour un invité, et celle qui
-              s'affichait était fausse. */}
-          {!rsvpClosed && (
-            <p className="mt-1.5 font-sans text-[0.8125rem] leading-[1.7] text-ink-muted">
-              Merci de nous répondre avant le{" "}
-              {formatRsvpDeadline(wedding.rsvpDeadline)}.
+            <p className="font-sans text-[0.75rem] uppercase tracking-[0.4em] text-bordeaux-500">
+              Réponse souhaitée
             </p>
-          )}
-
-          <div className="mt-6">
-            {rsvpClosed ? (
-              <ClosedRsvpSummary household={household} />
-            ) : answeredStatus && !isEditing ? (
-              <RecordedAnswer
-                status={answeredStatus}
-                countedSeats={countedSeats}
-                message={submitted?.message ?? household.message ?? undefined}
-                onEdit={() => setIsEditing(true)}
-              />
-            ) : (
-              <RsvpForm
-                householdName={household.displayName}
-                memberNames={household.memberNames}
-                allocatedSeats={household.allocatedSeats}
-                defaultStatus={
-                  household.status === "PENDING" ? undefined : household.status
-                }
-                defaultMessage={household.message ?? ""}
-                onSubmit={(dto) => rsvpMutation.mutate(dto)}
-                isPending={rsvpMutation.isPending}
-                errorMessage={
-                  rsvpMutation.isError
-                    ? frenchRsvpError(rsvpMutation.error)
-                    : null
-                }
-              />
+            <h2
+              id="votre-reponse"
+              className="mt-2.5 font-script text-[3.125rem] leading-[1.1] text-bordeaux-700"
+            >
+              Serez-vous là ?
+            </h2>
+            {/* La date limite se lit **avant** de répondre. Elle n'apparaissait
+                qu'une fois passée, pour verrouiller le formulaire. Et sans heure :
+                une heure limite ne veut rien dire pour un invité, et celle qui
+                s'affichait était fausse. */}
+            {!rsvpClosed && (
+              <p className="mt-1.5 font-sans text-[0.8125rem] leading-[1.7] text-ink-muted">
+                Merci de nous répondre avant le{" "}
+                <strong className="font-bold text-[0.9rem]">
+                  {formatRsvpDeadline(wedding.rsvpDeadline)}
+                </strong>
+                .
+              </p>
             )}
-          </div>
-        </section>
 
-        <SeatingPlanSection seatingPlan={data.seatingPlan} />
+            <div className="mt-6">
+              {rsvpClosed ? (
+                <ClosedRsvpSummary household={household} />
+              ) : answeredStatus && !isEditing ? (
+                <RecordedAnswer
+                  status={answeredStatus}
+                  countedSeats={countedSeats}
+                  message={submitted?.message ?? household.message ?? undefined}
+                  onEdit={() => setIsEditing(true)}
+                />
+              ) : (
+                <RsvpForm
+                  householdName={household.displayName}
+                  memberNames={household.memberNames}
+                  allocatedSeats={household.allocatedSeats}
+                  defaultStatus={
+                    household.status === "PENDING" ? undefined : household.status
+                  }
+                  defaultMessage={household.message ?? ""}
+                  onSubmit={(dto) => rsvpMutation.mutate(dto)}
+                  isPending={rsvpMutation.isPending}
+                  errorMessage={
+                    rsvpMutation.isError
+                      ? frenchRsvpError(rsvpMutation.error)
+                      : null
+                  }
+                />
+              )}
+            </div>
+          </section>
+        </Reveal>
 
-        <footer className="bg-sand/60 px-6 pb-12 pt-9 text-center">
-          <p className="font-script text-[2.125rem] text-bordeaux-500">
-            {COUPLE.firstNames[0]} &amp; {COUPLE.firstNames[1]}
-          </p>
-          <p className="mt-2.5 font-sans text-[0.75rem] uppercase tracking-[0.34em] text-ink-muted">
-            {formatWeddingDate(wedding.weddingDate, { weekday: false })} ·{" "}
-            {COUPLE.city}
-          </p>
+        <Reveal>
+          <SeatingPlanSection seatingPlan={data.seatingPlan} />
+        </Reveal>
 
-          {/* Les numéros vivent aussi dans le formulaire, mais le formulaire
-              disparaît dès qu'on a répondu. Ici ils restent — et c'est justement
-              après avoir répondu qu'on rappelle pour changer quelque chose. */}
-          <p className="mt-6 text-[0.875rem] text-ink-muted">
-            Une question, un changement ?{" "}
-            {CONTACT_PHONES.map((phone, i) => (
-              <span key={phone.tel}>
-                {i > 0 && " · "}
-                <a
-                  href={`tel:${phone.tel}`}
-                  className="whitespace-nowrap text-bordeaux-700 underline underline-offset-[3px] decoration-1 hover:decoration-2"
-                >
-                  {phone.display}
-                </a>
-              </span>
-            ))}
-          </p>
-        </footer>
+        <Reveal>
+          <footer className="bg-sand/60 px-6 pb-12 pt-9 text-center">
+            <p className="font-script text-[2.125rem] text-bordeaux-500">
+              {COUPLE.firstNames[0]} &amp; {COUPLE.firstNames[1]}
+            </p>
+            <p className="mt-2.5 font-sans text-[0.75rem] uppercase tracking-[0.34em] text-ink-muted">
+              {formatWeddingDate(wedding.weddingDate, { weekday: false })} ·{" "}
+              {COUPLE.city}
+            </p>
+
+            {/* Les numéros vivent aussi dans le formulaire, mais le formulaire
+                disparaît dès qu'on a répondu. Ici ils restent — et c'est justement
+                après avoir répondu qu'on rappelle pour changer quelque chose. */}
+            <p className="mt-6 text-[0.875rem] text-ink-muted">
+              Une question, un changement ?{" "}
+              {CONTACT_PHONES.map((phone, i) => (
+                <span key={phone.tel}>
+                  {i > 0 && " · "}
+                  <a
+                    href={`tel:${phone.tel}`}
+                    className="whitespace-nowrap text-bordeaux-700 underline underline-offset-[3px] decoration-1 hover:decoration-2"
+                  >
+                    {phone.display}
+                  </a>
+                </span>
+              ))}
+            </p>
+          </footer>
+        </Reveal>
       </main>
     </>
   );

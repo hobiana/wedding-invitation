@@ -503,7 +503,12 @@
   }
 }
 
-[data-reveal="true"] > *:not([aria-hidden="true"]) {
+/* `nth-child(-n+7)` : la cascade ne prend que le premier écran, celui que
+   l'invité a sous les yeux quand l'enveloppe s'en va. Sans cette borne, les
+   blocs du bas s'animeraient dans le vide — et surtout leur `animation` ici
+   écraserait l'opacité que `[data-reveal-block]` leur pose plus bas, ce qui
+   ferait apparaître d'un coup tout ce qui devait attendre le défilement. */
+[data-reveal="true"] > *:nth-child(-n + 7):not([aria-hidden="true"]) {
   animation: stagger-in 700ms cubic-bezier(0.16, 0.84, 0.24, 1) both;
 }
 
@@ -528,6 +533,49 @@
   animation-delay: 0.65s;
 }
 
+/* Les prénoms, et c'est le seul endroit de la page qui a son temps propre.
+   Ils arrivent **après** que l'en-tête s'est posé, pas avec lui : 250 ms de
+   retard, puis 120 ms entre chacun. L'en-tête apporte le décor, les prénoms
+   sont le sujet — l'ordre de lecture est celui-là, et il s'entend.
+
+   Attachés à `data-reveal` et non au chargement : ils se jouent quand
+   l'enveloppe s'en va. Sans porte — mouvement réduit — l'attribut reste
+   « false » et les prénoms sont simplement là. */
+[data-reveal="true"] [data-nom] {
+  animation: stagger-in 700ms cubic-bezier(0.16, 0.84, 0.24, 1) both;
+  animation-delay: 0.25s;
+}
+[data-reveal="true"] [data-nom="2"] {
+  animation-delay: 0.37s;
+}
+[data-reveal="true"] [data-nom="3"] {
+  animation-delay: 0.49s;
+}
+
+/* ---------------------------------------------------------------------------
+   L'apparition au défilement
+
+   `hidden` n'est **jamais** posé par le CSS seul : c'est React qui l'écrit, et
+   seulement après avoir vérifié qu'il saura l'enlever — `IntersectionObserver`
+   présent, mouvement non réduit. Un navigateur qui n'a pas l'observateur
+   n'écrit rien du tout et affiche la page entière.
+
+   C'est la seule façon de se tromper qui compte ici : une section masquée que
+   personne ne démasque, c'est une invitation blanche, et on perd des réponses
+   sans jamais l'apprendre. Le défaut par défaut est donc « visible ».
+
+   `opacity: 0` et non `visibility: hidden` : le contenu reste dans l'arbre
+   d'accessibilité, donc un lecteur d'écran lit toute la page d'emblée, sans
+   avoir à la faire défiler.
+   --------------------------------------------------------------------------- */
+[data-reveal-block="hidden"] {
+  opacity: 0;
+}
+
+[data-reveal-block="shown"] {
+  animation: stagger-in 700ms cubic-bezier(0.16, 0.84, 0.24, 1) both;
+}
+
 /* ---------------------------------------------------------------------------
    Base document
    --------------------------------------------------------------------------- */
@@ -544,6 +592,14 @@
        navigateurs mobiles retourne la page et détruit la palette. */
     color-scheme: light;
     -webkit-text-size-adjust: 100%;
+
+    /* La gouttière de l'ascenseur est réservée en permanence. La porte
+       verrouille le défilement le temps qu'elle est là ; sans cette ligne, la
+       barre disparaît, la fenêtre gagne 15 px et toute la carte crème glisse
+       latéralement au moment précis où l'invité regarde l'enveloppe partir.
+       Sur les barres en surimpression — macOS, iOS — la déclaration ne coûte
+       rien : il n'y a pas de gouttière à réserver. */
+    scrollbar-gutter: stable;
   }
 
   body {

@@ -117,7 +117,13 @@ describe("InvitationPage practical information", () => {
     renderPage(invitation(FUTURE_DEADLINE));
 
     expect(await screen.findByRole("radio", { name: YES })).toBeInTheDocument();
-    expect(screen.getByText(/merci de nous répondre avant le 1er mai 2027/i)).toBeInTheDocument();
+    // La date vit dans un `<strong>` depuis qu'elle est mise en avant, et
+    // `getByText` ne lit que les nœuds de texte **directs** d'un élément : la
+    // phrase entière ne correspond à aucun nœud. On interroge donc la phrase
+    // par son début, et on lit son contenu complet — comme le fait déjà le test
+    // voisin sur l'heure.
+    const ligne = screen.getByText(/merci de nous répondre avant/i);
+    expect(ligne).toHaveTextContent(/1er mai 2027/);
   });
 
   // Le « 04:00 » affiché jusqu'ici était le bug de fuseau qui affleurait. Une
@@ -407,6 +413,29 @@ describe("InvitationPage — lisible sans aucune animation", () => {
    * lève pas — animation bloquée, clic perdu, navigateur exotique — doit
    * pouvoir répondre quand même. La page ne dépend de rien.
    */
+  /**
+   * Les sections du bas se lèvent au défilement, et `jsdom` n'a pas
+   * d'`IntersectionObserver` — donc ce test rend **exactement** le navigateur
+   * incapable d'observer. Il doit afficher la page entière : le lieu, la carte,
+   * le formulaire, le pied de page. Une section masquée que personne ne
+   * démasque est une invitation blanche, et l'invité ne le signalera pas, il ne
+   * répondra simplement pas.
+   */
+  it("shows the whole page on a browser that cannot watch the scroll", async () => {
+    expect(globalThis.IntersectionObserver).toBeUndefined();
+    renderPage(invitation(FUTURE_DEADLINE));
+
+    await screen.findByRole("heading", { level: 1 });
+    expect(screen.getAllByText("Domaine des Roses").length).toBeGreaterThan(0);
+    expect(
+      screen.getByRole("button", { name: /envoyer notre réponse/i }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText(/\+261/).length).toBeGreaterThan(0);
+    expect(
+      document.querySelector("[data-reveal-block]"),
+    ).not.toBeInTheDocument();
+  });
+
   it("keeps the answer form reachable while the envelope is still closed", async () => {
     renderPage(invitation(FUTURE_DEADLINE));
 

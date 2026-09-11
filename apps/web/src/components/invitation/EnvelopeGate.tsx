@@ -70,7 +70,11 @@ interface Particle {
  * papier — et deux ors différents à quarante pixels l'un de l'autre, sur le
  * seul écran où l'invité regarde vraiment, se voient. On garde donc le sien.
  */
-const PETAL_COLORS = ["var(--color-gold)", "var(--color-bordeaux-500)", "#b9536a"];
+const PETAL_COLORS = [
+  "var(--color-gold)",
+  "var(--color-bordeaux-500)",
+  "#b9536a",
+];
 const BURST_COLORS = [
   "var(--color-gold)",
   "var(--color-bordeaux-500)",
@@ -143,6 +147,50 @@ export function EnvelopeGate({ onReveal }: { onReveal: () => void }) {
     if (mounted) buttonRef.current?.focus();
   }, [mounted]);
 
+  /**
+   * Le défilement est verrouillé tant que la porte est là.
+   *
+   * La direction artistique disait le contraire — « le défilement n'est jamais
+   * verrouillé » — mais elle décrivait une scène qui se jouait toute seule et
+   * qu'un geste devait pouvoir interrompre. Ici c'est une porte qu'on ouvre au
+   * clic : défiler derrière ne mène nulle part, ça fait glisser une page qu'on
+   * ne voit pas et ça laisse l'invité au milieu de nulle part quand le voile
+   * s'en va.
+   *
+   * Deux pièges, et les deux sont traités :
+   *
+   * - **iOS Safari ignore `overflow: hidden` au doigt.** D'où le `touchmove`
+   *   annulé, en écouteur natif **non passif** : React pose ses écouteurs en
+   *   passif à la racine, et un `preventDefault()` y serait sans effet.
+   * - **Tout est rendu dans le nettoyage de l'effet**, jamais à la main au
+   *   moment du clic. Un démontage imprévu — une erreur, un changement de
+   *   route — laisserait sinon la page verrouillée pour de bon, sans rien pour
+   *   la rouvrir.
+   */
+  useEffect(() => {
+    if (!mounted) return;
+    const html = document.documentElement;
+    const body = document.body;
+    const avant = {
+      html: html.style.overflow,
+      body: body.style.overflow,
+      rebond: html.style.overscrollBehavior,
+    };
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    html.style.overscrollBehavior = "contain";
+
+    const bloque = (event: TouchEvent) => event.preventDefault();
+    window.addEventListener("touchmove", bloque, { passive: false });
+
+    return () => {
+      html.style.overflow = avant.html;
+      body.style.overflow = avant.body;
+      html.style.overscrollBehavior = avant.rebond;
+      window.removeEventListener("touchmove", bloque);
+    };
+  }, [mounted]);
+
   function open() {
     if (opened) return;
     setOpened(true);
@@ -189,14 +237,7 @@ export function EnvelopeGate({ onReveal }: { onReveal: () => void }) {
       />
       {/* Le grain du papier : des bandes à 112°, à 3 % de noir. Invisibles une
           par une, c'est leur somme qui empêche le fond de paraître numérique. */}
-      <div
-        aria-hidden="true"
-        className="absolute inset-0"
-        style={{
-          background:
-            "repeating-linear-gradient(112deg, #ffffff00 0 22px, #00000008 22px 30px, #ffffff00 30px 54px)",
-        }}
-      />
+      <div aria-hidden="true" className="absolute inset-0" />
 
       <div
         aria-hidden="true"
@@ -234,9 +275,7 @@ export function EnvelopeGate({ onReveal }: { onReveal: () => void }) {
         ))}
       </div>
 
-      <div
-        className="relative z-[3] flex h-full flex-col items-center justify-center px-6 py-[18px] text-center"
-      >
+      <div className="relative z-[3] flex h-full flex-col items-center justify-center px-6 py-[18px] text-center">
         <p
           className="font-script leading-none text-bordeaux-700"
           style={{ fontSize: "clamp(34px, 7vh, 52px)" }}
@@ -268,7 +307,8 @@ export function EnvelopeGate({ onReveal }: { onReveal: () => void }) {
               opened
                 ? {
                     animation: "var(--animate-seal-ring-burst)",
-                    background: "color-mix(in srgb, var(--color-gold) 20%, transparent)",
+                    background:
+                      "color-mix(in srgb, var(--color-gold) 20%, transparent)",
                   }
                 : { animation: "var(--animate-seal-ring-idle)" }
             }
@@ -328,12 +368,24 @@ export function EnvelopeGate({ onReveal }: { onReveal: () => void }) {
         >
           {/* L'enveloppe **est** le bouton : c'est ce que l'indication dit de
               toucher, donc c'est ce qui doit prendre le focus. Elle ne contient
-              qu'une image et un libellé — un `<button>` n'accepte pas de bloc. */}
+              qu'une image et un libellé — un `<button>` n'accepte pas de bloc.
+
+              `focus-visible:outline-none` lève ici, et ici seulement, l'anneau
+              de focus global de `index.css`. Il dessinait un rectangle autour
+              d'une image découpée, ce qui se voit mal et se voyait dès le
+              chargement — le focus est posé par le code, et Chrome traite un
+              focus programmatique comme un focus clavier.
+
+              Ce que ça coûte est faible **parce qu'il n'y a qu'une seule
+              commande à l'écran** et qu'elle a déjà le focus : il n'existe pas
+              d'autre endroit où celui-ci pourrait être. La règle globale reste
+              entière partout ailleurs, et notamment sur le formulaire de
+              réponse, où plusieurs contrôles se disputent le focus. */}
           <button
             ref={buttonRef}
             type="button"
             onClick={open}
-            className="absolute inset-0 block w-full cursor-pointer appearance-none border-0 bg-transparent p-0"
+            className="absolute inset-0 block w-full cursor-pointer appearance-none border-0 bg-transparent p-0 focus-visible:outline-none"
           >
             <img
               src="/decor/enveloppe-fermee.webp"

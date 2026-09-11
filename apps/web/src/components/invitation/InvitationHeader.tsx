@@ -66,16 +66,26 @@ export function InvitationHeader() {
       </div>
 
       {/* Un prénom par ligne, l'esperluette sur la sienne : Parisienne est une
-          anglaise, ses jambages se croisent si on serre l'interligne. */}
+          anglaise, ses jambages se croisent si on serre l'interligne.
+
+          Les trois lignes sont des `block` plutôt que du texte nu parce qu'elles
+          s'animent séparément — `data-nom` les numérote, et `index.css` leur
+          donne leurs 120 ms d'écart. Le rendu au repos est identique : elles
+          étaient déjà sur trois lignes, elles y restent. */}
       <h1 className="mt-8 font-script text-[3.5rem] leading-[1.05] text-bordeaux-700">
-        {COUPLE.firstNames[0]}
+        <span data-nom="1" className="block">
+          {COUPLE.firstNames[0]}
+        </span>
         <span
           aria-hidden="true"
+          data-nom="2"
           className="block font-display text-[1.5rem] italic text-gold-ink"
         >
           &amp;
         </span>
-        {COUPLE.firstNames[1]}
+        <span data-nom="3" className="block">
+          {COUPLE.firstNames[1]}
+        </span>
       </h1>
 
       <figure className="mx-auto mt-6 max-w-[25rem]">
