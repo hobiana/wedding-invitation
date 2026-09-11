@@ -69,6 +69,13 @@ Arbitré le 2026-09-10, à partir du design fourni dans `images/html/` :
 
 **Vérifié comment :** l'onglet piloté est en arrière-plan, donc Chrome y gèle les animations — `getComputedStyle` y lit des valeurs figées et ment. Les temps ont été relevés par `element.getAnimations({subtree:true})`, qui répond sans peinture. **À savoir pour la prochaine animation de ce projet.** Restent à regarder sur un vrai téléphone : la scène sur un écran de moins de 600 px de haut, et la netteté de l'enveloppe (source 500 × 350 affichée à ~370 px, donc légèrement molle en densité double).
 
+**Le verrou de défilement et l'apparition au défilement** (`c313247`) : la porte bloque le défilement tant qu'elle est là, et chaque section sous le premier écran se lève quand l'invité y arrive (`Reveal.tsx`). Deux choses à ne pas défaire :
+
+- **Le contenu est visible par défaut**, et il ne devient invisible qu'une fois `IntersectionObserver` confirmé présent et le mouvement non réduit. L'inverse — masquer en CSS, démasquer en JS — produit une invitation blanche chez l'invité, qui ne le signalera jamais : il ne répondra simplement pas.
+- **Le seuil de l'observateur est zéro.** Le bloc du plan de table mesure 0 px de haut tant qu'il n'est pas activé, et une cible sans surface ne franchit aucun seuil positif. Mesuré, pas supposé.
+
+**Second piège d'environnement, du même genre que le premier :** dans cet onglet en arrière-plan, `IntersectionObserver` ne délivre **rien** — un observateur témoin posé sur `<main>`, pourtant pleinement visible, ne tire pas. L'apparition au défilement n'est donc pas vérifiable ici ; elle l'est en tests unitaires avec un faux observateur, et c'est au commanditaire de la regarder sur son écran.
+
 **Le plan de mise en ligne est écrit** (`185b911`, `docs/audit/2026-09-11-plan-de-mise-en-ligne.md`) : Render ≈ 14 $/mois + Vercel Hobby, sept bloquants, et une liste de sept choses à faire côté commanditaire. Il n'attend plus que lui.
 
 ## Lot 0 — terminé
