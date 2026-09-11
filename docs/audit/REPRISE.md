@@ -49,11 +49,15 @@ Arbitré le 2026-09-10, à partir du design fourni dans `images/html/` :
 | — | Date du mariage au 2 janvier 2027 | ✅ `ba888dd` |
 | 2a | Décor du design extrait et optimisé | ✅ `7e4d739` |
 | 2b | Fondations : trois familles de fontes, palette, trois clartés d'or | ✅ `b93eeff` |
-| 2c | La page invité, section par section | à faire |
-| 2d | L'ouverture : enveloppe et sceau, accessible au clavier | à faire |
-| 3 | Mise en ligne — **en parallèle, priorité haute** | commencée (`8d59006`) |
-| 4 | Admin : foyers, copie des liens | à faire |
+| 2c | La page invité, section par section, et son assemblage | ✅ `2a5387c` → `425806c` |
+| 2d | L'ouverture : enveloppe et sceau, accessible au clavier | **à faire — seul reste du lot 3 invité** |
+| 3 | Mise en ligne — **en parallèle, priorité haute** | plan écrit (`185b911`), en attente du commanditaire |
+| 4 | Admin : foyers, copie des liens, champs `dietaryNotes` et `confirmedCount` | à faire |
 | 5 | Plan de table | en dernier |
+
+**La page invité tourne et a été vérifiée dans un vrai navigateur**, contre la vraie base : un foyer `PENDING` à 4 places confirme, et le serveur écrit `confirmedCount = 4` — la règle « confirmer = tout le monde vient » tient de bout en bout. Les six fontes chargent, les trois clartés d'or se résolvent, le voile de papier ne capte aucun clic, le carrousel avance.
+
+**Ce que l'exécution réelle a attrapé et qu'aucun test ne pouvait voir :** le `<title>`, la description et la carte Open Graph portaient encore « 12 juin 2027 ». Un invité partageant son lien dans un groupe WhatsApp aurait publié un aperçu annonçant juin. Corrigé (`425806c`).
 
 **Ce qui reste ouvert sur les fondations :** les **métriques de repli** des trois nouvelles fontes ne sont pas mesurées. Les anciennes avaient des `size-adjust` calés qui empêchaient la page de sauter au `swap` ; il faut les remesurer dans le navigateur avant qu'un invité voie la page. Et le poids est passé de 43 Ko à **186 Ko de latin** — c'est le prix du design, dit une fois pour toutes.
 
