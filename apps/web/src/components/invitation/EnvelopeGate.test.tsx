@@ -162,38 +162,6 @@ describe("EnvelopeGate", () => {
   });
 
   /**
-   * « Les pétales ne sont pas là quand le voile disparaît » — relevé par le
-   * commanditaire à l'écran. Ils partaient avec lui, parce qu'ils étaient dans
-   * le calque qui s'efface.
-   *
-   * Ils en sont sortis : ils sont le **frère** de la scène et non son enfant,
-   * et leur propre effacement ne commence qu'une fois celui de la scène
-   * terminé. Ils continuent donc de tomber sur l'invitation, ce qui relie les
-   * deux images au lieu de les couper net.
-   *
-   * Ce test tient la structure, pas l'effet : dès que les pétales rentrent dans
-   * la scène, ils repartent avec elle, et il n'y a rien dans le rendu qui le
-   * signale.
-   */
-  it("lets the petals outlive the veil instead of leaving with it", () => {
-    render(<EnvelopeGate onReveal={() => {}} />);
-
-    const scene = screen.getByTestId("scene");
-    const petales = screen.getByTestId("petales");
-    expect(scene).not.toContainElement(petales);
-
-    const temps = (el: HTMLElement) => {
-      const [, duree, retard] =
-        el.style.transition.match(/opacity (\d+)ms \w+ (\d+)ms/) ?? [];
-      return { duree: Number(duree), retard: Number(retard) };
-    };
-    const voile = temps(scene);
-    const fleurs = temps(petales);
-
-    expect(fleurs.retard).toBeGreaterThanOrEqual(voile.retard + voile.duree);
-  });
-
-  /**
    * Une fois ouverte, la surcouche traîne encore deux secondes le temps que les
    * pétales s'effacent. Elle ne doit plus rien capter pendant ce temps : une
    * couche invisible qui mange les clics du formulaire de réponse est le genre

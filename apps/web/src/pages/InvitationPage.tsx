@@ -16,6 +16,7 @@ import { Calendar } from "@/components/invitation/Calendar";
 import { Countdown } from "@/components/invitation/Countdown";
 import { EnvelopeGate } from "@/components/invitation/EnvelopeGate";
 import { InvitationHeader } from "@/components/invitation/InvitationHeader";
+import { PetalRain } from "@/components/invitation/PetalRain";
 import { PhotoCarousel } from "@/components/invitation/PhotoCarousel";
 import { Reveal } from "@/components/invitation/Reveal";
 import { Schedule } from "@/components/invitation/Schedule";
@@ -81,17 +82,22 @@ export function InvitationPage() {
     },
   });
 
-  // La porte est rendue dans les trois branches, à la même position dans
-  // l'arbre : elle reste donc **le même composant monté** quand la requête se
-  // résout. Ne la mettre que dans la branche chargée ferait voir « Chargement
-  // de votre invitation… » une fraction de seconde avant l'enveloppe, et
-  // rejouerait la scène depuis le début.
-  const gate = <EnvelopeGate onReveal={revealPage} />;
+  // La porte et la pluie de pétales sont rendues dans les trois branches, à la
+  // même position dans l'arbre : elles restent donc **les mêmes composants
+  // montés** quand la requête se résout. Les mettre seulement dans la branche
+  // chargée ferait voir « Chargement de votre invitation… » avant l'enveloppe,
+  // et rejouerait la scène depuis le début.
+  const scene = (
+    <>
+      <EnvelopeGate onReveal={revealPage} />
+      <PetalRain />
+    </>
+  );
 
   if (isLoading) {
     return (
       <>
-        {gate}
+        {scene}
         <p role="status" className="p-12 text-center text-ink-muted">
           Chargement de votre invitation…
         </p>
@@ -102,7 +108,7 @@ export function InvitationPage() {
   if (error || !data) {
     return (
       <>
-        {gate}
+        {scene}
         <p role="alert" className="mx-auto max-w-column p-12 text-center">
           Cette invitation est introuvable. Vérifiez le lien reçu, ou contactez
           les organisateurs.
@@ -131,7 +137,7 @@ export function InvitationPage() {
 
   return (
     <>
-      {gate}
+      {scene}
       {/* La carte du design : 680 px de papier crème, posés sur une page
           blanche. Sur un téléphone elle occupe tout ; au-delà, le blanc autour
           lui donne ses marges, comme un faire-part sur une table.

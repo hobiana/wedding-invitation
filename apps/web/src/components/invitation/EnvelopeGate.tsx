@@ -42,12 +42,10 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
       s'effacer, *puis* la page repartait de zéro. Corrigé en faisant démarrer
       la page **au moment exact** où le voile commence à s'effacer. Les deux se
       croisent au lieu de se suivre ; il n'y a plus de couture.
-   3. **« les pétales ne sont pas là quand le voile disparaît »** — dit deux
-      fois, et les deux fois j'ai sous-estimé. Ils partaient avec le voile ;
-      les sortir de son calque n'a pas suffi, parce que quatorze pétales de
-      six pixels sur un écran de 1600 px ne se voient pas. Ils sont maintenant
-      plus nombreux — le nombre suit la largeur —, plus gros, plus opaques, et
-      ils restent 3,5 s sur l'invitation avant de s'effacer seuls.
+   3. **« je veux aussi les pétales sur l'invitation elle-même »** — ils ne sont
+      plus du tout ici. Ils sont devenus un calque de page, `PetalRain`, posé
+      au-dessus de cette porte et qui ne s'arrête jamais. Il n'y a donc plus
+      rien à raccorder entre la scène et la page : c'est la même pluie.
    --------------------------------------------------------------------------- */
 
 /** Le cachet se brise, l'anneau se dilate, les éclats partent. */
@@ -64,9 +62,6 @@ const SCENE_FADE = 900;
  */
 const REVEAL_AT = SCENE_FADE_AT;
 
-/** Les pétales s'en vont en dernier, et lentement. */
-const PETALS_FADE_AT = SCENE_FADE_AT + SCENE_FADE;
-const PETALS_FADE = 2600;
 
 /**
  * Le filet de sécurité : un `setTimeout` posé au clic, jamais un
@@ -74,18 +69,7 @@ const PETALS_FADE = 2600;
  * bloque, la surcouche s'en va quand même. Elle ne capte plus rien depuis le
  * clic, donc la traîner ne coûte que sa présence dans l'arbre.
  */
-const UNMOUNT_AT = PETALS_FADE_AT + PETALS_FADE + 50;
-
-interface Petal {
-  left: number;
-  fall: number;
-  delay: number;
-  sway: number;
-  swayDuration: number;
-  width: number;
-  height: number;
-  color: string;
-}
+const UNMOUNT_AT = SCENE_FADE_AT + SCENE_FADE + 50;
 
 interface Particle {
   size: number;
@@ -98,18 +82,13 @@ interface Particle {
 }
 
 /**
- * Les trois teintes des pétales et de l'éclat.
+ * Les trois teintes de l'éclat.
  *
  * Le design tire ici son `#C9A24A`. C'est l'or que le commanditaire a écarté à
  * l'arbitrage du 2026-08-22 au profit du `#AC784C` relevé sur son faire-part
  * papier — et deux ors différents à quarante pixels l'un de l'autre, sur le
  * seul écran où l'invité regarde vraiment, se voient. On garde donc le sien.
  */
-const PETAL_COLORS = [
-  "var(--color-gold)",
-  "var(--color-bordeaux-500)",
-  "#b9536a",
-];
 const BURST_COLORS = [
   "var(--color-gold)",
   "var(--color-bordeaux-500)",
@@ -117,39 +96,6 @@ const BURST_COLORS = [
 ];
 
 const between = (a: number, b: number) => a + Math.random() * (b - a);
-
-/**
- * Le design en sème 14. Sur un téléphone c'est une pluie ; sur un écran de
- * 1600 px, c'est trois points perdus dans du vide — et le commanditaire ne les
- * voyait pas au moment où le voile s'ouvre, là où ils comptent le plus. Le
- * nombre suit donc la largeur, un pétale tous les ~60 px, borné des deux côtés.
- */
-const PETAL_COUNT_MIN = 16;
-const PETAL_COUNT_MAX = 34;
-
-function petalCount(): number {
-  const largeur = typeof window === "undefined" ? 420 : window.innerWidth;
-  return Math.max(
-    PETAL_COUNT_MIN,
-    Math.min(PETAL_COUNT_MAX, Math.round(largeur / 60)),
-  );
-}
-
-/** Semés une seule fois par montage — le design les met en cache, nous aussi. */
-function makePetals(): Petal[] {
-  return Array.from({ length: petalCount() }, (_, i) => ({
-    left: between(2, 96),
-    fall: between(18, 25),
-    // Retard négatif : la chute est déjà commencée à l'ouverture de la page.
-    // Sans lui, ils partiraient tous du haut en même temps.
-    delay: -between(0, 22),
-    sway: Math.round(between(5, 20)),
-    swayDuration: between(4, 8),
-    width: Math.round(between(7, 14)),
-    height: Math.round(between(6, 11)),
-    color: PETAL_COLORS[i % 3],
-  }));
-}
 
 /** Les 32 éclats du cachet qui se brise. */
 function makeBurst(): Particle[] {
@@ -184,7 +130,6 @@ export function EnvelopeGate({ onReveal }: { onReveal: () => void }) {
   // moins de mouvement, plutôt que d'exister et de ne pas s'animer.
   const [mounted, setMounted] = useState(() => !prefersReducedMotion());
   const [opened, setOpened] = useState(false);
-  const [petals] = useState(makePetals);
   const [burst, setBurst] = useState<Particle[] | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -448,56 +393,6 @@ export function EnvelopeGate({ onReveal }: { onReveal: () => void }) {
             Cliquez sur l'enveloppe
           </p>
         </div>
-      </div>
-
-      {/*
-        Les pétales survivent au voile.
-
-        Ils sont le frère de la scène et non son enfant, donc ils ne partent
-        pas avec elle : ils continuent de tomber sur l invitation pendant
-        deux secondes, puis s effacent seuls. C est ce qui relie les deux
-        images au lieu de les couper net - la porte laisse quelque chose
-        derriere elle plutot que de disparaitre.
-      */}
-      <div
-        aria-hidden="true"
-        data-testid="petales"
-        className="pointer-events-none absolute inset-0 z-[2] overflow-hidden"
-        style={{
-          transition: `opacity ${PETALS_FADE}ms ease ${PETALS_FADE_AT}ms`,
-          opacity: opened ? 0 : 1,
-        }}
-      >
-          {petals.map((petal, i) => (
-            <div
-              key={i}
-              className="absolute top-0"
-              style={{
-                left: `${petal.left}%`,
-                animation: `petal-fall ${petal.fall.toFixed(1)}s ease-in-out infinite`,
-                animationDelay: `${petal.delay.toFixed(1)}s`,
-              }}
-            >
-              <div
-                style={
-                  {
-                    "--sway": `${petal.sway}px`,
-                    animation: `petal-sway ${petal.swayDuration.toFixed(1)}s ease-in-out infinite`,
-                  } as CSSProperties
-                }
-              >
-                <div
-                  style={{
-                    width: petal.width,
-                    height: petal.height,
-                    borderRadius: "60% 40% 55% 45%",
-                    background: petal.color,
-                    opacity: 0.85,
-                  }}
-                />
-              </div>
-            </div>
-          ))}
       </div>
     </div>
   );
