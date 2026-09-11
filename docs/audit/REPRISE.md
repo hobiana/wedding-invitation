@@ -51,7 +51,7 @@ Arbitré le 2026-09-10, à partir du design fourni dans `images/html/` :
 | 2b | Fondations : trois familles de fontes, palette, trois clartés d'or | ✅ `b93eeff` |
 | 2c | La page invité, section par section, et son assemblage | ✅ `2a5387c` → `425806c` |
 | 2c bis | Retouches après relecture à l'écran par le commanditaire | ✅ `eb38d3f` → `da1d34c` |
-| 2d | L'ouverture : enveloppe et sceau, accessible au clavier | **à faire — seul reste du lot 3 invité** |
+| 2d | L'ouverture : enveloppe et sceau, accessible au clavier | ✅ `d5f58a4` |
 | 2e | Métriques de repli des trois fontes, mesurées au navigateur | à faire — avant qu'un invité voie la page |
 | 3 | Mise en ligne — **en parallèle, priorité haute** | plan écrit (`185b911`), en attente du commanditaire |
 | 4 | Admin : foyers, copie des liens, champs `dietaryNotes` et `confirmedCount` | à faire |
@@ -64,6 +64,10 @@ Arbitré le 2026-09-10, à partir du design fourni dans `images/html/` :
 **Ce qui reste ouvert sur les fondations :** les **métriques de repli** des trois nouvelles fontes ne sont pas mesurées. Les anciennes avaient des `size-adjust` calés qui empêchaient la page de sauter au `swap` ; il faut les remesurer dans le navigateur avant qu'un invité voie la page. Et le poids est passé de 43 Ko à **186 Ko de latin** — c'est le prix du design, dit une fois pour toutes.
 
 **Retouches du commanditaire après relecture à l'écran** (`eb38d3f` → `da1d34c`) : l'air entre le calendrier et le programme, les deux numéros à appeler, les puces et le champ au design du faire-part, une vraie carte dans le cadre du lieu avec un bouton d'itinéraire discret, la tenue retirée, le stationnement réduit à « Parking disponible sur place ». Il a lui-même commité `653cede` et `1861d9d` ; ce dernier ne retirait que la moitié de la section et laissait la garde lire encore `dressCode` — rattrapé en `da1d34c`.
+
+**La porte est faite** (`d5f58a4`) et elle est transcrite du design du commanditaire, pas de la chorégraphie du §8 de la direction artistique — celle-ci décrit une pochette à encoche dessinée en CSS, avec la police Marcellus et le motif de broderie malgache, trois choses que le design du commanditaire et ses arbitrages ont rendues caduques. **Le §8 est donc périmé ; c'est `EnvelopeGate.tsx` qui fait foi.** Ce qui reste valable du §8, et qui est appliqué : rien n'existe uniquement dans l'animation, `prefers-reduced-motion` ne monte pas la scène du tout, et le voile s'en va sur un `setTimeout` et jamais sur un `animationend`.
+
+**Vérifié comment :** l'onglet piloté est en arrière-plan, donc Chrome y gèle les animations — `getComputedStyle` y lit des valeurs figées et ment. Les temps ont été relevés par `element.getAnimations({subtree:true})`, qui répond sans peinture. **À savoir pour la prochaine animation de ce projet.** Restent à regarder sur un vrai téléphone : la scène sur un écran de moins de 600 px de haut, et la netteté de l'enveloppe (source 500 × 350 affichée à ~370 px, donc légèrement molle en densité double).
 
 **Le plan de mise en ligne est écrit** (`185b911`, `docs/audit/2026-09-11-plan-de-mise-en-ligne.md`) : Render ≈ 14 $/mois + Vercel Hobby, sept bloquants, et une liste de sept choses à faire côté commanditaire. Il n'attend plus que lui.
 
