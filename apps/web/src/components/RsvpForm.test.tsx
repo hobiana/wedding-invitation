@@ -94,7 +94,23 @@ describe("RsvpForm — le nombre, désormais décidé par l'organisateur", () =>
 
     expect(screen.getByText(/4 places vous sont réservées/i)).toBeInTheDocument();
     expect(screen.getByText(/nous comptons donc sur vous 4/i)).toBeInTheDocument();
-    expect(screen.getByText(/coup de téléphone/i)).toBeInTheDocument();
+    expect(screen.getByText(/appelez-nous/i)).toBeInTheDocument();
+  });
+
+  /**
+   * La contrepartie du sélecteur supprimé ne vaut que si le numéro est là.
+   * « Appelez-nous » sans numéro, c'est une porte peinte sur un mur — et la
+   * page sera ouverte sur un téléphone, d'où le lien composable.
+   */
+  it("gives the numbers to call, as links a phone can dial", () => {
+    setup();
+    fireEvent.click(screen.getByRole("radio", { name: YES }));
+
+    const liens = screen.getAllByRole("link", { name: /\+261/ });
+    expect(liens).toHaveLength(2);
+    liens.forEach((lien) =>
+      expect(lien.getAttribute("href")).toMatch(/^tel:\+261\d+$/),
+    );
   });
 
   it("writes the reserved seats in the singular for a household of one", () => {

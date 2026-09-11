@@ -86,6 +86,21 @@ export const SCHEDULE = [
 ] as const;
 
 /**
+ * Les numéros où joindre les mariés.
+ *
+ * Ils sont la contrepartie d'une décision : l'invité ne peut plus corriger le
+ * nombre de personnes depuis la page. Lui dire « un coup de téléphone nous
+ * suffit » sans donner le numéro serait une porte peinte sur un mur.
+ *
+ * `tel` est la même chaîne sans espaces : c'est ce que le lien compose, et
+ * `display` ce que l'œil lit.
+ */
+export const CONTACT_PHONES = [
+  { display: "+261 34 64 314 02", tel: "+261346431402" },
+  { display: "+261 34 29 682 30", tel: "+261342968230" },
+] as const;
+
+/**
  * Le malgache du design. Deux phrases, pas une traduction de la page : elles
  * disent l'accueil et le remerciement, là où le français dirait la même chose
  * en plus plat.

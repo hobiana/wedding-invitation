@@ -8,8 +8,9 @@ import {
   weddingMonthGrid,
 } from "./datetime";
 
-/** Espace fine insécable — la seule espace admise autour du « h » français. */
-const NNBSP = "\u202F";
+/** Espace insécable : celle qui sépare « 9 » de « h ». La fine U+202F
+ * disparaissait dans Cormorant — 3,5 px pour 30 px de corps, mesuré. */
+const NNBSP = "\u00A0";
 
 /**
  * Les trois fuseaux couvrent les trois cas qui cassent : le lieu lui-même,

@@ -32,7 +32,21 @@ export const WEDDING_TIME_ZONE = "Indian/Antananarivo";
 export const WEDDING_TIME_ZONE_LABEL = "heure de Madagascar";
 
 /** Espace fine insécable U+202F : l'espace du « 18 h 00 » français. */
-const NNBSP = "\u202F";
+/**
+ * C'\u00E9tait l'espace *fine* ins\u00E9cable U+202F \u2014 la forme la plus soign\u00E9e du
+ * \u00AB 18 h 00 \u00BB fran\u00E7ais, et elle allait bien avec Marcellus.
+ *
+ * Avec Cormorant Garamond elle ne va plus. Mesur\u00E9e dans le navigateur : la
+ * fine de Cormorant fait **3,5 px pour un corps de 30 px**, exactement la
+ * moiti\u00E9 d'une espace normale. \u00C0 la taille o\u00F9 le programme affiche ses heures,
+ * elle dispara\u00EEt et on lit \u00AB 9h00 \u00BB \u2014 le commanditaire l'a vu au premier coup
+ * d'\u0153il. `word-spacing` ne la rattrape pas : v\u00E9rifi\u00E9, la propri\u00E9t\u00E9 n'agit pas
+ * sur U+202F. Il ne restait qu'\u00E0 changer de caract\u00E8re.
+ *
+ * L'ins\u00E9cable ordinaire garde la seule propri\u00E9t\u00E9 indispensable \u2014 \u00AB 9 \u00BB et
+ * \u00AB h \u00BB ne se s\u00E9parent jamais en fin de ligne \u2014 et elle se voit.
+ */
+const NNBSP = "\u00A0";
 
 const fullDateFormatter = new Intl.DateTimeFormat("fr-FR", {
   weekday: "long",

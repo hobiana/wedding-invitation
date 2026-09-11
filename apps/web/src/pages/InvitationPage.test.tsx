@@ -371,6 +371,27 @@ describe("InvitationPage — lisible sans aucune animation", () => {
   });
 });
 
+describe("InvitationPage — joindre les mariés", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  /**
+   * Le formulaire donne déjà les numéros, mais il disparaît dès qu'on a
+   * répondu — et c'est justement après avoir répondu qu'on rappelle pour
+   * signaler un changement, puisque l'invité ne peut plus corriger le nombre
+   * lui-même. Le pied de page est le seul endroit qui ne s'efface jamais.
+   */
+  it("keeps the couple's numbers reachable once the form is gone", async () => {
+    renderPage(invitation(FUTURE_DEADLINE, { status: "CONFIRMED", confirmedCount: 4 }));
+
+    await screen.findByRole("heading", { level: 1 });
+    expect(screen.queryByRole("radio", { name: YES })).not.toBeInTheDocument();
+
+    const liens = screen.getAllByRole("link", { name: /\+261/ });
+    expect(liens).toHaveLength(2);
+    liens.forEach((lien) => expect(lien.getAttribute("href")).toMatch(/^tel:\+261\d+$/));
+  });
+});
+
 describe("InvitationPage — les états de chargement", () => {
   afterEach(() => vi.restoreAllMocks());
 

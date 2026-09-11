@@ -19,7 +19,7 @@ import { PhotoCarousel } from "@/components/invitation/PhotoCarousel";
 import { Schedule } from "@/components/invitation/Schedule";
 import { Venue } from "@/components/invitation/Venue";
 import { COUPLE } from "@/components/invitation/couple";
-import { MALAGASY } from "@/components/invitation/wedding-content";
+import { CONTACT_PHONES, MALAGASY } from "@/components/invitation/wedding-content";
 import { eyebrowClassName, guestTextButtonClassName } from "@/components/invitation/guest-styles";
 
 function peopleSentence(count: number): string {
@@ -174,6 +174,24 @@ export function InvitationPage() {
         </p>
         <p className="mt-2.5 font-sans text-[0.75rem] uppercase tracking-[0.34em] text-ink-muted">
           {formatWeddingDate(wedding.weddingDate, { weekday: false })} · {COUPLE.city}
+        </p>
+
+        {/* Les numéros vivent aussi dans le formulaire, mais le formulaire
+            disparaît dès qu'on a répondu. Ici ils restent — et c'est justement
+            après avoir répondu qu'on rappelle pour changer quelque chose. */}
+        <p className="mt-6 text-[0.875rem] text-ink-muted">
+          Une question, un changement ?{" "}
+          {CONTACT_PHONES.map((phone, i) => (
+            <span key={phone.tel}>
+              {i > 0 && " · "}
+              <a
+                href={`tel:${phone.tel}`}
+                className="whitespace-nowrap text-bordeaux-700 underline underline-offset-[3px] decoration-1 hover:decoration-2"
+              >
+                {phone.display}
+              </a>
+            </span>
+          ))}
         </p>
       </footer>
     </main>

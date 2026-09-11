@@ -32,12 +32,18 @@ export const eyebrowClassName =
   "text-[0.75rem] font-medium uppercase tracking-[0.16em] text-ink-muted";
 
 /**
- * L'action principale de la page. Aplat bordeaux 700, texte ivoire — 10,38:1.
- * 52 px de haut : au-dessus du plancher de 44 px des cibles tactiles.
+ * L'action principale de la page, dans la forme du design du commanditaire :
+ * une barre pleine largeur en aplat bordeaux, capitales très espacées.
+ *
+ * Pas d'angles arrondis et pas de gras : à cette taille de capitale, c'est
+ * l'interlettrage qui porte l'autorité, et un arrondi ferait bouton
+ * d'application au milieu d'une page de papier.
+ *
+ * 56 px de haut, au-dessus du plancher de 44 px des cibles tactiles.
  */
 export const guestButtonClassName = [
-  "inline-flex h-[52px] w-full items-center justify-center rounded-control",
-  "bg-bordeaux-700 px-6 text-[1.0625rem] font-semibold tracking-[0.02em] text-ivory",
+  "inline-flex min-h-14 w-full items-center justify-center",
+  "bg-bordeaux-700 px-6 py-4 font-sans text-[0.75rem] uppercase tracking-[0.3em] text-on-bordeaux",
   "transition-colors duration-(--duration-micro) ease-(--ease-in)",
   "hover:bg-bordeaux-500",
   // `aria-busy` plutôt qu'une roue : le libellé qui change dit déjà l'attente,
