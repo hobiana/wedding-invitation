@@ -36,6 +36,8 @@ Monorepo pnpm. `apps/api` (NestJS 11, Prisma 7, PostgreSQL), `apps/web` (React 1
 
 **Deux publics, une seule API.** `/invitation/:linkId` est la seule route publique : le `nanoid(8)` **est** la clé d'accès, il n'y a délibérément aucune garde devant (`api/src/invitation/invitation.controller.ts`). Tout le reste est admin, derrière un cookie JWT `httpOnly`.
 
+**Corollaire : l'URL de la page invité est un secret, et elle ne doit jamais partir en `Referer`.** Toute ressource tierce chargée par `/i/:linkId` porte `referrerPolicy="no-referrer"`, tout lien sortant porte `rel="noreferrer"`. Attention à `no-referrer-when-downgrade`, la valeur que recopient les modèles de Google : en HTTPS elle envoie le chemin complet, donc la clé d'accès du foyer. Le cas s'est produit une fois, sur la carte du lieu ; un test le verrouille dans `Venue.test.tsx`.
+
 **La protection admin est opt-in, contrôleur par contrôleur** — `@UseGuards(JwtAuthGuard)` en tête de classe. Il n'y a pas de garde globale avec échappatoire `@Public()` : **un nouveau contrôleur admin sans le décorateur est public.** Seuls `OriginCheckGuard` (CSRF) puis `ThrottlerGuard` sont globaux, dans cet ordre — `app.module.ts` dit pourquoi l'ordre compte.
 
 **Le contrat traverse `packages/shared`** en TypeScript nu : `main: src/index.ts`, aucun build, aucune génération. Le chemin complet est Prisma → service → DTO partagé → `web/src/lib/api.ts` → composant. Un champ dont la nullabilité se perd en route dans le DTO est perdu pour de bon côté front, qui ne peut plus la rattraper : c'est exactement par là que `confirmedCount` s'est cassé la troisième fois.

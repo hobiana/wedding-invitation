@@ -43,6 +43,26 @@ describe("Venue", () => {
     expect(carte).toHaveAttribute("loading", "lazy");
   });
 
+  /**
+   * Le test le plus important de ce fichier.
+   *
+   * L'URL de la page **est** le secret : le `nanoid(8)` de `/i/:linkId` est la
+   * seule chose qui protège l'invitation d'un foyer, il n'y a aucune garde
+   * derrière. Toute ressource tierce qui laisse partir le chemin dans l'en-tête
+   * `Referer` livre ce secret — et `no-referrer-when-downgrade`, la valeur
+   * recopiée du modèle de Google, le fait dès que le site est en HTTPS.
+   *
+   * Le lien d'itinéraire est soumis à la même règle, via `noreferrer`.
+   */
+  it("never lets the invitation URL leave with a third party", () => {
+    render(<Venue {...LIEU} />);
+
+    expect(screen.getByTitle(/carte —/i)).toHaveAttribute("referrerpolicy", "no-referrer");
+    expect(screen.getByRole("link", { name: /itinéraire/i }).getAttribute("rel")).toContain(
+      "noreferrer",
+    );
+  });
+
   it("still shows the map when no directions URL was filled in", () => {
     render(<Venue {...LIEU} mapUrl={null} />);
 

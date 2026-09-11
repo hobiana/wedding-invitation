@@ -51,7 +51,21 @@ export function Venue({
           // Chargée seulement quand l'invité arrive dessus : elle est loin dans
           // la page, et personne ne doit payer une carte qu'il ne verra pas.
           loading="lazy"
-          referrerPolicy="no-referrer-when-downgrade"
+          /*
+            `no-referrer`, et c'est la ligne la plus importante de ce fichier.
+            L'URL de cette page **est** la clé d'accès du foyer : le `nanoid(8)`
+            de `/i/:linkId` est le seul secret qui protège l'invitation, il n'y a
+            aucune garde derrière. Toute politique qui laisse partir le chemin —
+            `no-referrer-when-downgrade`, recopié du modèle de Google, en fait
+            partie dès que le site est en HTTPS — envoie ce secret à Google dans
+            l'en-tête `Referer`, pour chaque invité.
+
+            L'embarquement sans clé n'a pas besoin de `Referer`. Si un jour on
+            passe à l'API Maps avec une clé restreinte par référent, il faudra
+            revoir cette ligne — et alors restreindre par origine, jamais par
+            URL complète.
+          */
+          referrerPolicy="no-referrer"
           className="block h-[17rem] w-full border-0"
         />
       </div>

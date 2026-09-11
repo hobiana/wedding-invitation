@@ -3,13 +3,19 @@ import type { SubmitRsvpDto } from "@invitation-app/shared";
 import { Field } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import { CONTACT_PHONES } from "@/components/invitation/wedding-content";
-import { eyebrowClassName, guestButtonClassName } from "@/components/invitation/guest-styles";
+import {
+  eyebrowClassName,
+  guestButtonClassName,
+} from "@/components/invitation/guest-styles";
 import { cn } from "@/lib/utils";
 
 type Answer = "CONFIRMED" | "DECLINED";
 
 /** « Anna », « Bob » et « Chloé » → « Anna, Bob et Chloé ». */
-const nomsFormates = new Intl.ListFormat("fr-FR", { style: "long", type: "conjunction" });
+const nomsFormates = new Intl.ListFormat("fr-FR", {
+  style: "long",
+  type: "conjunction",
+});
 
 interface RsvpFormProps {
   /** Le nom du foyer, tel qu'il est écrit sur l'enveloppe. */
@@ -72,7 +78,8 @@ const CHOICE_SELECTED = "border-bordeaux-500 bg-bordeaux-500 text-on-bordeaux";
  * La puce retenue, elle, est à 8,37:1 (crème sur bordeaux) et ne pose pas de
  * question.
  */
-const CHOICE_IDLE = "border-bordeaux-500/60 bg-ivory text-bordeaux-700 hover:border-bordeaux-500";
+const CHOICE_IDLE =
+  "border-bordeaux-500/60 bg-ivory text-bordeaux-700 hover:border-bordeaux-500";
 
 function ChoiceCard({
   name,
@@ -88,7 +95,9 @@ function ChoiceCard({
   onSelect: (value: Answer) => void;
 }) {
   return (
-    <label className={cn(CHOICE_BASE, selected ? CHOICE_SELECTED : CHOICE_IDLE)}>
+    <label
+      className={cn(CHOICE_BASE, selected ? CHOICE_SELECTED : CHOICE_IDLE)}
+    >
       {/*
         Le radio natif est masqué visuellement mais reste dans l'ordre de
         tabulation : les flèches du clavier parcourent le groupe, l'état coché
@@ -188,7 +197,9 @@ export function RsvpForm({
         </div>
         <div className="text-right">
           <p className={eyebrowClassName}>Places</p>
-          <p className="mt-1 font-display text-[1.625rem] text-bordeaux-500">{allocatedSeats}</p>
+          <p className="mt-1 font-display text-[1.625rem] text-bordeaux-500">
+            {allocatedSeats}
+          </p>
         </div>
       </div>
 
@@ -211,7 +222,10 @@ export function RsvpForm({
           />
         </div>
         {missingAnswer && (
-          <p role="alert" className="mt-3 text-[1.0625rem] font-medium text-bordeaux-700">
+          <p
+            role="alert"
+            className="mt-3 text-[1.0625rem] font-medium text-bordeaux-700"
+          >
             Merci d'indiquer si vous serez présents.
           </p>
         )}
@@ -225,7 +239,9 @@ export function RsvpForm({
       */}
       {answer === "CONFIRMED" && (
         <p className="text-[0.9375rem] leading-relaxed text-ink-muted">
-          {places} {compte} Si l'un d'entre vous ne peut finalement pas venir, appelez-nous :{" "}
+          {places} {compte}
+          <br />
+          Si l'un d'entre vous ne peut finalement pas venir, appelez-nous :{" "}
           {CONTACT_PHONES.map((phone, i) => (
             <span key={phone.tel}>
               {i > 0 && " ou "}
@@ -269,8 +285,17 @@ export function RsvpForm({
         </p>
       )}
 
-      <button type="submit" className={guestButtonClassName} disabled={isPending} aria-busy={isPending}>
-        {isPending ? "Envoi…" : errorMessage ? "Réessayer" : "Envoyer notre réponse"}
+      <button
+        type="submit"
+        className={guestButtonClassName}
+        disabled={isPending}
+        aria-busy={isPending}
+      >
+        {isPending
+          ? "Envoi…"
+          : errorMessage
+            ? "Réessayer"
+            : "Envoyer notre réponse"}
       </button>
     </form>
   );
