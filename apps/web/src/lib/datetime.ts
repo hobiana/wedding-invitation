@@ -126,6 +126,59 @@ export function weddingDateParts(iso: string): {
   };
 }
 
+const numericPartsFormatter = new Intl.DateTimeFormat("fr-FR", {
+  year: "numeric",
+  month: "numeric",
+  day: "numeric",
+  timeZone: WEDDING_TIME_ZONE,
+});
+
+/**
+ * Le mois du mariage, en grille, avec le jour à marquer.
+ *
+ * Le design dessinait janvier 2027 cellule par cellule, un cœur posé à la main
+ * sur le 2. Il se déduit : le jour de la semaine du 1er et la longueur du mois
+ * suffisent.
+ *
+ * Le fuseau n'intervient qu'une fois, pour savoir **de quel mois on parle** —
+ * un mariage à 1 h du matin à Antananarivo est la veille à Paris, et ce serait
+ * alors le mauvais mois qui s'afficherait. Ensuite c'est de l'arithmétique de
+ * calendrier pure : les `Date.UTC` ci-dessous ne sont pas des instants, ce sont
+ * des repères de grille, et aucun fuseau ne les déplace.
+ *
+ * Semaines commençant le lundi, comme tout calendrier français. Les cases
+ * avant le 1er sont `null` ; il n'y a pas de semaine vide à la fin.
+ */
+export function weddingMonthGrid(iso: string): {
+  label: string;
+  weeks: (number | null)[][];
+  weddingDay: number;
+} {
+  const parts = Object.fromEntries(
+    numericPartsFormatter.formatToParts(new Date(iso)).map((p) => [p.type, p.value]),
+  );
+  const year = Number(parts.year);
+  const month = Number(parts.month);
+  const weddingDay = Number(parts.day);
+
+  // `getUTCDay` rend 0 pour dimanche ; +6 %7 fait glisser la semaine au lundi.
+  const premierJour = (new Date(Date.UTC(year, month - 1, 1)).getUTCDay() + 6) % 7;
+  // Jour 0 du mois suivant = dernier jour de celui-ci.
+  const longueur = new Date(Date.UTC(year, month, 0)).getUTCDate();
+
+  const cases: (number | null)[] = [
+    ...Array.from({ length: premierJour }, () => null),
+    ...Array.from({ length: longueur }, (_, i) => i + 1),
+  ];
+  while (cases.length % 7 !== 0) cases.push(null);
+
+  const weeks: (number | null)[][] = [];
+  for (let i = 0; i < cases.length; i += 7) weeks.push(cases.slice(i, i + 7));
+
+  const { month: monthName, year: yearLabel } = weddingDateParts(iso);
+  return { label: `${monthName} ${yearLabel}`, weeks, weddingDay };
+}
+
 /**
  * `1er mai 2027`, sans heure.
  *

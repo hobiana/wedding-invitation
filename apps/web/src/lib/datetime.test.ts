@@ -5,6 +5,7 @@ import {
   formatWeddingDate,
   formatWeddingTime,
   weddingDateParts,
+  weddingMonthGrid,
 } from "./datetime";
 
 /** Espace fine insécable — la seule espace admise autour du « h » français. */
@@ -129,5 +130,48 @@ describe("weddingDateParts", () => {
     const parts = weddingDateParts("2027-01-02T06:00:00.000Z");
     expect(parts.weekday).toBe(parts.weekday.toLowerCase());
     expect(parts.month).toBe(parts.month.toLowerCase());
+  });
+});
+
+/**
+ * Le calendrier du design affichait janvier 2027 dessiné à la main, cellule
+ * par cellule, avec un cœur sur le 2. Il se déduit de la date : le jour de la
+ * semaine du 1er et le nombre de jours du mois suffisent, et ils ne dépendent
+ * pas du fuseau une fois qu'on sait de quel mois on parle.
+ */
+describe("weddingMonthGrid", () => {
+  it("lays January 2027 out on a Monday-first grid", () => {
+    const grille = weddingMonthGrid("2027-01-02T06:00:00.000Z");
+
+    expect(grille.label).toBe("janvier 2027");
+    expect(grille.weddingDay).toBe(2);
+    // Le 1er janvier 2027 est un vendredi : quatre cases vides avant lui.
+    expect(grille.weeks[0]).toEqual([null, null, null, null, 1, 2, 3]);
+  });
+
+  it("runs to the end of the month and no further", () => {
+    const grille = weddingMonthGrid("2027-01-02T06:00:00.000Z");
+    const jours = grille.weeks.flat().filter((j): j is number => j !== null);
+
+    expect(jours).toHaveLength(31);
+    expect(jours.at(-1)).toBe(31);
+    expect(grille.weeks.every((semaine) => semaine.length === 7)).toBe(true);
+  });
+
+  it.each(READER_TIME_ZONES)("marks the venue's own day for a guest in %s", (tz) => {
+    process.env.TZ = tz;
+    // 22:00 UTC le 1er est déjà le 2 à Antananarivo.
+    expect(weddingMonthGrid("2027-01-01T22:00:00.000Z").weddingDay).toBe(2);
+  });
+
+  // Un mois de 28 jours qui commence un lundi tient en exactement quatre
+  // semaines : le cas où un `while` mal écrit ajoute une ligne vide.
+  it("adds no empty trailing week", () => {
+    const grille = weddingMonthGrid("2027-02-15T06:00:00.000Z");
+
+    expect(grille.label).toBe("février 2027");
+    // 28 jours à partir d'un lundi : quatre semaines pleines, pas cinq.
+    expect(grille.weeks).toHaveLength(4);
+    expect(grille.weeks.at(-1)).toEqual([22, 23, 24, 25, 26, 27, 28]);
   });
 });
