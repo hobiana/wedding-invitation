@@ -4,6 +4,7 @@ import {
   formatRsvpDeadline,
   formatWeddingDate,
   formatWeddingTime,
+  weddingDateParts,
 } from "./datetime";
 
 /** Espace fine insécable — la seule espace admise autour du « h » français. */
@@ -91,5 +92,42 @@ describe("formatRsvpDeadline", () => {
 describe("WEDDING_TIME_ZONE", () => {
   it("is the venue's zone, pinned at build time", () => {
     expect(WEDDING_TIME_ZONE).toBe("Indian/Antananarivo");
+  });
+});
+
+/**
+ * Le faire-part du design pose la date en trois colonnes — « Samedi 09h00 »,
+ * « 02 », « Janvier 2027 » — et le design l'écrivait en dur. Elle vient d'ici,
+ * donc de `wedding.weddingDate`, pour qu'un seul enregistrement fasse foi.
+ */
+describe("weddingDateParts", () => {
+  it.each(READER_TIME_ZONES)("splits the venue's own day for a guest in %s", (tz) => {
+    process.env.TZ = tz;
+    expect(weddingDateParts("2027-01-02T06:00:00.000Z")).toEqual({
+      weekday: "samedi",
+      day: "02",
+      month: "janvier",
+      year: "2027",
+    });
+  });
+
+  // 22:00 UTC le 1er janvier est déjà le 2 à Antananarivo. C'est exactement le
+  // cas que le gros chiffre du faire-part rendrait faux sous les yeux de la
+  // moitié des invités.
+  it("keeps a late-evening UTC instant on the venue's calendar day", () => {
+    process.env.TZ = "America/New_York";
+    expect(weddingDateParts("2027-01-01T22:00:00.000Z")).toMatchObject({
+      day: "02",
+      month: "janvier",
+    });
+  });
+
+  // Minuscules en sortie : « samedi » et « janvier » s'écrivent ainsi en
+  // français. Les capitales du design sont une affaire de CSS, pas de données —
+  // un lecteur d'écran doit entendre le mot, pas l'épeler.
+  it("returns French lower case, leaving the capitals to CSS", () => {
+    const parts = weddingDateParts("2027-01-02T06:00:00.000Z");
+    expect(parts.weekday).toBe(parts.weekday.toLowerCase());
+    expect(parts.month).toBe(parts.month.toLowerCase());
   });
 });

@@ -87,6 +87,45 @@ export function formatWeddingTime(iso: string, { compact = false } = {}): string
   return `${hours}${NNBSP}h${NNBSP}${minute}`;
 }
 
+const datePartsFormatter = new Intl.DateTimeFormat("fr-FR", {
+  weekday: "long",
+  day: "2-digit",
+  month: "long",
+  year: "numeric",
+  timeZone: WEDDING_TIME_ZONE,
+});
+
+/**
+ * La date éclatée en morceaux, pour le bloc à trois colonnes du faire-part :
+ * `samedi` · `02` · `janvier` `2027`.
+ *
+ * Le design écrivait ces quatre valeurs en dur. Elles viennent d'ici, donc de
+ * `wedding.weddingDate`, pour la même raison que tout le reste de la page : un
+ * seul enregistrement fait foi, et l'organisateur peut encore corriger une
+ * heure sans qu'un coin de la page reste en arrière.
+ *
+ * Le jour est sur deux chiffres parce que le design en fait un grand chiffre
+ * cadré entre deux filets, où `2` seul flotterait. Le reste sort en minuscules :
+ * c'est le français correct, et les capitales du design sont une affaire de
+ * `text-transform` — un lecteur d'écran doit entendre « samedi », pas l'épeler.
+ */
+export function weddingDateParts(iso: string): {
+  weekday: string;
+  day: string;
+  month: string;
+  year: string;
+} {
+  const parts = datePartsFormatter.formatToParts(new Date(iso));
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? "";
+  return {
+    weekday: value("weekday"),
+    day: value("day"),
+    month: value("month"),
+    year: value("year"),
+  };
+}
+
 /**
  * `1er mai 2027`, sans heure.
  *
