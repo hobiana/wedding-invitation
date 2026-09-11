@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { formatWeddingTime } from "@/lib/datetime";
+import { WEDDING_TIME_ZONE_LABEL, formatWeddingTime } from "@/lib/datetime";
 import { SCHEDULE } from "@/components/invitation/wedding-content";
 
 /**
@@ -34,6 +34,17 @@ export function Schedule({ weddingDate }: { weddingDate: string }) {
         Le déroulé du jour
       </h2>
       <div aria-hidden="true" className="mx-auto mt-4 h-px w-14 bg-gold-light" />
+
+      {/*
+        Dit une fois, pour toute la page. Sans cette ligne, « 9 h » se lit dans
+        le fuseau de qui regarde : un invité à Paris comprenait 7 h pour une
+        cérémonie à 9 h. Le défaut a existé, il n'a été vu qu'à la première
+        exécution réelle, et aucun test ne pouvait l'attraper — ils tournent
+        tous dans le fuseau de la machine.
+      */}
+      <p className="mt-3 text-center font-sans text-[0.75rem] text-on-bordeaux-muted">
+        Toutes les heures sont données à l'{WEDDING_TIME_ZONE_LABEL}.
+      </p>
 
       <ol className="mx-auto mt-8 max-w-column list-none">
         {SCHEDULE.map((moment) => (

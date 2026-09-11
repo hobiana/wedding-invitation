@@ -49,9 +49,20 @@ export interface InvitationResponseDto {
   seatingPlan: SeatingPlanDto | null;
 }
 
+/**
+ * Ce qu'un **invité** peut dire en répondant.
+ *
+ * Il n'y a pas de `confirmedCount`, et ce n'est pas un oubli. Confirmer veut
+ * dire « nous venons tous » (décision du commanditaire, 2026-09-10) : le
+ * serveur pose le nombre depuis `allocatedSeats`, que l'organisateur a
+ * lui-même accordées. Un invité ne peut donc pas annoncer un chiffre, pas
+ * même avec un corps de requête fabriqué à la main.
+ *
+ * Un foyer qui ne vient qu'en partie se corrige depuis l'admin, par
+ * `UpdateHouseholdDto` — qui, lui, porte bien le champ.
+ */
 export interface SubmitRsvpDto {
   status: "CONFIRMED" | "DECLINED";
-  confirmedCount?: number;
   memberNames?: string[];
   dietaryNotes?: string;
   message?: string;

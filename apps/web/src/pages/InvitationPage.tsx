@@ -8,36 +8,19 @@ import type {
   WeddingInfoDto,
 } from "@invitation-app/shared";
 import { api } from "@/lib/api";
-import { httpUrlOrNull } from "@/lib/url";
-import {
-  WEDDING_TIME_ZONE_LABEL,
-  formatRsvpDeadline,
-  formatWeddingDate,
-  formatWeddingTime,
-} from "@/lib/datetime";
+import { formatRsvpDeadline, formatWeddingDate } from "@/lib/datetime";
 import { RsvpForm } from "@/components/RsvpForm";
 import { SeatingPlanSection } from "@/components/SeatingPlanSection";
-import { CouplePhoto } from "@/components/invitation/CouplePhoto";
-import { SectionHeading } from "@/components/invitation/SectionHeading";
-import { COUPLE, HERO_NAME_CLASS } from "@/components/invitation/couple";
-import {
-  bandClassName,
-  columnClassName,
-  eyebrowClassName,
-  guestTextButtonClassName,
-  sectionGapClassName,
-} from "@/components/invitation/guest-styles";
-
-const nameFormatter = new Intl.ListFormat("fr-FR", { style: "long", type: "conjunction" });
-
-/** "Jean", "Marie" et "Paul" → "Jean, Marie et Paul". */
-function formatNames(names: string[]): string {
-  return nameFormatter.format(names);
-}
-
-function seatsSentence(seats: number): string {
-  return seats > 1 ? `${seats} places vous sont réservées.` : `${seats} place vous est réservée.`;
-}
+import { Announcement } from "@/components/invitation/Announcement";
+import { Calendar } from "@/components/invitation/Calendar";
+import { Countdown } from "@/components/invitation/Countdown";
+import { InvitationHeader } from "@/components/invitation/InvitationHeader";
+import { PhotoCarousel } from "@/components/invitation/PhotoCarousel";
+import { Schedule } from "@/components/invitation/Schedule";
+import { Venue } from "@/components/invitation/Venue";
+import { COUPLE } from "@/components/invitation/couple";
+import { MALAGASY } from "@/components/invitation/wedding-content";
+import { eyebrowClassName, guestTextButtonClassName } from "@/components/invitation/guest-styles";
 
 function peopleSentence(count: number): string {
   return count > 1 ? `${count} personnes présentes` : `${count} personne présente`;
@@ -97,130 +80,99 @@ export function InvitationPage() {
   }
 
   const { household, wedding } = data;
-  // The API returns a raw English 403 ("RSVP deadline has passed") once the
-  // deadline is up. Rendering the form anyway meant a guest could fill it in,
-  // submit, and get that English string in an otherwise-French page.
+  // L'API renvoie un 403 anglais une fois la date limite passée. Rendre le
+  // formulaire quand même laissait un invité le remplir, l'envoyer, et lire
+  // cette phrase anglaise dans une page par ailleurs française.
   const rsvpClosed = new Date() > new Date(wedding.rsvpDeadline);
 
   // La réponse la plus fraîche connue : celle qu'on vient d'envoyer, sinon
   // celle que l'API a renvoyée. `variables` évite d'attendre le rafraîchissement
   // du cache pour reformuler ce que l'invité vient de choisir.
   const submitted = rsvpMutation.isSuccess ? rsvpMutation.variables : null;
-  const answered =
-    submitted ??
-    (household.status === "PENDING"
-      ? null
-      : {
-          status: household.status,
-          confirmedCount: household.confirmedCount ?? undefined,
-          dietaryNotes: household.dietaryNotes ?? undefined,
-        });
+  const answeredStatus =
+    submitted?.status ?? (household.status === "PENDING" ? null : household.status);
+  // Le nombre ne vient plus de ce que l'invité a envoyé — il n'en envoie plus.
+  // Il vient du serveur, qui l'a posé depuis les places accordées ; et si
+  // l'organisateur l'a corrigé depuis, c'est sa valeur qu'on relit.
+  const countedSeats = household.confirmedCount ?? household.allocatedSeats;
 
   return (
-    <main className="pb-0">
-      {/* ————————————————————————— §1 · Le héros ————————————————————————— */}
-      <section className="relative flex min-h-svh flex-col items-center justify-center px-6 text-center">
-        {/* La seule information de la page propre à ce lien : elle la fait lire
-            comme du courrier plutôt que comme une page web. */}
-        <p className={eyebrowClassName}>{household.displayName}</p>
+    // La carte du design : 680 px de papier crème, posés sur une page blanche.
+    // Sur un téléphone elle occupe tout ; au-delà, le blanc autour lui donne
+    // ses marges, comme un faire-part sur une table.
+    <main className="relative mx-auto max-w-card bg-cream shadow-[0_0_3.75rem_-1.875rem_rgb(0_0_0/0.33)]">
+      {/* Le grain du papier, en fondu multiplicatif par-dessus tout. Il ne
+          capte aucun clic, et les boutons du carrousel passent au-dessus. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 z-10 bg-[url(/decor/texture-papier.webp)] bg-[length:100%_auto] bg-repeat-y opacity-50 mix-blend-multiply"
+      />
 
-        <h1
-          className={`mt-6 max-w-hero font-display leading-[1.05] text-bordeaux-900 ${HERO_NAME_CLASS}`}
-        >
-          {COUPLE.firstNames[0]}
-          {/* L'esperluette a sa propre ligne : celle de Marcellus mesure
-              0,77 em, c'est un beau dessin et il mérite sa ligne. */}
-          <span className="block py-2 font-display text-[1.75rem] text-bordeaux-700 md:text-[2.5rem]">
-            &amp;
-          </span>
-          {COUPLE.firstNames[1]}
-        </h1>
+      <InvitationHeader />
+      <Announcement weddingDate={wedding.weddingDate} />
+      <PhotoCarousel />
+      <Countdown weddingDate={wedding.weddingDate} />
+      <Calendar weddingDate={wedding.weddingDate} />
+      <Schedule weddingDate={wedding.weddingDate} />
+      <Venue
+        venueName={wedding.venueName}
+        address={wedding.address}
+        mapUrl={wedding.mapUrl}
+      />
+      <PracticalInformation wedding={wedding} />
 
-
-        <p className="mt-6 font-display text-xl text-bordeaux-700">
-          {formatWeddingDate(wedding.weddingDate)}, {formatWeddingTime(wedding.weddingDate, { compact: true })}
+      <section aria-labelledby="votre-reponse" className="px-6 pb-14 pt-4 text-center">
+        <p className="font-sans text-[0.75rem] uppercase tracking-[0.4em] text-bordeaux-500">
+          Réponse souhaitée
         </p>
-        <p className="mt-2 text-base text-ink-muted">{wedding.venueName}</p>
-
-        {/* Un trait qui dit que la page continue. Il ne bouge pas : pas de
-            chevron, pas de rebond, rien qui demande une animation pour être
-            compris. */}
-        <span aria-hidden="true" className="absolute bottom-6 h-8 w-px bg-rule" />
-      </section>
-
-      {/* —————————————————————— §2 · L'adressage —————————————————————— */}
-      <section className={`${sectionGapClassName} ${columnClassName}`}>
-        {household.memberNames.length > 0 && (
-          <>
-            <p className={eyebrowClassName}>Cette invitation est adressée à</p>
-            <p className="mt-2 font-display text-2xl text-bordeaux-900">
-              {formatNames(household.memberNames)}
-            </p>
-          </>
+        <h2
+          id="votre-reponse"
+          className="mt-2.5 font-script text-[3.125rem] leading-[1.1] text-bordeaux-700"
+        >
+          Serez-vous là ?
+        </h2>
+        {/* La date limite se lit **avant** de répondre. Elle n'apparaissait
+            qu'une fois passée, pour verrouiller le formulaire. Et sans heure :
+            une heure limite ne veut rien dire pour un invité, et celle qui
+            s'affichait était fausse. */}
+        {!rsvpClosed && (
+          <p className="mt-1.5 font-sans text-[0.8125rem] leading-[1.7] text-ink-muted">
+            Merci de nous répondre avant le {formatRsvpDeadline(wedding.rsvpDeadline)}.
+          </p>
         )}
-        <p className="mt-2 text-ink-muted">{seatsSentence(household.allocatedSeats)}</p>
-      </section>
 
-      {/* ——————————————————————— §3 · La photo ——————————————————————— */}
-      <div className={sectionGapClassName}>
-        <CouplePhoto />
-      </div>
-
-      {/* ————————————— §4 · Les informations pratiques ————————————— */}
-      <section
-        aria-labelledby="le-jour-j"
-        className={`${sectionGapClassName} bg-cream ${bandClassName}`}
-      >
-        <div className={columnClassName}>
-          <SectionHeading id="le-jour-j">Le jour J</SectionHeading>
-          <PracticalInformation wedding={wedding} />
-        </div>
-      </section>
-
-      {/* ————————————————————— §5 · Votre réponse ————————————————————— */}
-      <section aria-labelledby="votre-reponse" className={`${sectionGapClassName} ${columnClassName}`}>
-        <SectionHeading id="votre-reponse">Votre réponse</SectionHeading>
-
-        <div className="mt-8">
+        <div className="mt-6">
           {rsvpClosed ? (
             <ClosedRsvpSummary household={household} />
-          ) : answered && !isEditing ? (
-            <RecordedAnswer answer={answered} onEdit={() => setIsEditing(true)} />
+          ) : answeredStatus && !isEditing ? (
+            <RecordedAnswer
+              status={answeredStatus}
+              countedSeats={countedSeats}
+              message={submitted?.message ?? household.message ?? undefined}
+              onEdit={() => setIsEditing(true)}
+            />
           ) : (
-            <>
-              {/* La date limite doit être lisible *avant* de répondre. Elle
-                  n'apparaissait qu'une fois passée, pour verrouiller le
-                  formulaire. Et sans heure : une heure limite ne veut rien dire
-                  pour un invité, et celle qui s'affichait était fausse. */}
-              <p className="mb-8 text-ink-muted">
-                Merci de nous répondre avant le {formatRsvpDeadline(wedding.rsvpDeadline)}.
-              </p>
-              <RsvpForm
-                allocatedSeats={household.allocatedSeats}
-                defaultStatus={household.status === "PENDING" ? undefined : household.status}
-                defaultConfirmedCount={household.confirmedCount ?? household.allocatedSeats}
-                defaultDietaryNotes={household.dietaryNotes ?? ""}
-                onSubmit={(dto) => rsvpMutation.mutate(dto)}
-                isPending={rsvpMutation.isPending}
-                errorMessage={rsvpMutation.isError ? frenchRsvpError(rsvpMutation.error) : null}
-              />
-            </>
+            <RsvpForm
+              householdName={household.displayName}
+              memberNames={household.memberNames}
+              allocatedSeats={household.allocatedSeats}
+              defaultStatus={household.status === "PENDING" ? undefined : household.status}
+              defaultMessage={household.message ?? ""}
+              onSubmit={(dto) => rsvpMutation.mutate(dto)}
+              isPending={rsvpMutation.isPending}
+              errorMessage={rsvpMutation.isError ? frenchRsvpError(rsvpMutation.error) : null}
+            />
           )}
         </div>
       </section>
 
-      {/* ——————————————————————— §6 · Votre table ——————————————————————— */}
       <SeatingPlanSection seatingPlan={data.seatingPlan} />
 
-      {/* ——————————————————————— §7 · Le pied de page ——————————————————————— */}
-      <footer className={`${sectionGapClassName} bg-bordeaux-900 px-6 pt-16 pb-12 text-center`}>
-        <p className="font-display text-2xl text-ivory">
+      <footer className="bg-sand/60 px-6 pb-12 pt-9 text-center">
+        <p className="font-script text-[2.125rem] text-bordeaux-500">
           {COUPLE.firstNames[0]} &amp; {COUPLE.firstNames[1]}
         </p>
-        {/* Le seul endroit de la page où l'or est lumineux : 5,18:1 sur le
-            bordeaux 900. Il porte un filet, jamais un mot. */}
-        <span aria-hidden="true" className="mx-auto my-6 block h-px w-16 bg-gold" />
-        <p className="text-sm tracking-[0.08em] text-ivory">
+        <p className="mt-2.5 font-sans text-[0.75rem] uppercase tracking-[0.34em] text-ink-muted">
           {formatWeddingDate(wedding.weddingDate, { weekday: false })} · {COUPLE.city}
         </p>
       </footer>
@@ -228,63 +180,34 @@ export function InvitationPage() {
   );
 }
 
+/**
+ * Ce que l'organisateur a saisi et que le design ne prévoyait nulle part.
+ *
+ * Le jour et le lieu sont désormais portés par le programme et la section du
+ * lieu ; restent la tenue et le stationnement, deux champs facultatifs qui
+ * n'apparaissent que s'ils sont remplis — un intitulé « Tenue » sans valeur
+ * n'apprend rien et ressemble à une panne.
+ */
 function PracticalInformation({ wedding }: { wedding: WeddingInfoDto }) {
-  const mapHref = httpUrlOrNull(wedding.mapUrl);
+  if (!wedding.dressCode && !wedding.parkingInfo) return null;
 
   return (
-    // 32 px entre deux entrées, et aucun filet entre elles : les capitales
-    // structurent déjà.
-    <dl className="mt-8 space-y-8">
-      <div>
-        <dt className={eyebrowClassName}>Quand</dt>
-        <dd className="mt-2">
-          <span className="block">
-            {formatWeddingDate(wedding.weddingDate)} à {formatWeddingTime(wedding.weddingDate)}
-          </span>
-          {/* Toujours affiché, jamais conditionné au fuseau du lecteur : une
-              parenthèse permanente coûte une ligne et supprime toute une
-              classe d'ambiguïté. */}
-          <span className="block text-ink-muted">({WEDDING_TIME_ZONE_LABEL})</span>
-        </dd>
-      </div>
-
-      <div>
-        <dt className={eyebrowClassName}>Où</dt>
-        <dd className="mt-2">
-          <span className="block">{wedding.venueName}</span>
-          <span className="block text-ink-muted">{wedding.address}</span>
-          {mapHref && (
-            <a
-              href={mapHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              // Le soulignement ne se retire jamais : c'est le seul lien de la
-              // page, et il n'y a pas de bleu pour le signaler.
-              className={`mt-1 ${guestTextButtonClassName}`}
-            >
-              Voir l'itinéraire<span className="sr-only"> (nouvel onglet)</span>
-              <span aria-hidden="true"> →</span>
-            </a>
-          )}
-        </dd>
-      </div>
-
-      {/* Chaque champ facultatif n'est rendu que s'il est rempli : un intitulé
-          « Tenue » sans valeur n'apprend rien et ressemble à une panne. */}
-      {wedding.dressCode && (
-        <div>
-          <dt className={eyebrowClassName}>Tenue</dt>
-          <dd className="mt-2">{wedding.dressCode}</dd>
-        </div>
-      )}
-
-      {wedding.parkingInfo && (
-        <div>
-          <dt className={eyebrowClassName}>Stationnement</dt>
-          <dd className="mt-2">{wedding.parkingInfo}</dd>
-        </div>
-      )}
-    </dl>
+    <section className="px-6 pb-10">
+      <dl className="mx-auto max-w-column space-y-6 text-center">
+        {wedding.dressCode && (
+          <div>
+            <dt className={eyebrowClassName}>Tenue</dt>
+            <dd className="mt-2">{wedding.dressCode}</dd>
+          </div>
+        )}
+        {wedding.parkingInfo && (
+          <div>
+            <dt className={eyebrowClassName}>Stationnement</dt>
+            <dd className="mt-2">{wedding.parkingInfo}</dd>
+          </div>
+        )}
+      </dl>
+    </section>
   );
 }
 
@@ -294,23 +217,26 @@ function PracticalInformation({ wedding }: { wedding: WeddingInfoDto }) {
  * parti. Le bouton de modification le ramène — la deadline seule le ferme.
  */
 function RecordedAnswer({
-  answer,
+  status,
+  countedSeats,
+  message,
   onEdit,
 }: {
-  answer: Pick<SubmitRsvpDto, "status" | "confirmedCount" | "dietaryNotes">;
+  status: SubmitRsvpDto["status"];
+  /** Ce que le serveur compte pour ce foyer — pas ce que l'invité a envoyé. */
+  countedSeats: number;
+  message?: string;
   onEdit: () => void;
 }) {
   return (
-    <div className="border-t border-bordeaux-700 pt-6">
-      <p className="font-display text-2xl text-bordeaux-900">C'est noté.</p>
-      <p className="mt-2">
-        {answer.status === "CONFIRMED"
-          ? `Vous serez ${peopleSentence(answer.confirmedCount ?? 1)}.`
+    <div className="border border-gold/40 bg-ivory px-6 py-9">
+      <p className="font-script text-[2.375rem] text-bordeaux-500">{MALAGASY.thanks}</p>
+      <p className="mt-3">
+        {status === "CONFIRMED"
+          ? `C'est noté : vous serez ${peopleSentence(countedSeats)}.`
           : "Vous ne pourrez pas être des nôtres. Nous le regrettons, et nous comprenons."}
       </p>
-      {answer.dietaryNotes && (
-        <p className="mt-2 text-ink-muted">Régime alimentaire, allergies : {answer.dietaryNotes}</p>
-      )}
+      {message && <p className="mt-2 text-ink-muted">Votre mot : {message}</p>}
       <button type="button" onClick={onEdit} className={`mt-4 ${guestTextButtonClassName}`}>
         Modifier notre réponse
       </button>
@@ -318,14 +244,14 @@ function RecordedAnswer({
   );
 }
 
-/** Read-only replacement for the RSVP form once the deadline has passed. */
+/** Ce qui remplace le formulaire une fois la date limite passée. */
 function ClosedRsvpSummary({ household }: { household: HouseholdPublicDto }) {
   return (
-    <div className="border-t border-bordeaux-700 pt-6">
-      <p className="font-display text-2xl text-bordeaux-900">Les réponses sont closes.</p>
+    <div className="border border-gold/40 bg-ivory px-6 py-9">
+      <p className="font-display text-[1.625rem] text-bordeaux-700">Les réponses sont closes.</p>
       {household.status === "CONFIRMED" && (
         <p className="mt-2">
-          Votre réponse : {peopleSentence(household.confirmedCount ?? 1)}.
+          Votre réponse : {peopleSentence(household.confirmedCount ?? household.allocatedSeats)}.
         </p>
       )}
       {household.status === "DECLINED" && (
@@ -334,14 +260,7 @@ function ClosedRsvpSummary({ household }: { household: HouseholdPublicDto }) {
       {household.status === "PENDING" && (
         <p className="mt-2">Nous n'avons pas reçu votre réponse.</p>
       )}
-      {household.dietaryNotes && (
-        <p className="mt-2 text-ink-muted">
-          Régime alimentaire, allergies : {household.dietaryNotes}
-        </p>
-      )}
-      <p className="mt-4 text-ink-muted">
-        Pour toute modification, merci de contacter directement les organisateurs.
-      </p>
+      {household.message && <p className="mt-2 text-ink-muted">Votre mot : {household.message}</p>}
     </div>
   );
 }

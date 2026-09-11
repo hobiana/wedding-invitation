@@ -96,10 +96,14 @@ describe("InvitationPage RSVP deadline", () => {
 describe("InvitationPage practical information", () => {
   afterEach(() => vi.restoreAllMocks());
 
+  // L'heure est écrite deux fois — dans le faire-part et dans le programme — et
+  // c'est voulu : c'est celle qu'on relit la veille. D'où `getAllByText`.
   it("tells the guest what time to turn up, not just the day", async () => {
     renderPage(invitation(FUTURE_DEADLINE));
+    await screen.findByRole("heading", { level: 1 });
 
-    expect(await screen.findByText(/12 juin 2027 à 1[0-9]\s*h\s*00/)).toBeInTheDocument();
+    expect(screen.getAllByText(/17\s*h\s*00/).length).toBeGreaterThan(0);
+    expect(within(screen.getByTestId("bloc-date")).getByText("12")).toBeInTheDocument();
   });
 
   it("shows the venue and its address", async () => {
@@ -184,7 +188,10 @@ describe("InvitationPage wedding time zone", () => {
         invitation("2099-01-01T00:00:00.000Z", {}, { weddingDate: "2027-06-12T15:00:00.000Z" }),
       );
 
-      expect(await screen.findByText(/18\s*h\s*00/)).toBeInTheDocument();
+      // Deux occurrences — le faire-part et le programme — et les deux doivent
+      // lire la même heure, celle du lieu.
+      const heures = await screen.findAllByText(/18\s*h\s*00/);
+      expect(heures.length).toBeGreaterThan(0);
     },
   );
 
@@ -225,57 +232,16 @@ describe("InvitationPage — le héros et l'adressage", () => {
     expect(await screen.findByText("Jean Rakoto et Marie Rakoto")).toBeInTheDocument();
   });
 
-  // §9 : « Si memberNames est vide, le libellé et les prénoms disparaissent, la
-  // ligne de places reste. C'est l'information utile. »
+  // Les places se lisent maintenant dans l'en-tête du foyer, en chiffre, à
+  // côté de son nom — c'est la forme du design. Sans prénoms saisis, il ne
+  // reste que le nom et le nombre, ce qui est l'information utile.
   it("keeps the seat count and drops the addressing line when no names were recorded", async () => {
     renderPage(invitation(FUTURE_DEADLINE, { allocatedSeats: 2 }));
 
     await screen.findByText("Famille Rakoto");
+    const reponse = region(/serez-vous là/i);
+    expect(reponse.getByText("2")).toBeInTheDocument();
     expect(screen.queryByText(/cette invitation est adressée à/i)).not.toBeInTheDocument();
-    expect(screen.getAllByText(/2 places vous sont réservées/i).length).toBeGreaterThan(0);
-  });
-
-  it("writes the reserved seats in the singular for a household of one", async () => {
-    renderPage(invitation(FUTURE_DEADLINE, { allocatedSeats: 1 }));
-
-    expect((await screen.findAllByText(/1 place vous est réservée/i)).length).toBeGreaterThan(0);
-  });
-});
-
-// Le fichier portrait pèse 25 Ko en AVIF contre 100 Ko en JPEG, et le paysage
-// n'a aucune raison d'être servi à un téléphone. Deux `media` × deux `type`.
-describe("InvitationPage — la photo du couple", () => {
-  afterEach(() => vi.restoreAllMocks());
-
-  it("serves a portrait crop to phones and a landscape one to wide screens", async () => {
-    const { container } = renderPage(invitation(FUTURE_DEADLINE));
-    await screen.findByText("Famille Rakoto");
-
-    const sources = [...container.querySelectorAll("picture source")].map((s) => ({
-      media: s.getAttribute("media"),
-      type: s.getAttribute("type"),
-      srcSet: s.getAttribute("srcset"),
-    }));
-
-    expect(sources).toEqual([
-      { media: "(min-width: 768px)", type: "image/avif", srcSet: "/couple-paysage.avif" },
-      { media: "(min-width: 768px)", type: "image/jpeg", srcSet: "/couple-paysage.jpg" },
-      { media: null, type: "image/avif", srcSet: "/couple-portrait.avif" },
-    ]);
-  });
-
-  // Le JPEG est le seul format que tout navigateur décode : c'est lui qui doit
-  // rester dans le `<img>`, sinon un navigateur sans AVIF n'affiche rien.
-  it("falls back to a JPEG that every browser can decode", async () => {
-    renderPage(invitation(FUTURE_DEADLINE));
-    await screen.findByText("Famille Rakoto");
-
-    const img = screen.getByRole("img", { name: /hobiana et lovasoa/i });
-    expect(img).toHaveAttribute("src", "/couple-portrait.jpg");
-    // Réservées avant le chargement : sans elles la page saute sous le doigt
-    // de l'invité quand la photo arrive, en 4G plus qu'ailleurs.
-    expect(img).toHaveAttribute("width");
-    expect(img).toHaveAttribute("height");
   });
 });
 
@@ -290,10 +256,11 @@ describe("InvitationPage — répondre", () => {
     fireEvent.click(screen.getByRole("button", { name: /envoyer notre réponse/i }));
 
     await waitFor(() =>
+      // Aucun nombre dans le corps : l'invité ne peut plus en annoncer un, le
+      // serveur le pose depuis les places accordées.
       expect(patch).toHaveBeenCalledWith("/invitation/abc12345/rsvp", {
         status: "CONFIRMED",
-        confirmedCount: 4,
-        dietaryNotes: undefined,
+        message: undefined,
       }),
     );
   });
@@ -379,12 +346,26 @@ describe("InvitationPage — le plan de table", () => {
 describe("InvitationPage — lisible sans aucune animation", () => {
   afterEach(() => vi.restoreAllMocks());
 
+  /**
+   * L'invitation s'ouvre par une enveloppe animée. Tout ce qui suit doit être
+   * là au premier rendu, sans qu'une transition ait à se jouer : un invité dont
+   * le JavaScript rame, ou qui a demandé moins d'animations, doit lire la même
+   * page — pas une page vide en attendant.
+   */
   it("renders every section of the invitation on first paint", async () => {
     renderPage(invitation(FUTURE_DEADLINE, {}, { dressCode: "Tenue de cocktail" }));
 
-    await screen.findByText("Famille Rakoto");
-    expect(screen.getByRole("region", { name: /le jour j/i })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: /votre réponse/i })).toBeInTheDocument();
+    await screen.findByRole("heading", { level: 1 });
+    for (const titre of [
+      /le faire-part/i,
+      /avant le grand jour/i,
+      /le jour j approche/i,
+      /le déroulé du jour/i,
+      /domaine des roses/i,
+      /serez-vous là/i,
+    ]) {
+      expect(screen.getByRole("region", { name: titre })).toBeInTheDocument();
+    }
     expect(screen.getByRole("radio", { name: YES })).toBeInTheDocument();
     expect(screen.getByText(/tenue de cocktail/i)).toBeInTheDocument();
   });

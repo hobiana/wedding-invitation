@@ -54,6 +54,18 @@ describe("Schedule", () => {
     expect(screen.getByText("13 h")).toBeInTheDocument();
   });
 
+  /**
+   * Le défaut n'a été vu qu'à la première exécution réelle : un invité à Paris
+   * lisait 7 h pour une cérémonie à 9 h. Aucun test ne pouvait l'attraper — ils
+   * tournent tous dans le fuseau de la machine. La parenthèse permanente coûte
+   * une ligne et supprime toute une classe d'ambiguïté.
+   */
+  it("names the clock its hours are given on", () => {
+    render(<Schedule weddingDate={CEREMONY} />);
+
+    expect(screen.getByText(/heure de Madagascar/i)).toBeInTheDocument();
+  });
+
   it("is a section a screen reader can jump to", () => {
     render(<Schedule weddingDate={CEREMONY} />);
 

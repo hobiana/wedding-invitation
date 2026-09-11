@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InvitationService } from './invitation.service';
+import type { SubmitRsvpDto } from './dto/submit-rsvp.dto';
 import { PrismaService } from '../prisma/prisma.service';
 
 // Des lignes Prisma complètes, pas des bribes. Un mock partiel laisse passer
@@ -280,7 +281,7 @@ describe('InvitationService.submitRsvp', () => {
   it('throws NotFoundException for an unknown linkId', async () => {
     prisma.household.findUnique.mockResolvedValue(null);
     await expect(
-      service.submitRsvp('unknown', { status: 'CONFIRMED', confirmedCount: 1 }),
+      service.submitRsvp('unknown', { status: 'CONFIRMED' }),
     ).rejects.toThrow(NotFoundException);
   });
 
@@ -293,21 +294,37 @@ describe('InvitationService.submitRsvp', () => {
       rsvpDeadline: new Date('2020-01-01'),
     });
     await expect(
-      service.submitRsvp('h1', { status: 'CONFIRMED', confirmedCount: 2 }),
+      service.submitRsvp('h1', { status: 'CONFIRMED' }),
     ).rejects.toThrow(ForbiddenException);
   });
 
-  it('throws BadRequestException when confirmedCount exceeds allocatedSeats', async () => {
+  /**
+   * Décision du commanditaire, 2026-09-10 : confirmer veut dire « nous venons
+   * tous ». L'invité ne saisit plus de nombre, et surtout **le serveur ne le
+   * lui demande pas** — il prend les places qu'il a lui-même accordées. Un
+   * corps de requête fabriqué à la main ne peut donc pas annoncer un chiffre.
+   *
+   * Le `as` ci-dessous est là pour ça : il simule exactement ce qu'un client
+   * hostile enverrait, un champ que le contrat ne déclare plus.
+   */
+  it('seats the whole household on confirmation, whatever the request claims', async () => {
     prisma.household.findUnique.mockResolvedValue({
       id: 'h1',
-      allocatedSeats: 2,
+      allocatedSeats: 4,
     });
     prisma.weddingSettings.findUniqueOrThrow.mockResolvedValue({
       rsvpDeadline: new Date('2999-01-01'),
     });
-    await expect(
-      service.submitRsvp('h1', { status: 'CONFIRMED', confirmedCount: 5 }),
-    ).rejects.toThrow(BadRequestException);
+
+    await service.submitRsvp('h1', {
+      status: 'CONFIRMED',
+      confirmedCount: 1,
+    } as unknown as SubmitRsvpDto);
+
+    const [[updateArgs]] = prisma.household.update.mock.calls as [
+      [{ data: { confirmedCount: number } }],
+    ];
+    expect(updateArgs.data.confirmedCount).toBe(4);
   });
 
   it('sets confirmedCount to 0 when declining', async () => {
@@ -349,7 +366,7 @@ describe('InvitationService.submitRsvp', () => {
       weddingRow({ rsvpDeadline: new Date('2999-01-01') }),
     );
     prisma.household.update.mockResolvedValue(
-      householdRow({ status: 'CONFIRMED', confirmedCount: 2 }),
+      householdRow({ status: 'CONFIRMED' }),
     );
 
     const result = await service.submitRsvp('h1', {

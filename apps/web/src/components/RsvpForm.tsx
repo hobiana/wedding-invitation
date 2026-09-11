@@ -1,18 +1,23 @@
 import { useId, useState, type FormEvent } from "react";
 import type { SubmitRsvpDto } from "@invitation-app/shared";
 import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { eyebrowClassName, guestButtonClassName } from "@/components/invitation/guest-styles";
 import { cn } from "@/lib/utils";
 
 type Answer = "CONFIRMED" | "DECLINED";
 
+/** « Anna », « Bob » et « Chloé » → « Anna, Bob et Chloé ». */
+const nomsFormates = new Intl.ListFormat("fr-FR", { style: "long", type: "conjunction" });
+
 interface RsvpFormProps {
+  /** Le nom du foyer, tel qu'il est écrit sur l'enveloppe. */
+  householdName: string;
+  /** Les personnes nommément invitées, si l'organisateur les a saisies. */
+  memberNames?: string[];
   allocatedSeats: number;
   defaultStatus?: Answer;
-  defaultConfirmedCount?: number;
-  defaultDietaryNotes?: string;
+  defaultMessage?: string;
   onSubmit: (dto: SubmitRsvpDto) => void;
   isPending?: boolean;
   /** Déjà traduit par l'appelant. Ce composant n'affiche jamais une chaîne d'API. */
@@ -93,27 +98,32 @@ function ChoiceCard({
   );
 }
 
-const STEPPER_BUTTON =
-  "flex size-11 shrink-0 items-center justify-center rounded-control border border-rule-strong " +
-  "text-xl text-bordeaux-700 transition-colors duration-(--duration-micro) ease-(--ease-in) " +
-  "hover:border-ink-muted disabled:cursor-not-allowed disabled:text-ink-muted disabled:opacity-50";
-
+/**
+ * Le formulaire de réponse.
+ *
+ * Il ne demande plus **combien** vous serez. Décision du commanditaire du
+ * 2026-09-10 : confirmer veut dire « nous venons tous », et le serveur pose le
+ * nombre depuis les places accordées. Le sélecteur a donc disparu, et avec lui
+ * la seule façon pour un invité d'annoncer un chiffre.
+ *
+ * Ce qui le remplace n'est pas rien : une phrase qui dit explicitement combien
+ * de personnes sont comptées, et qui invite à téléphoner si ça change. Sans
+ * elle, un foyer de quatre dont un seul vient n'aurait aucun moyen de le
+ * savoir — ni de le dire.
+ */
 export function RsvpForm({
+  householdName,
+  memberNames = [],
   allocatedSeats,
   defaultStatus,
-  defaultConfirmedCount,
-  defaultDietaryNotes,
+  defaultMessage,
   onSubmit,
   isPending = false,
   errorMessage,
 }: RsvpFormProps) {
   const groupName = useId();
-  const seatsId = useId();
   const [answer, setAnswer] = useState<Answer | null>(defaultStatus ?? null);
-  const [confirmedCount, setConfirmedCount] = useState(
-    clamp(defaultConfirmedCount ?? allocatedSeats, allocatedSeats),
-  );
-  const [dietaryNotes, setDietaryNotes] = useState(defaultDietaryNotes ?? "");
+  const [message, setMessage] = useState(defaultMessage ?? "");
   const [missingAnswer, setMissingAnswer] = useState(false);
 
   function chooseAnswer(next: Answer) {
@@ -131,30 +141,47 @@ export function RsvpForm({
       return;
     }
 
-    if (answer === "DECLINED") {
-      // Aucun `confirmedCount`, pas même `0` : écrire zéro effacerait la
-      // distinction entre « personne ne vient » et « pas encore répondu ».
-      onSubmit({ status: "DECLINED" });
-      return;
-    }
-
-    const notes = dietaryNotes.trim();
+    const mot = message.trim();
     onSubmit({
-      status: "CONFIRMED",
-      confirmedCount: clamp(confirmedCount, allocatedSeats),
-      // Omis plutôt que `""` : une chaîne vide n'est pas nulle, et le tableau
-      // de bord comptait chaque textarea intacte comme un régime à prévoir.
-      dietaryNotes: notes === "" ? undefined : notes,
+      status: answer,
+      // Omis plutôt que `""` : une chaîne vide n'est pas nulle, et une page
+      // d'admin qui compte les messages compterait chaque textarea intacte.
+      message: mot === "" ? undefined : mot,
     });
   }
 
-  const seatsSentence =
+  const places =
     allocatedSeats > 1
       ? `${allocatedSeats} places vous sont réservées.`
       : `${allocatedSeats} place vous est réservée.`;
 
+  const compte =
+    allocatedSeats > 1
+      ? `Nous comptons donc sur vous ${allocatedSeats}.`
+      : "Nous comptons donc sur vous.";
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
+    <form onSubmit={handleSubmit} className="space-y-8 text-left">
+      {/* L'en-tête du design : la seule information de la page propre à ce
+          lien. C'est elle qui fait lire l'écran comme du courrier. */}
+      <div className="flex items-center justify-between gap-3 border border-dashed border-gold/50 bg-ivory px-4 py-4">
+        <div>
+          <p className={eyebrowClassName}>Invité(e)</p>
+          <p className="mt-1 text-[1.3125rem]">{householdName}</p>
+          {/* Les prénoms quand ils ont été saisis : une invitation adressée à
+              des gens, pas à un foyer. Le design ne les montrait nulle part. */}
+          {memberNames.length > 0 && (
+            <p className="mt-1 text-[0.9375rem] text-ink-muted">
+              {nomsFormates.format(memberNames)}
+            </p>
+          )}
+        </div>
+        <div className="text-right">
+          <p className={eyebrowClassName}>Places</p>
+          <p className="mt-1 font-display text-[1.625rem] text-bordeaux-500">{allocatedSeats}</p>
+        </div>
+      </div>
+
       <fieldset>
         {/* Le titre de section porte déjà la question à l'écran ; la légende
             la redonne à qui n'a que la voix, sans la répéter en double. */}
@@ -182,76 +209,37 @@ export function RsvpForm({
         )}
       </fieldset>
 
-      {/* Demander à un foyer qui décline combien il sera n'a pas de sens, et la
-          réponse partirait sans lui. */}
+      {/*
+        La contrepartie du sélecteur supprimé. Répondre « oui » engage tout le
+        foyer, et un invité doit le lire avant d'envoyer, pas le découvrir au
+        plan de table. Le téléphone est la porte de sortie — il n'y en a plus
+        d'autre côté invité, et c'est assumé.
+      */}
       {answer === "CONFIRMED" && (
-        <>
-          <Field label={<span className={eyebrowClassName}>Combien serez-vous&nbsp;?</span>}>
-            <div className="flex items-center gap-3">
-              <button
-                // `type="button"` : un bouton sans type dans un formulaire vaut
-                // `submit`, et le premier pas du sélecteur enverrait la réponse.
-                type="button"
-                aria-label="Une personne de moins"
-                className={STEPPER_BUTTON}
-                disabled={confirmedCount <= 1}
-                onClick={() => setConfirmedCount((n) => clamp(n - 1, allocatedSeats))}
-              >
-                <span aria-hidden="true">&minus;</span>
-              </button>
-              <Input
-                type="number"
-                inputMode="numeric"
-                min={1}
-                max={allocatedSeats}
-                value={confirmedCount}
-                aria-describedby={seatsId}
-                onChange={(e) => setConfirmedCount(clamp(Number(e.target.value), allocatedSeats))}
-                // Le champ **est** la valeur affichée entre les deux pas : un
-                // second affichage en doublon donnerait deux nombres à
-                // maintenir d'accord, et un seul serait modifiable au clavier.
-                className={cn(
-                  "h-11 w-20 text-center font-display text-[1.75rem] tabular-nums",
-                  "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none",
-                  "[&::-webkit-outer-spin-button]:appearance-none",
-                )}
-              />
-              <button
-                type="button"
-                aria-label="Une personne de plus"
-                className={STEPPER_BUTTON}
-                disabled={confirmedCount >= allocatedSeats}
-                onClick={() => setConfirmedCount((n) => clamp(n + 1, allocatedSeats))}
-              >
-                <span aria-hidden="true">+</span>
-              </button>
-            </div>
-            {/* Sous le sélecteur, pas au-dessus : quand « + » se grise, la
-                raison est la ligne qui suit immédiatement. */}
-            <p id={seatsId} className="text-[0.9375rem] text-ink-muted">
-              {seatsSentence}
-            </p>
-          </Field>
-
-          <Field
-            label={
-              <span className={eyebrowClassName}>
-                Régime alimentaire, allergies{" "}
-                <span className="normal-case tracking-normal">— facultatif</span>
-              </span>
-            }
-          >
-            <Textarea
-              rows={3}
-              value={dietaryNotes}
-              onChange={(e) => setDietaryNotes(e.target.value)}
-              // Soulignement seul (§9) : une boîte de plus dans une page de
-              // papier lit comme un champ d'application.
-              className="rounded-none border-0 border-b border-rule-strong bg-transparent px-0"
-            />
-          </Field>
-        </>
+        <p className="text-[1.0625rem] leading-relaxed text-ink-muted">
+          {places} {compte} Si l'un d'entre vous ne peut finalement pas venir, un coup de
+          téléphone nous suffit.
+        </p>
       )}
+
+      {/* Offert aussi à qui décline : c'est souvent là qu'on écrit le mot le
+          plus important. */}
+      <Field
+        label={
+          <span className={eyebrowClassName}>
+            Un mot pour nous <span className="normal-case tracking-normal">— facultatif</span>
+          </span>
+        }
+      >
+        <Textarea
+          rows={3}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          // Soulignement seul (§9) : une boîte de plus dans une page de
+          // papier lit comme un champ d'application.
+          className="rounded-none border-0 border-b border-rule-strong bg-transparent px-0"
+        />
+      </Field>
 
       {errorMessage && (
         <p
@@ -267,10 +255,4 @@ export function RsvpForm({
       </button>
     </form>
   );
-}
-
-/** Invariant 3 : `confirmedCount <= allocatedSeats`, et jamais moins d'une personne. */
-function clamp(value: number, max: number): number {
-  if (!Number.isFinite(value)) return 1;
-  return Math.min(Math.max(Math.round(value), 1), max);
 }

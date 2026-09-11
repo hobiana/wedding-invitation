@@ -76,24 +76,21 @@ export class InvitationService {
       throw new ForbiddenException('RSVP deadline has passed');
     }
 
-    if (dto.status === 'CONFIRMED') {
-      if (dto.confirmedCount === undefined || dto.confirmedCount < 1) {
-        throw new BadRequestException(
-          'confirmedCount must be at least 1 when confirming',
-        );
-      }
-      if (dto.confirmedCount > household.allocatedSeats) {
-        throw new BadRequestException(
-          'confirmedCount cannot exceed allocatedSeats',
-        );
-      }
-    }
-
     const updated = await this.prisma.household.update({
       where: { id: linkId },
       data: {
         status: dto.status,
-        confirmedCount: dto.status === 'DECLINED' ? 0 : dto.confirmedCount,
+        // Confirmer veut dire « nous venons tous » (décision du commanditaire,
+        // 2026-09-10) : le nombre est celui des places que l'organisateur a
+        // lui-même accordées, et **c'est le serveur qui le pose**. L'invité ne
+        // l'envoie pas, donc il ne peut pas l'inventer — ni par mégarde, ni
+        // avec un corps de requête fabriqué à la main.
+        //
+        // Un foyer qui vient en partie se corrige depuis l'admin ; l'invitation
+        // demande d'appeler en cas de changement. L'invariant, lui, ne bouge
+        // pas : `null` tant que le foyer n'a pas répondu, `0` s'il décline.
+        confirmedCount:
+          dto.status === 'DECLINED' ? 0 : household.allocatedSeats,
         memberNames: dto.memberNames ?? household.memberNames,
         dietaryNotes: dto.dietaryNotes,
         message: dto.message,

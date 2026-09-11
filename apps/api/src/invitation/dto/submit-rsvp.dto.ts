@@ -1,10 +1,8 @@
 import {
   IsArray,
   IsIn,
-  IsInt,
   IsOptional,
   IsString,
-  Min,
 } from 'class-validator';
 import type { SubmitRsvpDto as SubmitRsvpContract } from '@invitation-app/shared';
 
@@ -19,10 +17,6 @@ export class SubmitRsvpDto implements SubmitRsvpContract {
   @IsIn(['CONFIRMED', 'DECLINED'])
   status!: 'CONFIRMED' | 'DECLINED';
 
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  confirmedCount?: number;
 
   @IsOptional()
   @IsArray()

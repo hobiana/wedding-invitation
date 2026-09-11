@@ -7,7 +7,9 @@ const NO = /nous ne pourrons pas venir/i;
 
 function setup(props: Partial<React.ComponentProps<typeof RsvpForm>> = {}) {
   const onSubmit = vi.fn();
-  const utils = render(<RsvpForm allocatedSeats={4} onSubmit={onSubmit} {...props} />);
+  const utils = render(
+    <RsvpForm householdName="Famille Rakoto" allocatedSeats={4} onSubmit={onSubmit} {...props} />,
+  );
   return { onSubmit, ...utils };
 }
 
@@ -67,73 +69,32 @@ describe("RsvpForm — le choix", () => {
   });
 });
 
-describe("RsvpForm — le nombre de convives", () => {
-  it("offers a real number input, labelled and reachable by keyboard", () => {
+/**
+ * Décision du commanditaire, 2026-09-10 : confirmer veut dire « nous venons
+ * tous ». L'invité ne choisit plus un nombre — l'organisateur l'a déjà fixé en
+ * accordant les places, et c'est le serveur qui le pose.
+ *
+ * Ce qui se joue ici n'est donc pas l'absence d'un champ, mais ce qui le
+ * remplace : un invité doit **lire avant d'envoyer** qu'il engage tout son
+ * foyer, et savoir par où passer si ça change.
+ */
+describe("RsvpForm — le nombre, désormais décidé par l'organisateur", () => {
+  it("offers no way at all to state a number", () => {
     setup({ allocatedSeats: 3 });
     fireEvent.click(screen.getByRole("radio", { name: YES }));
 
-    const input = screen.getByLabelText(/combien serez-vous/i) as HTMLInputElement;
-    expect(input.type).toBe("number");
-    expect(input.min).toBe("1");
-    expect(input.max).toBe("3");
-    expect(input.inputMode).toBe("numeric");
+    expect(screen.queryByLabelText(/combien serez-vous/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /une personne de plus/i })).not.toBeInTheDocument();
   });
 
-  // Invariant 3 : confirmedCount <= allocatedSeats. Le serveur tranche, mais
-  // l'interface n'a aucune raison d'envoyer sciemment une valeur refusée.
-  it("clamps a typed count to the seats actually allocated", () => {
-    const { onSubmit } = setup({ allocatedSeats: 2 });
+  it("says how many it is counting, and how to correct it", () => {
+    setup({ allocatedSeats: 4 });
     fireEvent.click(screen.getByRole("radio", { name: YES }));
 
-    fireEvent.change(screen.getByLabelText(/combien serez-vous/i), { target: { value: "9" } });
-    send();
-
-    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ confirmedCount: 2 }));
-  });
-
-  it("floors the count at one — a household that comes has at least one person", () => {
-    const { onSubmit } = setup({ allocatedSeats: 4 });
-    fireEvent.click(screen.getByRole("radio", { name: YES }));
-
-    fireEvent.change(screen.getByLabelText(/combien serez-vous/i), { target: { value: "0" } });
-    send();
-
-    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ confirmedCount: 1 }));
-  });
-
-  it("steps the count up and down", () => {
-    const { onSubmit } = setup({ allocatedSeats: 4, defaultConfirmedCount: 2 });
-    fireEvent.click(screen.getByRole("radio", { name: YES }));
-
-    fireEvent.click(screen.getByRole("button", { name: /une personne de plus/i }));
-    fireEvent.click(screen.getByRole("button", { name: /une personne de moins/i }));
-    fireEvent.click(screen.getByRole("button", { name: /une personne de plus/i }));
-    send();
-
-    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ confirmedCount: 3 }));
-  });
-
-  // Un <button> sans `type` à l'intérieur d'un <form> vaut `type="submit"` :
-  // les deux pas du sélecteur enverraient la réponse au premier clic.
-  it("does not submit the form when stepping the count", () => {
-    const { onSubmit } = setup({ allocatedSeats: 4 });
-    fireEvent.click(screen.getByRole("radio", { name: YES }));
-
-    fireEvent.click(screen.getByRole("button", { name: /une personne de plus/i }));
-
-    expect(onSubmit).not.toHaveBeenCalled();
-  });
-
-  // Un « + » grisé sans raison lit comme une panne. La ligne de places est la
-  // raison, et elle est déjà là.
-  it("stops at the allocated seats and keeps the reason visible", () => {
-    setup({ allocatedSeats: 2 });
-    fireEvent.click(screen.getByRole("radio", { name: YES }));
-
-    fireEvent.change(screen.getByLabelText(/combien serez-vous/i), { target: { value: "2" } });
-
-    expect(screen.getByRole("button", { name: /une personne de plus/i })).toBeDisabled();
-    expect(screen.getByText(/2 places vous sont réservées/i)).toBeInTheDocument();
+    expect(screen.getByText(/4 places vous sont réservées/i)).toBeInTheDocument();
+    expect(screen.getByText(/nous comptons donc sur vous 4/i)).toBeInTheDocument();
+    expect(screen.getByText(/coup de téléphone/i)).toBeInTheDocument();
   });
 
   it("writes the reserved seats in the singular for a household of one", () => {
@@ -143,84 +104,99 @@ describe("RsvpForm — le nombre de convives", () => {
     expect(screen.getByText(/1 place vous est réservée/i)).toBeInTheDocument();
   });
 
-  it("stops at one on the way down", () => {
-    setup({ allocatedSeats: 4, defaultConfirmedCount: 1 });
-    fireEvent.click(screen.getByRole("radio", { name: YES }));
+  // Rien à annoncer à qui ne vient pas : la phrase ne parle que de présence.
+  it("stays quiet about seats when the household declines", () => {
+    setup();
+    fireEvent.click(screen.getByRole("radio", { name: NO }));
 
-    expect(screen.getByRole("button", { name: /une personne de moins/i })).toBeDisabled();
+    expect(screen.queryByText(/places vous sont réservées/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("RsvpForm — l'en-tête du foyer", () => {
+  // La seule information de la page propre à ce lien : c'est elle qui fait
+  // lire l'écran comme du courrier plutôt que comme un formulaire.
+  it("names the household and the seats held for it", () => {
+    setup({ householdName: "Famille Rasoanaivo", allocatedSeats: 3 });
+
+    expect(screen.getByText("Famille Rasoanaivo")).toBeInTheDocument();
+    expect(screen.getByText("3")).toBeInTheDocument();
+  });
+
+  // Une invitation est adressée à des gens, pas à un foyer. Le design ne
+  // montrait ces prénoms nulle part ; ils existent en base et l'organisateur
+  // les a saisis à la main.
+  it("names the people invited when the organiser recorded them", () => {
+    setup({ memberNames: ["Anna", "Bob", "Chloé"] });
+
+    expect(screen.getByText("Anna, Bob et Chloé")).toBeInTheDocument();
+  });
+
+  it("says nothing extra when no names were recorded", () => {
+    const { container } = setup({ memberNames: [] });
+
+    expect(container).not.toHaveTextContent(" et ");
   });
 });
 
 describe("RsvpForm — la soumission", () => {
-  it("sends the count and the note when the household is coming", () => {
-    const { onSubmit } = setup({ allocatedSeats: 4, defaultConfirmedCount: 3 });
+  it("sends the status and the word, trimmed", () => {
+    const { onSubmit } = setup();
     fireEvent.click(screen.getByRole("radio", { name: YES }));
-    fireEvent.change(screen.getByLabelText(/régime alimentaire/i), {
-      target: { value: "  Végétarien  " },
+    fireEvent.change(screen.getByLabelText(/un mot pour nous/i), {
+      target: { value: "  Nous avons hâte  " },
     });
 
     send();
 
     expect(onSubmit).toHaveBeenCalledWith({
       status: "CONFIRMED",
-      confirmedCount: 3,
-      dietaryNotes: "Végétarien",
+      message: "Nous avons hâte",
     });
   });
 
-  // `""` n'est pas `null` : le tableau de bord comptait chaque textarea vide
-  // comme un régime alimentaire à prévoir.
-  it("omits dietaryNotes entirely when the textarea was left blank", () => {
+  // `""` n'est pas `null`. Une page d'admin qui compte les messages compterait
+  // chaque textarea intacte — c'est exactement ce qui était arrivé aux régimes.
+  it.each(["", "   "])("omits the message entirely when it holds %o", (vide) => {
     const { onSubmit } = setup();
     fireEvent.click(screen.getByRole("radio", { name: YES }));
+    fireEvent.change(screen.getByLabelText(/un mot pour nous/i), { target: { value: vide } });
     send();
 
-    expect(onSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({ status: "CONFIRMED", dietaryNotes: undefined }),
-    );
+    expect(onSubmit).toHaveBeenCalledWith({ status: "CONFIRMED", message: undefined });
   });
 
-  it("omits dietaryNotes when the textarea holds only whitespace", () => {
-    const { onSubmit } = setup();
-    fireEvent.click(screen.getByRole("radio", { name: YES }));
-    fireEvent.change(screen.getByLabelText(/régime alimentaire/i), { target: { value: "   " } });
-    send();
-
-    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ dietaryNotes: undefined }));
-  });
-
-  // Invariant : `confirmedCount` reste nul tant que personne n'a annoncé venir.
-  // Envoyer `0` détruirait la distinction « ne vient pas » / « pas répondu ».
+  // Invariant : `confirmedCount` reste nul tant que personne n'a annoncé venir,
+  // et l'invité n'a de toute façon aucun moyen d'en parler.
   it("sends a refusal without any guest count at all", () => {
     const { onSubmit } = setup();
     fireEvent.click(screen.getByRole("radio", { name: NO }));
     send();
 
-    expect(onSubmit).toHaveBeenCalledWith({ status: "DECLINED" });
+    expect(onSubmit).toHaveBeenCalledWith({ status: "DECLINED", message: undefined });
   });
 
-  it("stops asking how many and what they eat once the household declines", () => {
-    setup();
+  // C'est souvent là que se écrit le mot le plus important — celui de qui ne
+  // pourra pas venir.
+  it("still offers the word to a household that declines", () => {
+    const { onSubmit } = setup();
     fireEvent.click(screen.getByRole("radio", { name: NO }));
+    fireEvent.change(screen.getByLabelText(/un mot pour nous/i), {
+      target: { value: "Nous serons avec vous de loin" },
+    });
+    send();
 
-    expect(screen.queryByLabelText(/combien serez-vous/i)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/régime alimentaire/i)).not.toBeInTheDocument();
-  });
-
-  it("reopens the details when the household changes its mind back", () => {
-    setup();
-    fireEvent.click(screen.getByRole("radio", { name: NO }));
-    fireEvent.click(screen.getByRole("radio", { name: YES }));
-
-    expect(screen.getByLabelText(/combien serez-vous/i)).toBeInTheDocument();
+    expect(onSubmit).toHaveBeenCalledWith({
+      status: "DECLINED",
+      message: "Nous serons avec vous de loin",
+    });
   });
 
   it("starts on the answer already recorded so an edit is not a fresh start", () => {
-    setup({ defaultStatus: "CONFIRMED", defaultConfirmedCount: 2, defaultDietaryNotes: "Sans gluten" });
+    setup({ defaultStatus: "CONFIRMED", defaultMessage: "À très vite" });
 
     expect(screen.getByRole("radio", { name: YES })).toBeChecked();
-    expect(screen.getByLabelText(/régime alimentaire/i)).toHaveValue("Sans gluten");
-    expect(screen.getByLabelText(/combien serez-vous/i)).toHaveValue(2);
+    expect(screen.getByLabelText(/un mot pour nous/i)).toHaveValue("À très vite");
   });
 });
 
