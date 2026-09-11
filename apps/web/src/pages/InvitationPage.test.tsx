@@ -390,6 +390,32 @@ describe("InvitationPage — lisible sans aucune animation", () => {
     }
     expect(screen.getByRole("radio", { name: YES })).toBeInTheDocument();
     expect(screen.getByText(/parking disponible sur place/i)).toBeInTheDocument();
+
+    // Et tout cela est là **pendant que l'enveloppe est encore fermée**. Sans
+    // cette ligne, l'assertion ci-dessus deviendrait vide le jour où la porte
+    // cesserait de se monter, et on ne verrait rien passer.
+    expect(screen.getByTestId("porte")).toBeInTheDocument();
+  });
+
+  /**
+   * La règle n° 1 du système de mouvement : **l'enveloppe est un habillage,
+   * jamais une porte.** Le voile est posé par-dessus une page déjà rendue,
+   * déjà complète, déjà défilable — il n'existe pas de branche « avant
+   * ouverture » qui rendrait autre chose.
+   *
+   * Ce qui se joue ici n'est pas l'esthétique : un invité dont le voile ne se
+   * lève pas — animation bloquée, clic perdu, navigateur exotique — doit
+   * pouvoir répondre quand même. La page ne dépend de rien.
+   */
+  it("keeps the answer form reachable while the envelope is still closed", async () => {
+    renderPage(invitation(FUTURE_DEADLINE));
+
+    await screen.findByRole("heading", { level: 1 });
+    expect(screen.getByTestId("porte")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: YES })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /envoyer notre réponse/i }),
+    ).toBeInTheDocument();
   });
 });
 

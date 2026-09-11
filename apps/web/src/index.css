@@ -276,6 +276,23 @@
      `prefers-reduced-motion` plus bas, comme tout le reste. */
   --animate-float: float 7s ease-in-out infinite;
 
+  /* ---- La porte : les temps de la scène d'ouverture ----------------------
+     Toutes ces valeurs sont relevées une à une dans le design du
+     commanditaire (`images/html/`, méthode `renderVals`). Les durées, les
+     retards et les courbes sont les siens ; je ne les ai pas réglés à l'œil.
+
+     Attention : le mot-clé `ease-in` ci-dessous est **la courbe CSS native**,
+     pas notre jeton `--ease-in`. C'est bien ce que le design écrit. */
+  --animate-seal-pulse: seal-pulse 2s ease-in-out infinite;
+  --animate-seal-ring-idle: seal-ring-idle 1s cubic-bezier(0, 0, 0.2, 1)
+    infinite;
+  --animate-seal-break: seal-break 500ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  --animate-seal-ring-burst: seal-ring-burst 600ms ease-out forwards;
+  --animate-envelope-idle: envelope-idle 8s ease-in-out infinite;
+  --animate-envelope-away: envelope-away 800ms ease-in 500ms forwards;
+  --animate-hint-bob: hint-bob 2.6s ease-in-out infinite;
+  --animate-rose-in: rose-in 900ms cubic-bezier(0.16, 0.84, 0.24, 1) both;
+
   /* Une seule ombre, statique, jamais animée. */
   --shadow-card:
     0 1px 2px rgb(42 33 36 / 0.06), 0 8px 24px rgb(42 33 36 / 0.08);
@@ -289,6 +306,226 @@
   50% {
     transform: translateY(-10px);
   }
+}
+
+/* ---------------------------------------------------------------------------
+   La porte — la scène d'ouverture du design du commanditaire
+
+   Reprise image par image de `images/html/Invitation-Hobiana-et-Lovasoa.html`.
+   Deux régimes : ce qui respire tant que l'enveloppe est fermée (le cachet qui
+   bat, l'anneau qui s'échappe, l'enveloppe qui flotte, l'indication qui
+   ondule), et ce qui se déclenche une fois pour toutes au clic (le cachet qui
+   se brise, l'anneau qui se dilate, l'enveloppe qui s'envole).
+
+   Les pétales qui tombent et les particules de l'éclat ne sont pas ici : leurs
+   durées et leurs retards sont tirés au sort une fois par montage, donc ils
+   vivent dans des styles en ligne, à la façon du design.
+   --------------------------------------------------------------------------- */
+
+@keyframes seal-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow:
+      0 8px 22px -8px #00000088,
+      0 0 0 0 #8c1c3400;
+  }
+  50% {
+    transform: scale(1.06);
+    box-shadow:
+      0 13px 30px -8px #00000099,
+      0 0 24px 5px #8c1c3440;
+  }
+}
+
+@keyframes seal-ring-idle {
+  0% {
+    transform: scale(1);
+    opacity: 0.25;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+/* Le cachet ne fond pas : il éclate. Le `brightness` est un flash de cire qui
+   casse, et il ne dure que le temps de l'animation — c'est le seul `filter`
+   de la page, sur un disque de 62 px, une seule fois. */
+@keyframes seal-break {
+  0% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+    filter: brightness(1);
+  }
+  35% {
+    transform: scale(1.15) rotate(5deg);
+    filter: brightness(2);
+  }
+  60% {
+    transform: scale(1.05) rotate(-3deg);
+  }
+  100% {
+    transform: scale(0) rotate(15deg);
+    opacity: 0;
+    filter: brightness(2);
+  }
+}
+
+@keyframes seal-ring-burst {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+
+@keyframes envelope-idle {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Elle retombe de 10 px avant de partir — le petit contre-mouvement qui fait
+   qu'on lit un objet lâché plutôt qu'un calque effacé. */
+@keyframes envelope-away {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  18% {
+    transform: translateY(10px) rotate(0.5deg);
+  }
+  100% {
+    transform: translateY(-120vh) rotate(-2deg);
+    opacity: 0;
+  }
+}
+
+@keyframes hint-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translateY(7px);
+    opacity: 1;
+  }
+}
+
+/* Les roses ne flottent pas comme l'enveloppe : 8 px et non 10, et sur des
+   durées premières entre elles (5 s et 6 s) pour que les deux côtés ne
+   retombent jamais en phase. C'est dans le design, et c'est ce qui empêche la
+   composition de battre la mesure. */
+@keyframes rose-drift {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes rose-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes petal-fall {
+  0% {
+    transform: translateY(-8vh) rotate(0deg);
+    opacity: 0;
+  }
+  14% {
+    opacity: 0.6;
+  }
+  82% {
+    opacity: 0.45;
+  }
+  100% {
+    transform: translateY(105vh) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+@keyframes petal-sway {
+  0%,
+  100% {
+    transform: translateX(calc(var(--sway) * -1));
+  }
+  50% {
+    transform: translateX(var(--sway));
+  }
+}
+
+@keyframes petal-burst {
+  0% {
+    transform: translate(0, 0) scale(0) rotate(0deg);
+    opacity: 0;
+  }
+  12% {
+    transform: translate(0, 0) scale(1.3) rotate(20deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--dx), var(--dy)) scale(0.6) rotate(var(--rot));
+    opacity: 0;
+  }
+}
+
+/* L'entrée de la page derrière la porte. Le design fait monter ses blocs en
+   cascade une fois l'enveloppe partie ; l'attribut ne vaut `true` qu'à cet
+   instant, donc **hors animation la page est simplement là**, entière. C'est
+   la règle n° 1 du système : rien n'existe uniquement dans l'animation. */
+@keyframes stagger-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+[data-reveal="true"] > *:not([aria-hidden="true"]) {
+  animation: stagger-in 700ms cubic-bezier(0.16, 0.84, 0.24, 1) both;
+}
+
+/* Le voile de papier est le premier enfant et il est `aria-hidden` : la
+   cascade compte donc à partir de 2, comme dans le design. */
+[data-reveal="true"] > *:nth-child(2) {
+  animation-delay: 0.05s;
+}
+[data-reveal="true"] > *:nth-child(3) {
+  animation-delay: 0.17s;
+}
+[data-reveal="true"] > *:nth-child(4) {
+  animation-delay: 0.29s;
+}
+[data-reveal="true"] > *:nth-child(5) {
+  animation-delay: 0.41s;
+}
+[data-reveal="true"] > *:nth-child(6) {
+  animation-delay: 0.53s;
+}
+[data-reveal="true"] > *:nth-child(7) {
+  animation-delay: 0.65s;
 }
 
 /* ---------------------------------------------------------------------------
