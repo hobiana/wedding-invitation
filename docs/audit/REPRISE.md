@@ -11,7 +11,7 @@ L'audit est livré, le **lot 0 est terminé**, le **contrat partagé est désorm
 
 ## Le dépôt
 
-**`main` est la seule branche** et porte tout. Aucun remote.
+**`main` est la seule branche** et porte tout. Le commanditaire l'a poussé sur GitHub le 2026-09-11 : le premier verrou de la mise en ligne est levé. **Reste à trancher qui pousse ensuite** — la question lui a été posée deux fois sans réponse, et en attendant l'architecte commite en local sans pousser.
 
 L'application vivait dans `.worktrees/feature-invitation-app-v1` ; elle a été fusionnée et le worktree supprimé. `master` a été renommée `main` le 2026-08-23, et `develop`, `feature/invitation-app-v1` et `fix/lot-0-bloquants` supprimées après vérification qu'elles étaient intégralement contenues dans `main`.
 
@@ -50,7 +50,9 @@ Arbitré le 2026-09-10, à partir du design fourni dans `images/html/` :
 | 2a | Décor du design extrait et optimisé | ✅ `7e4d739` |
 | 2b | Fondations : trois familles de fontes, palette, trois clartés d'or | ✅ `b93eeff` |
 | 2c | La page invité, section par section, et son assemblage | ✅ `2a5387c` → `425806c` |
+| 2c bis | Retouches après relecture à l'écran par le commanditaire | ✅ `eb38d3f` → `da1d34c` |
 | 2d | L'ouverture : enveloppe et sceau, accessible au clavier | **à faire — seul reste du lot 3 invité** |
+| 2e | Métriques de repli des trois fontes, mesurées au navigateur | à faire — avant qu'un invité voie la page |
 | 3 | Mise en ligne — **en parallèle, priorité haute** | plan écrit (`185b911`), en attente du commanditaire |
 | 4 | Admin : foyers, copie des liens, champs `dietaryNotes` et `confirmedCount` | à faire |
 | 5 | Plan de table | en dernier |
@@ -61,7 +63,9 @@ Arbitré le 2026-09-10, à partir du design fourni dans `images/html/` :
 
 **Ce qui reste ouvert sur les fondations :** les **métriques de repli** des trois nouvelles fontes ne sont pas mesurées. Les anciennes avaient des `size-adjust` calés qui empêchaient la page de sauter au `swap` ; il faut les remesurer dans le navigateur avant qu'un invité voie la page. Et le poids est passé de 43 Ko à **186 Ko de latin** — c'est le prix du design, dit une fois pour toutes.
 
-**Le plan de mise en ligne n'a pas été écrit** : l'agent devops a été coupé par la limite de session après avoir posé le `postinstall` Prisma. Restent à traiter le `lint --fix`, l'échec bruyant si `VITE_API_URL` manque, le `.gitattributes`, et surtout **le choix d'un hébergeur** — le dépôt n'a aucun remote git, c'est le premier verrou.
+**Retouches du commanditaire après relecture à l'écran** (`eb38d3f` → `da1d34c`) : l'air entre le calendrier et le programme, les deux numéros à appeler, les puces et le champ au design du faire-part, une vraie carte dans le cadre du lieu avec un bouton d'itinéraire discret, la tenue retirée, le stationnement réduit à « Parking disponible sur place ». Il a lui-même commité `653cede` et `1861d9d` ; ce dernier ne retirait que la moitié de la section et laissait la garde lire encore `dressCode` — rattrapé en `da1d34c`.
+
+**Le plan de mise en ligne est écrit** (`185b911`, `docs/audit/2026-09-11-plan-de-mise-en-ligne.md`) : Render ≈ 14 $/mois + Vercel Hobby, sept bloquants, et une liste de sept choses à faire côté commanditaire. Il n'attend plus que lui.
 
 ## Lot 0 — terminé
 
@@ -185,10 +189,12 @@ Suites après correction : **101 tests backend, 166 frontend**, build à exit 0.
 
 ---
 
-## Ouvert — la porte par laquelle cet invariant revient
+## Fermé — la porte par laquelle cet invariant revenait
 
-**[MAJEUR] Le contrat partagé n'est pas vérifié à la compilation côté API.**
+**[MAJEUR] Le contrat partagé n'était pas vérifié à la compilation côté API. — CORRIGÉ le 2026-09-10 (`6582760`).**
 
-Aucun DTO de `@invitation-app/shared` n'est importé dans `apps/api/src`. Les services décrivent leur retour avec des types inline écrits à la main, et rien ne les confronte à `packages/shared`. Le front peut donc typer `number | null` pendant que l'API renvoie `0`, sans qu'aucune compilation ne bronche — c'est très exactement le mécanisme qui a laissé `confirmedCount` casser trois fois par trois chemins.
+Aucun DTO de `@invitation-app/shared` n'était importé dans `apps/api/src` : les services décrivaient leur retour avec des types inline écrits à la main, et rien ne les confrontait à `packages/shared`. Le front pouvait typer `number | null` pendant que l'API renvoyait `0` sans qu'aucune compilation ne bronche — le mécanisme même qui a laissé `confirmedCount` casser trois fois.
 
-Annoter le retour des services avec les DTO partagés fermerait ce chemin. Ça touche plus d'un service : **décision du commanditaire**, à prendre avant le lot 1 plutôt qu'après, sinon le lot 1 s'écrit encore sans filet.
+Annoter les retours ne suffisait pas : TypeScript ne signale les propriétés en trop que sur un **littéral d'objet**. Ce sont donc des convertisseurs écrits à la main, `apps/api/src/common/contract.ts`, qui énumèrent chaque champ Prisma → DTO. Tout nouveau service qui renvoie au front passe par là.
+
+**Ce qui reste ouvert du même genre :** `AdminSettingsDto` se contredit sur trois champs — `mapUrl`, `dressCode`, `parkingInfo` y sont `?: string` alors que les colonnes sont nullables et que `WeddingInfoDto` les déclare `string | null`. À trancher avant de toucher à l'admin.
