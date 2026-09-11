@@ -1,18 +1,17 @@
 import type { ReactNode } from "react";
 
 /**
- * Le titre de section de la page invité, et le **filet lamba** qui le suit.
+ * Le titre de section de la page invité, et le filet qui le suit.
  *
- * Le filet reprend le rythme `1/2/3/2/1` relevé au pixel sur les rayures du
- * lamba du couple (§1.5.d). C'est le second dispositif d'ornement de la page,
- * et le seul qui se répète : cette répétition est précisément ce qui le rend
- * structurel plutôt que décoratif. Il sort du même vêtement que le motif
- * d'ourlet du héros, si bien que les deux se lisent comme un système.
+ * Le filet était le rythme `1/2/3/2/1` du lamba du couple. Il ne l'est plus :
+ * le commanditaire a tranché pour une seule langue ornementale, celle de son
+ * design — les aquarelles de roses — et le motif malgache est sorti avec le
+ * `HemMotif` du héros. Ce qui reste est le trait du design : 56 px sur 1,
+ * à l'or, sous chaque titre.
  *
- * Une rayure est de la géométrie pure : elle se reproduit exactement en
- * `linear-gradient`, pour zéro octet d'image.
- *
- * 64 px de large, pas la colonne entière — un onglet tissé, pas un surligneur.
+ * Il est `aria-hidden` : il structure l'œil, il n'ajoute pas un mot à ce que le
+ * titre dit déjà, et un lecteur d'écran qui l'annoncerait couperait la lecture
+ * pour rien.
  */
 export function SectionHeading({ id, children }: { id: string; children: ReactNode }) {
   return (
@@ -20,10 +19,7 @@ export function SectionHeading({ id, children }: { id: string; children: ReactNo
       <h2 id={id} className="font-display text-[1.75rem] leading-tight text-bordeaux-900 md:text-[2rem]">
         {children}
       </h2>
-      <div
-        aria-hidden="true"
-        className="mt-4 h-[9px] w-16 bg-[image:var(--rule-lamba)] bg-no-repeat"
-      />
+      <div aria-hidden="true" className="mt-4 h-px w-14 bg-gold" />
     </div>
   );
 }

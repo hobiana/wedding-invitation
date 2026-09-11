@@ -10,9 +10,10 @@ describe("SectionHeading", () => {
     expect(heading).toHaveAttribute("id", "le-jour-j");
   });
 
-  // Le filet reprend le rythme 1/2/3/2/1 relevé sur leur lamba. Il structure
-  // l'œil ; il n'ajoute pas un mot à ce que le titre dit déjà, et un lecteur
-  // d'écran qui l'annoncerait couperait la lecture pour rien.
+  // Le filet structure l'œil ; il n'ajoute pas un mot à ce que le titre dit
+  // déjà, et un lecteur d'écran qui l'annoncerait couperait la lecture pour
+  // rien. Le test porte sur ce silence, pas sur le dessin — le dessin a déjà
+  // changé une fois, du lamba au trait d'or, sans que rien ici ne bouge.
   it("carries a decorative rule that assistive technology never announces", () => {
     const { container } = render(<SectionHeading id="x">Votre réponse</SectionHeading>);
 

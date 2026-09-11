@@ -17,7 +17,6 @@ import {
 import { RsvpForm } from "@/components/RsvpForm";
 import { SeatingPlanSection } from "@/components/SeatingPlanSection";
 import { CouplePhoto } from "@/components/invitation/CouplePhoto";
-import { HemMotif } from "@/components/invitation/HemMotif";
 import { SectionHeading } from "@/components/invitation/SectionHeading";
 import { COUPLE, HERO_NAME_CLASS } from "@/components/invitation/couple";
 import {
@@ -151,7 +150,6 @@ export function InvitationPage() {
           {COUPLE.firstNames[1]}
         </h1>
 
-        <HemMotif className="mt-6 w-24 md:w-32" />
 
         <p className="mt-6 font-display text-xl text-bordeaux-700">
           {formatWeddingDate(wedding.weddingDate)}, {formatWeddingTime(wedding.weddingDate, { compact: true })}

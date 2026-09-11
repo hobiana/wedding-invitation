@@ -186,17 +186,6 @@
   --color-gold-light: #d0b095;
   --color-gold-ink: #785435;
 
-  /* Le filet lamba — rythme 1/2/3/2/1 sur 9 px de haut, relevé sur les rayures
-     du lamba du couple. Sort avec l'ornement malgache à l'étape suivante. */
-  --rule-lamba: linear-gradient(
-    to bottom,
-    var(--color-bordeaux-700) 0 1px,
-    transparent 1px 3px,
-    var(--color-bordeaux-700) 3px 6px,
-    transparent 6px 8px,
-    var(--color-bordeaux-700) 8px 9px
-  );
-
   /* Statuts — admin uniquement, et toujours doublés d'un libellé. */
   --color-status-yes: #3f5d45;
   --color-status-pending: #8c1c34;
