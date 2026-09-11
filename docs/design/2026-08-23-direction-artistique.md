@@ -1,10 +1,22 @@
 # Direction artistique — invitation de mariage
 
-> **AVERTISSEMENT — l or de ce document est périmé.** Les §1.5.d et §3.2 donnent
-> `#B08D57` (2,92:1). Le commanditaire a arbitré le 2026-08-22 en faveur de
-> **`#AC784C`** (3,58:1), relevé sur son faire-part papier, qui franchit le
-> seuil des éléments non textuels. **Le jeton `--color-gold` du code fait foi.**
-> Tout le reste du document reste valable.
+> **AVERTISSEMENT — ce document a été dépassé le 2026-09-10.** Le commanditaire
+> a produit son propre design (`images/html/`) et demandé qu'on le reprenne.
+> Ce qui suit garde sa valeur de raisonnement, mais plus d'autorité :
+>
+> - **La date n'est plus le 12 juin 2027 mais le samedi 2 janvier 2027.** Toutes
+>   les occurrences de juin ci-dessous sont fausses.
+> - **Les typographies ont changé** : Cormorant Garamond, Jost et Parisienne
+>   remplacent Marcellus et Source Sans 3.
+> - **L'ornement malgache est retiré** — plus de `HemMotif`, plus de filet
+>   lamba. Le design ornemente à l'aquarelle de roses, et c'est le choix retenu,
+>   à rebours de la piste ouverte au §1.5.
+> - **L'or de ce document est périmé** depuis plus longtemps encore : les §1.5.d
+>   et §3.2 donnent `#B08D57` (2,92:1), arbitré le 2026-08-22 en faveur de
+>   **`#AC784C`** (3,58:1), relevé sur le faire-part papier.
+>
+> **`apps/web/src/index.css` fait foi**, et `docs/audit/REPRISE.md` dit l'état
+> réel du projet.
 
 **Date :** 2026-08-23 · **Lot 3, tâche 1** · **Statut :** proposition, en attente d'arbitrage
 **Périmètre :** `apps/web` — page publique `/i/:linkId` et back-office `/admin/*`
