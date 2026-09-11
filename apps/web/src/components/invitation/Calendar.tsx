@@ -24,7 +24,9 @@ export function Calendar({ weddingDate }: { weddingDate: string }) {
       aria-hidden="true"
       className="mx-auto mt-8 max-w-[24.25rem] rounded-[0.875rem] bg-page px-6 pb-6 pt-7 shadow-card"
     >
-      <p className="font-script text-[2rem] leading-none text-bordeaux-700 capitalize">{label}</p>
+      <p className="font-script text-[2rem] leading-none text-bordeaux-700 capitalize text-center">
+        {label}
+      </p>
 
       <table className="mt-5 w-full table-fixed border-collapse">
         <thead>
@@ -55,7 +57,9 @@ export function Calendar({ weddingDate }: { weddingDate: string }) {
                       <span className="absolute text-[2.75rem] leading-none text-bordeaux-700">
                         ♥
                       </span>
-                      <span className="relative font-medium text-on-bordeaux">{jour}</span>
+                      <span className="relative font-medium text-on-bordeaux">
+                        {jour}
+                      </span>
                     </span>
                   ) : (
                     jour

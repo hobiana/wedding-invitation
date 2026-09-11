@@ -70,22 +70,23 @@ export function InvitationHeader() {
 
           Les trois lignes sont des `block` plutôt que du texte nu parce qu'elles
           s'animent séparément — `data-nom` les numérote, et `index.css` leur
-          donne leurs 120 ms d'écart. Le rendu au repos est identique : elles
+          donne leurs retards. Le rendu au repos est identique : elles
           étaient déjà sur trois lignes, elles y restent. */}
       <h1 className="mt-8 font-script text-[3.5rem] leading-[1.05] text-bordeaux-700">
-        <span data-nom="1" className="block">
-          {COUPLE.firstNames[0]}
-        </span>
+        <ScriptName name={COUPLE.firstNames[0]} startsAt={0.35} />
+        {/* L'esperluette est un signe, pas un mot : masquée à l'œil des
+            lecteurs d'écran, elle laissait le titre se prononcer
+            « HobianaLovasoa » d'un seul souffle. Un « et » en clair, invisible
+            à l'écran, rend au titre sa respiration — et c'est ainsi qu'un
+            francophone le lit de toute façon. */}
         <span
-          aria-hidden="true"
           data-nom="2"
           className="block font-display text-[1.5rem] italic text-gold-ink"
         >
-          &amp;
+          <span aria-hidden="true">&amp;</span>
+          <span className="sr-only"> et </span>
         </span>
-        <span data-nom="3" className="block">
-          {COUPLE.firstNames[1]}
-        </span>
+        <ScriptName name={COUPLE.firstNames[1]} startsAt={1.25} />
       </h1>
 
       <figure className="mx-auto mt-6 max-w-[25rem]">
@@ -97,5 +98,48 @@ export function InvitationHeader() {
         </figcaption>
       </figure>
     </header>
+  );
+}
+
+/** 60 ms entre deux lettres : la main court, elle ne s'applique pas. */
+const PAS_ENTRE_LETTRES = 0.06;
+
+/**
+ * Un prénom qui s'écrit, lettre après lettre.
+ *
+ * **Ce qu'entend un lecteur d'écran, et pourquoi c'est fait ainsi.** Un mot
+ * découpé en `<span>` est lu lettre par lettre par certaines synthèses — « H,
+ * O, B, I, A, N, A ». Le prénom est donc écrit **deux fois** : une fois en
+ * clair pour les technologies d'assistance, qui prononcent « Hobiana » ; une
+ * fois en lettres séparées, marquées `aria-hidden`, qui ne sont là que pour
+ * l'œil. Le titre de niveau 1 de la page se lit donc exactement comme avant.
+ *
+ * **Ce que ça coûte à la typographie : 0,05 px sur 188.** Mesuré dans un vrai
+ * navigateur, Parisienne chargée, avant d'écrire la première ligne. Ses
+ * liaisons ne tiennent pas à un crénage entre paires — elles sont dans le
+ * dessin des glyphes — donc le découpage ne disloque rien.
+ *
+ * Le retard de chaque lettre est posé en style en ligne parce qu'il se calcule :
+ * il l'emporte sur la règle de `index.css`, un style en ligne battant une
+ * feuille de style.
+ */
+function ScriptName({ name, startsAt }: { name: string; startsAt: number }) {
+  return (
+    <span className="block">
+      <span className="sr-only">{name}</span>
+      <span aria-hidden="true">
+        {[...name].map((lettre, i) => (
+          <span
+            key={i}
+            data-lettre=""
+            style={{
+              animationDelay: `${(startsAt + i * PAS_ENTRE_LETTRES).toFixed(3)}s`,
+            }}
+          >
+            {lettre}
+          </span>
+        ))}
+      </span>
+    </span>
   );
 }

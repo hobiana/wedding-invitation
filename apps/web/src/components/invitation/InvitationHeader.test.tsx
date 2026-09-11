@@ -21,6 +21,38 @@ describe("InvitationHeader", () => {
     expect(heading).toHaveTextContent("Lovasoa");
   });
 
+  /**
+   * Les prénoms s'écrivent lettre à lettre, et un mot découpé en `<span>` est
+   * épelé par certaines synthèses vocales — « H, O, B, I, A, N, A ». Le prénom
+   * est donc écrit deux fois : en clair pour les technologies d'assistance, en
+   * lettres séparées et `aria-hidden` pour l'œil.
+   *
+   * Ce qu'on vérifie ici, c'est **ce qui est prononcé** : le titre doit
+   * s'entendre « Hobiana Lovasoa », pas s'épeler.
+   */
+  it("still says the names out loud, although they are written letter by letter", () => {
+    render(<InvitationHeader />);
+
+    const heading = screen.getByRole("heading", { level: 1 });
+    // Le nom accessible ignore les `aria-hidden` : il ne reste que le texte en
+    // clair, une fois chacun. Le « et » vient de l'esperluette, qui est un
+    // signe pour l'œil et un mot pour l'oreille — sans lui le titre se
+    // prononçait « HobianaLovasoa » d'un seul souffle.
+    //
+    // L'espace est souple dans l'assertion, et c'est une limite de l'outil et
+    // non du code : le calcul du nom accessible n'insère un blanc qu'entre
+    // éléments **de bloc**, et jsdom ne charge pas la feuille de style, donc il
+    // ne sait pas que ces `<span>` en sont. Le vrai espacement se vérifie au
+    // navigateur, pas ici.
+    expect(heading).toHaveAccessibleName(/^hobiana\s*et\s*lovasoa$/i);
+
+    const lettres = heading.querySelectorAll("[data-lettre]");
+    expect(lettres.length).toBe("Hobiana".length + "Lovasoa".length);
+    // Chaque lettre porte son propre retard : c'est ce qui fait l'écriture.
+    const retards = [...lettres].map((l) => (l as HTMLElement).style.animationDelay);
+    expect(new Set(retards).size).toBe(retards.length);
+  });
+
   it("carries the verse and says where it comes from", () => {
     render(<InvitationHeader />);
 

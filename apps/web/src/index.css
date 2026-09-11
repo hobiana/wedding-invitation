@@ -283,15 +283,15 @@
 
      Attention : le mot-clé `ease-in` ci-dessous est **la courbe CSS native**,
      pas notre jeton `--ease-in`. C'est bien ce que le design écrit. */
-  --animate-seal-pulse: seal-pulse 2s ease-in-out infinite;
-  --animate-seal-ring-idle: seal-ring-idle 1s cubic-bezier(0, 0, 0.2, 1)
+  --animate-seal-pulse: seal-pulse 2.6s ease-in-out infinite;
+  --animate-seal-ring-idle: seal-ring-idle 1.6s cubic-bezier(0, 0, 0.2, 1)
     infinite;
-  --animate-seal-break: seal-break 500ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
-  --animate-seal-ring-burst: seal-ring-burst 600ms ease-out forwards;
+  --animate-seal-break: seal-break 700ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  --animate-seal-ring-burst: seal-ring-burst 900ms ease-out forwards;
   --animate-envelope-idle: envelope-idle 8s ease-in-out infinite;
-  --animate-envelope-away: envelope-away 800ms ease-in 500ms forwards;
-  --animate-hint-bob: hint-bob 2.6s ease-in-out infinite;
-  --animate-rose-in: rose-in 900ms cubic-bezier(0.16, 0.84, 0.24, 1) both;
+  --animate-envelope-away: envelope-away 1100ms ease-in 620ms forwards;
+  --animate-hint-bob: hint-bob 3.2s ease-in-out infinite;
+  --animate-rose-in: rose-in 1200ms cubic-bezier(0.16, 0.84, 0.24, 1) both;
 
   /* Une seule ombre, statique, jamais animée. */
   --shadow-card:
@@ -492,6 +492,20 @@
    cascade une fois l'enveloppe partie ; l'attribut ne vaut `true` qu'à cet
    instant, donc **hors animation la page est simplement là**, entière. C'est
    la règle n° 1 du système : rien n'existe uniquement dans l'animation. */
+/* Une lettre qui se pose : elle monte, et elle se redresse d'un demi-degré.
+   La rotation est minuscule et c'est voulu — sur une anglaise, un basculement
+   franc lit « effet », un frémissement lit « écrit à la main ». */
+@keyframes letter-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) rotate(2deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 @keyframes stagger-in {
   from {
     opacity: 0;
@@ -508,48 +522,71 @@
    blocs du bas s'animeraient dans le vide — et surtout leur `animation` ici
    écraserait l'opacité que `[data-reveal-block]` leur pose plus bas, ce qui
    ferait apparaître d'un coup tout ce qui devait attendre le défilement. */
+/* 1100 ms et non 700 : « les animations sont ultra rapides », et il a raison —
+   une invitation de mariage n'arrive pas au rythme d'une notification. */
 [data-reveal="true"] > *:nth-child(-n + 7):not([aria-hidden="true"]) {
-  animation: stagger-in 700ms cubic-bezier(0.16, 0.84, 0.24, 1) both;
+  animation: stagger-in 1100ms cubic-bezier(0.16, 0.84, 0.24, 1) both;
 }
 
 /* Le voile de papier est le premier enfant et il est `aria-hidden` : la
    cascade compte donc à partir de 2, comme dans le design. */
+/* L'en-tête part sans retard : c'est lui que l'invité regarde pendant que le
+   voile se dissout, et le faire attendre réintroduirait le temps mort qu'on
+   vient justement d'enlever. Les blocs suivants sont sous la ligne de
+   flottaison — ils peuvent prendre le leur. */
 [data-reveal="true"] > *:nth-child(2) {
-  animation-delay: 0.05s;
+  animation-delay: 0s;
 }
 [data-reveal="true"] > *:nth-child(3) {
-  animation-delay: 0.17s;
+  animation-delay: 0.35s;
 }
 [data-reveal="true"] > *:nth-child(4) {
-  animation-delay: 0.29s;
+  animation-delay: 0.55s;
 }
 [data-reveal="true"] > *:nth-child(5) {
-  animation-delay: 0.41s;
+  animation-delay: 0.75s;
 }
 [data-reveal="true"] > *:nth-child(6) {
-  animation-delay: 0.53s;
+  animation-delay: 0.95s;
 }
 [data-reveal="true"] > *:nth-child(7) {
-  animation-delay: 0.65s;
+  animation-delay: 1.15s;
 }
 
 /* Les prénoms, et c'est le seul endroit de la page qui a son temps propre.
-   Ils arrivent **après** que l'en-tête s'est posé, pas avec lui : 250 ms de
-   retard, puis 120 ms entre chacun. L'en-tête apporte le décor, les prénoms
+   Ils arrivent **après** que l'en-tête s'est posé : l'enveloppe ouverte et la
+   photo d'abord, les prénoms ensuite. L'en-tête apporte le décor, les prénoms
    sont le sujet — l'ordre de lecture est celui-là, et il s'entend.
 
    Attachés à `data-reveal` et non au chargement : ils se jouent quand
    l'enveloppe s'en va. Sans porte — mouvement réduit — l'attribut reste
-   « false » et les prénoms sont simplement là. */
-[data-reveal="true"] [data-nom] {
-  animation: stagger-in 700ms cubic-bezier(0.16, 0.84, 0.24, 1) both;
-  animation-delay: 0.25s;
-}
+   « false » et les prénoms sont simplement là, d'un bloc.
+
+   L'esperluette est la seule des trois lignes à monter d'un bloc ; les deux
+   prénoms se posent lettre à lettre, ci-dessous. */
 [data-reveal="true"] [data-nom="2"] {
-  animation-delay: 0.37s;
+  animation: stagger-in 900ms cubic-bezier(0.16, 0.84, 0.24, 1) both;
+  animation-delay: 1.05s;
 }
-[data-reveal="true"] [data-nom="3"] {
-  animation-delay: 0.49s;
+
+/* L'écriture des prénoms.
+   Chaque lettre monte de 14 px en tournant d'un demi-degré, décalée de 60 ms
+   sur sa voisine. Parisienne est une anglaise : mesuré, découper « Hobiana »
+   en lettres coûte **0,05 px sur 188** — ses liaisons ne tiennent pas à un
+   crénage entre paires, elles sont dans le dessin des glyphes. Le mot ne se
+   disloque donc pas, il s'écrit.
+
+   `inline-block` est posé en permanence et non sous `[data-reveal]` : c'est ce
+   qui permet à la transformation de s'appliquer, et la largeur est la même
+   dans les deux cas. Le retard de chaque lettre est en style en ligne, calculé
+   en React — il l'emporte sur le `0s` que la forme courte `animation`
+   d'ici impose, parce qu'un style en ligne bat une règle de feuille. */
+[data-lettre] {
+  display: inline-block;
+}
+
+[data-reveal="true"] [data-lettre] {
+  animation: letter-in 900ms cubic-bezier(0.16, 0.84, 0.24, 1) both;
 }
 
 /* ---------------------------------------------------------------------------

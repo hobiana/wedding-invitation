@@ -75,7 +75,7 @@ describe("EnvelopeGate", () => {
 
     fireEvent.click(screen.getByTestId("porte"));
 
-    act(() => vi.advanceTimersByTime(1400));
+    act(() => vi.advanceTimersByTime(1150));
     expect(onReveal).toHaveBeenCalledTimes(1);
   });
 
@@ -98,7 +98,11 @@ describe("EnvelopeGate", () => {
     fireEvent.click(screen.getByTestId("porte"));
     expect(screen.getByTestId("porte")).toBeInTheDocument();
 
-    act(() => vi.advanceTimersByTime(1750));
+    // Large, et volontairement : l'instant exact du retrait est un réglage qui
+    // bouge à chaque relecture du commanditaire. Ce que ce test tient, c'est
+    // qu'il part **sur une minuterie**, sans qu'aucun événement d'animation
+    // n'ait été émis.
+    act(() => vi.advanceTimersByTime(10_000));
     expect(screen.queryByTestId("porte")).not.toBeInTheDocument();
   });
 
@@ -114,7 +118,7 @@ describe("EnvelopeGate", () => {
     fireEvent.click(porte);
     fireEvent.click(porte);
 
-    act(() => vi.advanceTimersByTime(1400));
+    act(() => vi.advanceTimersByTime(1150));
     expect(onReveal).toHaveBeenCalledTimes(1);
   });
 
@@ -131,7 +135,11 @@ describe("EnvelopeGate", () => {
     expect(document.body.style.overflow).toBe("hidden");
 
     fireEvent.click(screen.getByTestId("porte"));
-    act(() => vi.advanceTimersByTime(1750));
+    // Large, et volontairement : l'instant exact du retrait est un réglage qui
+    // bouge à chaque relecture du commanditaire. Ce que ce test tient, c'est
+    // qu'il part **sur une minuterie**, sans qu'aucun événement d'animation
+    // n'ait été émis.
+    act(() => vi.advanceTimersByTime(10_000));
 
     expect(document.documentElement.style.overflow).toBe("");
     expect(document.body.style.overflow).toBe("");
@@ -151,6 +159,55 @@ describe("EnvelopeGate", () => {
 
     expect(document.documentElement.style.overflow).toBe("");
     expect(document.body.style.overflow).toBe("");
+  });
+
+  /**
+   * « Les pétales ne sont pas là quand le voile disparaît » — relevé par le
+   * commanditaire à l'écran. Ils partaient avec lui, parce qu'ils étaient dans
+   * le calque qui s'efface.
+   *
+   * Ils en sont sortis : ils sont le **frère** de la scène et non son enfant,
+   * et leur propre effacement ne commence qu'une fois celui de la scène
+   * terminé. Ils continuent donc de tomber sur l'invitation, ce qui relie les
+   * deux images au lieu de les couper net.
+   *
+   * Ce test tient la structure, pas l'effet : dès que les pétales rentrent dans
+   * la scène, ils repartent avec elle, et il n'y a rien dans le rendu qui le
+   * signale.
+   */
+  it("lets the petals outlive the veil instead of leaving with it", () => {
+    render(<EnvelopeGate onReveal={() => {}} />);
+
+    const scene = screen.getByTestId("scene");
+    const petales = screen.getByTestId("petales");
+    expect(scene).not.toContainElement(petales);
+
+    const temps = (el: HTMLElement) => {
+      const [, duree, retard] =
+        el.style.transition.match(/opacity (\d+)ms \w+ (\d+)ms/) ?? [];
+      return { duree: Number(duree), retard: Number(retard) };
+    };
+    const voile = temps(scene);
+    const fleurs = temps(petales);
+
+    expect(fleurs.retard).toBeGreaterThanOrEqual(voile.retard + voile.duree);
+  });
+
+  /**
+   * Une fois ouverte, la surcouche traîne encore deux secondes le temps que les
+   * pétales s'effacent. Elle ne doit plus rien capter pendant ce temps : une
+   * couche invisible qui mange les clics du formulaire de réponse est le genre
+   * de défaut qu'on ne voit jamais et qui coûte des réponses.
+   */
+  it("stops catching clicks the moment it is opened", () => {
+    vi.useFakeTimers();
+    render(<EnvelopeGate onReveal={() => {}} />);
+
+    const porte = screen.getByTestId("porte");
+    expect(porte.style.pointerEvents).toBe("auto");
+
+    fireEvent.click(porte);
+    expect(porte.style.pointerEvents).toBe("none");
   });
 
   /**

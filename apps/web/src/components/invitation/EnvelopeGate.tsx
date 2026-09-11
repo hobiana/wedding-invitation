@@ -29,17 +29,52 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
  * au deuxième passage ; c'est une ligne à écrire si le commanditaire le veut.
  */
 
-/** Le design : `setTimeout(() => setState({gate:false, revealed:true}), 1400)`. */
-const REVEAL_AT = 1400;
+/* ---------------------------------------------------------------------------
+   Le minutage de la scène — réglé après relecture à l'écran par le
+   commanditaire, le 2026-09-11.
+
+   Ce qu'il a vu et qui ne va pas dans la version du design :
+
+   1. **« les animations sont ultra rapides »** — tout est allongé d'environ la
+      moitié. Un faire-part n'est pas une notification.
+   2. **« un petit retard après que le voile finit, puis le contenu s'affiche,
+      ça fait bizarre »** — c'était un temps mort réel : le voile finissait de
+      s'effacer, *puis* la page repartait de zéro. Corrigé en faisant démarrer
+      la page **au moment exact** où le voile commence à s'effacer. Les deux se
+      croisent au lieu de se suivre ; il n'y a plus de couture.
+   3. **« les pétales ne sont pas là quand le voile disparaît »** — dit deux
+      fois, et les deux fois j'ai sous-estimé. Ils partaient avec le voile ;
+      les sortir de son calque n'a pas suffi, parce que quatorze pétales de
+      six pixels sur un écran de 1600 px ne se voient pas. Ils sont maintenant
+      plus nombreux — le nombre suit la largeur —, plus gros, plus opaques, et
+      ils restent 3,5 s sur l'invitation avant de s'effacer seuls.
+   --------------------------------------------------------------------------- */
+
+/** Le cachet se brise, l'anneau se dilate, les éclats partent. */
+const BURST_AT = 620;
+
+/** Le voile commence à s'effacer — et la page commence à monter dessous. */
+const SCENE_FADE_AT = 1150;
+const SCENE_FADE = 900;
 
 /**
- * 1050 ms de retard + 700 ms de fondu = 1750. Le design retirait le voile à
- * 1400, c'est-à-dire **au milieu de son propre fondu** : le champ crème, encore
- * à demi opaque, disparaissait d'un coup. C'est le seul écart de minutage que
- * je me suis permis, et il ne change rien à ce qu'on voit — il enlève un
- * ressaut.
+ * La page part **avec** le voile, pas après lui. C'est la correction du temps
+ * mort : la cascade d'entrée se joue sous un champ crème qui se dissout, si
+ * bien que l'invitation est déjà en mouvement quand elle apparaît.
  */
-const UNMOUNT_AT = 1750;
+const REVEAL_AT = SCENE_FADE_AT;
+
+/** Les pétales s'en vont en dernier, et lentement. */
+const PETALS_FADE_AT = SCENE_FADE_AT + SCENE_FADE;
+const PETALS_FADE = 2600;
+
+/**
+ * Le filet de sécurité : un `setTimeout` posé au clic, jamais un
+ * `animationend`. Si une animation ne démarre pas, si une image de rendu se
+ * bloque, la surcouche s'en va quand même. Elle ne capte plus rien depuis le
+ * clic, donc la traîner ne coûte que sa présence dans l'arbre.
+ */
+const UNMOUNT_AT = PETALS_FADE_AT + PETALS_FADE + 50;
 
 interface Petal {
   left: number;
@@ -83,18 +118,35 @@ const BURST_COLORS = [
 
 const between = (a: number, b: number) => a + Math.random() * (b - a);
 
-/** 14 pétales, semés une seule fois par montage — le design les met en cache. */
+/**
+ * Le design en sème 14. Sur un téléphone c'est une pluie ; sur un écran de
+ * 1600 px, c'est trois points perdus dans du vide — et le commanditaire ne les
+ * voyait pas au moment où le voile s'ouvre, là où ils comptent le plus. Le
+ * nombre suit donc la largeur, un pétale tous les ~60 px, borné des deux côtés.
+ */
+const PETAL_COUNT_MIN = 16;
+const PETAL_COUNT_MAX = 34;
+
+function petalCount(): number {
+  const largeur = typeof window === "undefined" ? 420 : window.innerWidth;
+  return Math.max(
+    PETAL_COUNT_MIN,
+    Math.min(PETAL_COUNT_MAX, Math.round(largeur / 60)),
+  );
+}
+
+/** Semés une seule fois par montage — le design les met en cache, nous aussi. */
 function makePetals(): Petal[] {
-  return Array.from({ length: 14 }, (_, i) => ({
+  return Array.from({ length: petalCount() }, (_, i) => ({
     left: between(2, 96),
     fall: between(18, 25),
     // Retard négatif : la chute est déjà commencée à l'ouverture de la page.
-    // Sans lui, les quatorze pétales partiraient du haut en même temps.
+    // Sans lui, ils partiraient tous du haut en même temps.
     delay: -between(0, 22),
     sway: Math.round(between(5, 20)),
     swayDuration: between(4, 8),
-    width: Math.round(between(6, 12)),
-    height: Math.round(between(5, 9)),
+    width: Math.round(between(7, 14)),
+    height: Math.round(between(6, 11)),
     color: PETAL_COLORS[i % 3],
   }));
 }
@@ -111,7 +163,10 @@ function makeBurst(): Particle[] {
       dx: Math.cos(angle) * distance,
       dy: Math.sin(angle) * distance,
       rot: Math.round(between(120, 420)),
-      delay: 0.5 + i * 0.012,
+      // 16 ms entre deux éclats plutôt que 12 : l'éclat se déploie au lieu de
+      // claquer. Il part au même instant que l'enveloppe, et pour la même
+      // raison — le cachet cède, donc l'enveloppe peut partir.
+      delay: BURST_AT / 1000 + i * 0.016,
     };
   });
 }
@@ -212,209 +267,237 @@ export function EnvelopeGate({ onReveal }: { onReveal: () => void }) {
   return (
     // Le voile. `onClick` ici est la commodité de la souris ; l'accès réel
     // passe par le bouton de l'enveloppe, plus bas.
+    //
+    // Une fois ouvert il ne capte plus rien : les pétales lui survivent de deux
+    // secondes, et une surcouche invisible qui mangerait les clics du
+    // formulaire de réponse serait un défaut invisible et coûteux.
     <div
       onClick={open}
       data-testid="porte"
-      className="fixed inset-0 z-50 grid cursor-pointer place-items-center overflow-hidden"
+      className="fixed inset-0 z-50 overflow-hidden"
       style={{
-        transition: "opacity 700ms ease 1050ms",
-        opacity: opened ? 0 : 1,
+        cursor: opened ? "default" : "pointer",
+        pointerEvents: opened ? "none" : "auto",
       }}
     >
-      {/* Le champ : trois taches de lumière chaude sur un papier beige. C'est
-          la composition de sa référence — l'enveloppe posée sur une table, pas
-          suspendue dans le noir. */}
+      {/*
+        La scène — le champ et tout ce qui est posé dessus. Elle porte
+        l'effacement, et **pas** la racine : les pétales sont son frère, pas son
+        enfant, et c'est ce qui leur permet de rester quand elle s'en va.
+      */}
       <div
-        aria-hidden="true"
-        className="absolute inset-0"
+        data-testid="scene"
+        className="absolute inset-0 grid place-items-center"
         style={{
-          background:
-            "radial-gradient(70% 50% at 20% 18%, #fffcf6, transparent 62%)," +
-            "radial-gradient(60% 45% at 84% 40%, #f6ede0, transparent 66%)," +
-            "radial-gradient(80% 60% at 40% 92%, #efe3d2, transparent 70%)," +
-            "linear-gradient(160deg, #f7f0e5, #e9dcc9)",
+          transition: `opacity ${SCENE_FADE}ms ease ${SCENE_FADE_AT}ms`,
+          opacity: opened ? 0 : 1,
         }}
-      />
-      {/* Le grain du papier : des bandes à 112°, à 3 % de noir. Invisibles une
-          par une, c'est leur somme qui empêche le fond de paraître numérique. */}
-      <div aria-hidden="true" className="absolute inset-0" />
-
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 z-[2] overflow-hidden"
       >
-        {petals.map((petal, i) => (
+        {/* Le champ : trois taches de lumière chaude sur un papier beige. C'est
+            la composition de sa référence — l'enveloppe posée sur une table, pas
+            suspendue dans le noir. */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(70% 50% at 20% 18%, #fffcf6, transparent 62%)," +
+              "radial-gradient(60% 45% at 84% 40%, #f6ede0, transparent 66%)," +
+              "radial-gradient(80% 60% at 40% 92%, #efe3d2, transparent 70%)," +
+              "linear-gradient(160deg, #f7f0e5, #e9dcc9)",
+          }}
+        />
+        <div className="relative z-[3] flex h-full flex-col items-center justify-center px-6 py-[18px] text-center">
+          <p
+            className="font-script leading-none text-bordeaux-700"
+            style={{ fontSize: "clamp(34px, 7vh, 52px)" }}
+          >
+            Vous êtes
+          </p>
+          <p
+            className="mt-1.5 font-display uppercase tracking-[0.22em] text-bordeaux-700"
+            style={{ fontSize: "clamp(22px, 4.4vh, 34px)" }}
+          >
+            Invités
+          </p>
+
+          {/* Le cachet de cire, réduit à sa forme : un disque sombre, un cœur
+              doré, un anneau qui s'en échappe. Il bat tant que l'enveloppe est
+              fermée ; au clic il se brise et part en éclats. C'est lui qui rend
+              l'ouverture causale — le cachet ferme, donc il doit céder. */}
           <div
-            key={i}
-            className="absolute top-0"
+            aria-hidden="true"
+            className="relative z-[9] h-[62px] w-[62px] flex-none"
             style={{
-              left: `${petal.left}%`,
-              animation: `petal-fall ${petal.fall.toFixed(1)}s ease-in-out infinite`,
-              animationDelay: `${petal.delay.toFixed(1)}s`,
+              margin: "min(3vh, 22px) 0 min(1vh, 6px)",
+              animation: opened ? "var(--animate-seal-break)" : undefined,
             }}
           >
             <div
+              className="absolute inset-0 rounded-full border-[1.5px] border-bordeaux-500"
               style={
-                {
-                  "--sway": `${petal.sway}px`,
-                  animation: `petal-sway ${petal.swayDuration.toFixed(1)}s ease-in-out infinite`,
-                } as CSSProperties
+                opened
+                  ? {
+                      animation: "var(--animate-seal-ring-burst)",
+                      background:
+                        "color-mix(in srgb, var(--color-gold) 20%, transparent)",
+                    }
+                  : { animation: "var(--animate-seal-ring-idle)" }
               }
+            />
+            <div
+              className="absolute inset-0 grid place-items-center rounded-full bg-bordeaux-900 text-[36px] leading-none"
+              style={{
+                // Un or très clair, décoratif, sur le bordeaux le plus sombre :
+                // il n'a rien à lire, il a à briller.
+                color: "#f7e7c6",
+                boxShadow: "0 8px 22px -8px #00000088",
+                animation: opened ? undefined : "var(--animate-seal-pulse)",
+              }}
             >
-              <div
-                style={{
-                  width: petal.width,
-                  height: petal.height,
-                  borderRadius: "60% 40% 55% 45%",
-                  background: petal.color,
-                  opacity: 0.75,
-                }}
-              />
+              ♥
+            </div>
+            <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 h-0 w-0">
+              {burst?.map((p, i) => (
+                <div
+                  key={i}
+                  style={
+                    {
+                      position: "absolute",
+                      left: 0,
+                      top: 0,
+                      width: p.size,
+                      height: p.size,
+                      marginLeft: -3,
+                      marginTop: -3,
+                      borderRadius: p.round ? "50%" : "60% 40% 55% 45%",
+                      background: p.color,
+                      "--dx": `${p.dx.toFixed(1)}px`,
+                      "--dy": `${p.dy.toFixed(1)}px`,
+                      "--rot": `${p.rot}deg`,
+                      animation:
+                        "petal-burst 1.9s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards",
+                      animationDelay: `${p.delay.toFixed(3)}s`,
+                    } as CSSProperties
+                  }
+                />
+              ))}
             </div>
           </div>
-        ))}
-      </div>
 
-      <div className="relative z-[3] flex h-full flex-col items-center justify-center px-6 py-[18px] text-center">
-        <p
-          className="font-script leading-none text-bordeaux-700"
-          style={{ fontSize: "clamp(34px, 7vh, 52px)" }}
-        >
-          Vous êtes
-        </p>
-        <p
-          className="mt-1.5 font-display uppercase tracking-[0.22em] text-bordeaux-700"
-          style={{ fontSize: "clamp(22px, 4.4vh, 34px)" }}
-        >
-          Invités
-        </p>
-
-        {/* Le cachet de cire, réduit à sa forme : un disque sombre, un cœur
-            doré, un anneau qui s'en échappe. Il bat tant que l'enveloppe est
-            fermée ; au clic il se brise et part en éclats. C'est lui qui rend
-            l'ouverture causale — le cachet ferme, donc il doit céder. */}
-        <div
-          aria-hidden="true"
-          className="relative z-[9] h-[62px] w-[62px] flex-none"
-          style={{
-            margin: "min(3vh, 22px) 0 min(1vh, 6px)",
-            animation: opened ? "var(--animate-seal-break)" : undefined,
-          }}
-        >
           <div
-            className="absolute inset-0 rounded-full border-[1.5px] border-bordeaux-500"
-            style={
-              opened
-                ? {
-                    animation: "var(--animate-seal-ring-burst)",
-                    background:
-                      "color-mix(in srgb, var(--color-gold) 20%, transparent)",
-                  }
-                : { animation: "var(--animate-seal-ring-idle)" }
-            }
-          />
-          <div
-            className="absolute inset-0 grid place-items-center rounded-full bg-bordeaux-900 text-[36px] leading-none"
+            className="relative max-w-[86vw] flex-[0_1_auto]"
             style={{
-              // Un or très clair, décoratif, sur le bordeaux le plus sombre :
-              // il n'a rien à lire, il a à briller.
-              color: "#f7e7c6",
-              boxShadow: "0 8px 22px -8px #00000088",
-              animation: opened ? undefined : "var(--animate-seal-pulse)",
+              height: "min(34vh, 270px)",
+              // Le rapport du cadre vient du design ; l'image s'y pose en
+              // `contain`, donc un dixième de degré d'écart ne se voit pas.
+              aspectRatio: "1262 / 866",
+              marginTop: "min(6vh, 44px)",
+              animation: opened
+                ? "var(--animate-envelope-away)"
+                : "var(--animate-envelope-idle)",
             }}
           >
-            ♥
+            {/* L'enveloppe **est** le bouton : c'est ce que l'indication dit de
+                toucher, donc c'est ce qui doit prendre le focus. Elle ne contient
+                qu'une image et un libellé — un `<button>` n'accepte pas de bloc.
+
+                `focus-visible:outline-none` lève ici, et ici seulement, l'anneau
+                de focus global de `index.css`. Il dessinait un rectangle autour
+                d'une image découpée, ce qui se voit mal et se voyait dès le
+                chargement — le focus est posé par le code, et Chrome traite un
+                focus programmatique comme un focus clavier.
+
+                Ce que ça coûte est faible **parce qu'il n'y a qu'une seule
+                commande à l'écran** et qu'elle a déjà le focus : il n'existe pas
+                d'autre endroit où celui-ci pourrait être. La règle globale reste
+                entière partout ailleurs, et notamment sur le formulaire de
+                réponse, où plusieurs contrôles se disputent le focus. */}
+            <button
+              ref={buttonRef}
+              type="button"
+              onClick={open}
+              className="absolute inset-0 block w-full cursor-pointer appearance-none border-0 bg-transparent p-0 focus-visible:outline-none"
+            >
+              <img
+                src="/decor/enveloppe-fermee.webp"
+                alt=""
+                aria-hidden="true"
+                width={500}
+                height={350}
+                className="h-full w-full select-none object-contain"
+                style={{ filter: "drop-shadow(0 30px 44px rgb(0 0 0 / 0.35))" }}
+              />
+              <span className="sr-only">Ouvrir l'invitation</span>
+            </button>
+
+            <Rose side="left" />
+            <Rose side="right" />
           </div>
-          <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 h-0 w-0">
-            {burst?.map((p, i) => (
+
+          <p
+            aria-hidden="true"
+            className="font-sans text-[12px] uppercase tracking-[0.34em] text-ink-muted"
+            style={{
+              marginTop: "min(5vh, 40px)",
+              transition: "opacity 400ms",
+              opacity: opened ? 0 : 1,
+              animation: opened ? undefined : "var(--animate-hint-bob)",
+            }}
+          >
+            Cliquez sur l'enveloppe
+          </p>
+        </div>
+      </div>
+
+      {/*
+        Les pétales survivent au voile.
+
+        Ils sont le frère de la scène et non son enfant, donc ils ne partent
+        pas avec elle : ils continuent de tomber sur l invitation pendant
+        deux secondes, puis s effacent seuls. C est ce qui relie les deux
+        images au lieu de les couper net - la porte laisse quelque chose
+        derriere elle plutot que de disparaitre.
+      */}
+      <div
+        aria-hidden="true"
+        data-testid="petales"
+        className="pointer-events-none absolute inset-0 z-[2] overflow-hidden"
+        style={{
+          transition: `opacity ${PETALS_FADE}ms ease ${PETALS_FADE_AT}ms`,
+          opacity: opened ? 0 : 1,
+        }}
+      >
+          {petals.map((petal, i) => (
+            <div
+              key={i}
+              className="absolute top-0"
+              style={{
+                left: `${petal.left}%`,
+                animation: `petal-fall ${petal.fall.toFixed(1)}s ease-in-out infinite`,
+                animationDelay: `${petal.delay.toFixed(1)}s`,
+              }}
+            >
               <div
-                key={i}
                 style={
                   {
-                    position: "absolute",
-                    left: 0,
-                    top: 0,
-                    width: p.size,
-                    height: p.size,
-                    marginLeft: -3,
-                    marginTop: -3,
-                    borderRadius: p.round ? "50%" : "60% 40% 55% 45%",
-                    background: p.color,
-                    "--dx": `${p.dx.toFixed(1)}px`,
-                    "--dy": `${p.dy.toFixed(1)}px`,
-                    "--rot": `${p.rot}deg`,
-                    animation:
-                      "petal-burst 1.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards",
-                    animationDelay: `${p.delay.toFixed(3)}s`,
+                    "--sway": `${petal.sway}px`,
+                    animation: `petal-sway ${petal.swayDuration.toFixed(1)}s ease-in-out infinite`,
                   } as CSSProperties
                 }
-              />
-            ))}
-          </div>
-        </div>
-
-        <div
-          className="relative max-w-[86vw] flex-[0_1_auto]"
-          style={{
-            height: "min(34vh, 270px)",
-            // Le rapport du cadre vient du design ; l'image s'y pose en
-            // `contain`, donc un dixième de degré d'écart ne se voit pas.
-            aspectRatio: "1262 / 866",
-            marginTop: "min(6vh, 44px)",
-            animation: opened
-              ? "var(--animate-envelope-away)"
-              : "var(--animate-envelope-idle)",
-          }}
-        >
-          {/* L'enveloppe **est** le bouton : c'est ce que l'indication dit de
-              toucher, donc c'est ce qui doit prendre le focus. Elle ne contient
-              qu'une image et un libellé — un `<button>` n'accepte pas de bloc.
-
-              `focus-visible:outline-none` lève ici, et ici seulement, l'anneau
-              de focus global de `index.css`. Il dessinait un rectangle autour
-              d'une image découpée, ce qui se voit mal et se voyait dès le
-              chargement — le focus est posé par le code, et Chrome traite un
-              focus programmatique comme un focus clavier.
-
-              Ce que ça coûte est faible **parce qu'il n'y a qu'une seule
-              commande à l'écran** et qu'elle a déjà le focus : il n'existe pas
-              d'autre endroit où celui-ci pourrait être. La règle globale reste
-              entière partout ailleurs, et notamment sur le formulaire de
-              réponse, où plusieurs contrôles se disputent le focus. */}
-          <button
-            ref={buttonRef}
-            type="button"
-            onClick={open}
-            className="absolute inset-0 block w-full cursor-pointer appearance-none border-0 bg-transparent p-0 focus-visible:outline-none"
-          >
-            <img
-              src="/decor/enveloppe-fermee.webp"
-              alt=""
-              aria-hidden="true"
-              width={500}
-              height={350}
-              className="h-full w-full select-none object-contain"
-              style={{ filter: "drop-shadow(0 30px 44px rgb(0 0 0 / 0.35))" }}
-            />
-            <span className="sr-only">Ouvrir l'invitation</span>
-          </button>
-
-          <Rose side="left" />
-          <Rose side="right" />
-        </div>
-
-        <p
-          aria-hidden="true"
-          className="font-sans text-[12px] uppercase tracking-[0.34em] text-ink-muted"
-          style={{
-            marginTop: "min(5vh, 40px)",
-            transition: "opacity 400ms",
-            opacity: opened ? 0 : 1,
-            animation: opened ? undefined : "var(--animate-hint-bob)",
-          }}
-        >
-          Cliquez sur l'enveloppe
-        </p>
+              >
+                <div
+                  style={{
+                    width: petal.width,
+                    height: petal.height,
+                    borderRadius: "60% 40% 55% 45%",
+                    background: petal.color,
+                    opacity: 0.85,
+                  }}
+                />
+              </div>
+            </div>
+          ))}
       </div>
     </div>
   );
