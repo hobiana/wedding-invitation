@@ -1,11 +1,13 @@
 # Où on en est — reprise de session
 
-**Dernière mise à jour :** 2026-09-10, par l'architecte.
+**Dernière mise à jour :** 2026-09-11, par l'architecte.
 À lire en premier si tu reprends ce projet sans le contexte de la conversation précédente.
 
 ## L'état en une phrase
 
-L'audit est livré, le **lot 0 est terminé et fusionné**, et le **lot 3 — la refonte design — est en cours** : la direction artistique est livrée, les photos sont fournies, et **les tâches 1 à 4 et 7 sont faites**. La page d'invitation existe et se regarde. Restent les deux mises en scène d'ouverture (8a, 8b), et les primitives de dialogue et d'affichage (5, 6) — ce sont elles qui tiennent tout l'admin : tant qu'elles manquent, les tâches 9 à 11 ne peuvent pas commencer.
+**Le mariage est dans 113 jours** (2 janvier 2027), les réponses sont attendues dans 81 (1er décembre 2026). C'est le fait qui commande tout le reste : l'application ne tourne encore que sur la machine du commanditaire, et une invitation sur `localhost` n'envoie rien à personne. **La mise en ligne est passée devant le plan de table**, qui ne sert qu'en décembre.
+
+L'audit est livré, le **lot 0 est terminé**, le **contrat partagé est désormais vérifié à la compilation** (`6582760`), et le **lot 3 est repris sur le design que le commanditaire a lui-même produit** (`images/html/`). Ce design remplace le découpage d'origine des tâches 1 à 11 : voir « Le nouveau découpage » plus bas.
 
 ## Le dépôt
 
@@ -36,6 +38,26 @@ Arbitré le 2026-09-10, à partir du design fourni dans `images/html/` :
 6. **Confirmer veut dire « nous venons tous ».** L'invité ne saisit pas de nombre : `confirmedCount` prend la valeur de `allocatedSeats` à la confirmation, `0` au refus, et **reste `null` tant que le foyer n'a pas répondu** — l'invariant ne bouge pas. Un foyer qui vient en partie se corrige **depuis l'admin**, et l'invitation invite à téléphoner en cas de changement.
 7. **Le formulaire invité ne demande plus le régime alimentaire**, seulement un mot libre (`message`). Conséquence à traiter : plus personne ne peut renseigner `dietaryNotes`, donc la tuile « Régimes particuliers » du tableau de bord affichera `0` indéfiniment tant que le champ n'est pas ajouté au formulaire admin.
 8. **Les photos du couple viennent de leurs vraies photos.** Le design fourni en contenait quatre portant une signature de provenance C2PA (images générées) ; elles ne servent que pour le décor — enveloppe, fleurs, texture de papier — là où rien ne prétend représenter les mariés.
+9. **L'ornement malgache est retiré.** Le design ornemente à l'aquarelle de roses ; on ne garde que ça. `HemMotif.tsx` — le motif de l'ourlet de leurs tenues — et le jeton `--rule-lamba` sortent. C'est un renversement assumé de la piste ouverte dans la direction artistique du 2026-08-23, qui écartait justement les roses du commerce.
+10. **Le carrousel montre les trois vraies photos** de `images/old images - fiancailles/` : `DSC_2817`, `DSC_3536`, `DSC_3541`. Les légendes du design décrivaient les images générées et sont à réécrire d'après ce qu'on voit.
+
+## Le nouveau découpage
+
+| | Étape | État |
+|---|---|---|
+| 1 | Contrat partagé vérifié à la compilation | ✅ `6582760` |
+| — | Date du mariage au 2 janvier 2027 | ✅ `ba888dd` |
+| 2a | Décor du design extrait et optimisé | ✅ `7e4d739` |
+| 2b | Fondations : trois familles de fontes, palette, trois clartés d'or | ✅ `b93eeff` |
+| 2c | La page invité, section par section | à faire |
+| 2d | L'ouverture : enveloppe et sceau, accessible au clavier | à faire |
+| 3 | Mise en ligne — **en parallèle, priorité haute** | commencée (`8d59006`) |
+| 4 | Admin : foyers, copie des liens | à faire |
+| 5 | Plan de table | en dernier |
+
+**Ce qui reste ouvert sur les fondations :** les **métriques de repli** des trois nouvelles fontes ne sont pas mesurées. Les anciennes avaient des `size-adjust` calés qui empêchaient la page de sauter au `swap` ; il faut les remesurer dans le navigateur avant qu'un invité voie la page. Et le poids est passé de 43 Ko à **186 Ko de latin** — c'est le prix du design, dit une fois pour toutes.
+
+**Le plan de mise en ligne n'a pas été écrit** : l'agent devops a été coupé par la limite de session après avoir posé le `postinstall` Prisma. Restent à traiter le `lint --fix`, l'échec bruyant si `VITE_API_URL` manque, le `.gitattributes`, et surtout **le choix d'un hébergeur** — le dépôt n'a aucun remote git, c'est le premier verrou.
 
 ## Lot 0 — terminé
 
@@ -135,7 +157,9 @@ Aucun test ne pouvait l'attraper — ils s'exécutent tous dans le fuseau de la 
 
 **Tension à trancher :** le commanditaire demande « épuré », sa référence est chargée. À concilier explicitement.
 
-**Vidéo de référence** : `https://www.youtube.com/shorts/fYVUDkunFGg` — modèle Canva de faire-part numérique animé avec RSVP. **Non visionnable** : je ne lis pas la vidéo. `ffmpeg` n'est pas installé (`winget` est disponible si on veut l'ajouter, décision du commanditaire). En attente soit de captures d'écran déposées dans `images/`, soit d'une description du mouvement.
+**Vidéo de référence** : `https://www.youtube.com/shorts/fYVUDkunFGg` — modèle Canva de faire-part numérique animé avec RSVP. Restée non visionnée, et **sans objet désormais** : le commanditaire a produit son propre design, qui porte sa mise en scène d'ouverture.
+
+**Correction :** `ffmpeg` **est** installé sur cette machine, contrairement à ce que disait ce document. Il a servi à réencoder le décor du design (2,5 Mo → 104 Ko). `convert` répond aussi dans le PATH, mais **c'est l'outil Windows de conversion FAT→NTFS, pas ImageMagick** — ne jamais l'appeler.
 
 **Ce qui bloque quoi :** la tâche 1 (direction artistique) est en cours chez `ui-ux-designer`, livrable attendu dans `docs/design/2026-08-23-direction-artistique.md`. Les tâches 2 à 6 démarrent dès sa validation par le commanditaire. Les tâches 7 et 8 dépendent en plus du choix de photo.
 
