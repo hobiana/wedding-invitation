@@ -112,7 +112,12 @@ export function InvitationPage() {
       <Announcement weddingDate={wedding.weddingDate} />
       <PhotoCarousel />
       <Countdown weddingDate={wedding.weddingDate} />
-      <Calendar weddingDate={wedding.weddingDate} />
+      {/* Le calendrier emporte son air en dessous de lui. Sans ça sa carte
+          blanche touchait le bandeau bordeaux du programme, et les deux
+          sections se lisaient comme une seule. */}
+      <div className="pb-14">
+        <Calendar weddingDate={wedding.weddingDate} />
+      </div>
       <Schedule weddingDate={wedding.weddingDate} />
       <Venue
         venueName={wedding.venueName}
