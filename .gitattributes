@@ -1,21 +1,22 @@
 # Fins de ligne normalisées : LF partout dans le dépôt, quel que soit l'OS de
 # la machine qui checkout ou commit.
 #
-# Vérifié avant d'écrire ce fichier, pas supposé : 159 des 160 fichiers
-# `.ts`/`.tsx`/`.json`/`.md` suivis par git contiennent déjà du CRLF dans le
-# blob commité lui-même (`git show HEAD:<fichier> | od -c`) — ce n'est donc
-# pas seulement un artefact de checkout local (`core.autocrlf=true` sur ce
-# poste), c'est CRLF **dans l'historique**. `eslint` (via prettier/prettier)
-# le voit et corrige en silence dès qu'on lui laisse `--fix`, ce qui a masqué
-# le problème jusqu'ici : lancé en lecture seule (sans `--fix`), il sort 2 619
-# erreurs `Delete ␍` sur ce seul critère, presque toutes sans rapport avec le
-# code qu'elles accompagnent.
+# Mesuré, pas supposé : **zéro** des 168 fichiers texte suivis contient un CR
+# dans son blob commité. L'historique est en LF depuis le début, et il n'y a
+# donc rien à renormaliser — `git add --renormalize .` ne produit aucun
+# changement. La note qui affirmait l'inverse ici était fausse.
 #
-# Poser ce fichier ne réécrit rien tout seul : `git status` reste inchangé
-# juste après son ajout (vérifié). La normalisation réelle des fichiers déjà
-# commités n'a lieu qu'au prochain `git add`/checkout qui les touche — pour
-# 159 fichiers d'un coup, ce doit rester un choix explicite et séparé, pas un
-# effet de bord de cette correction (voir le plan de mise en ligne).
+# Le CRLF n'était que dans la **copie de travail** : `core.autocrlf=true` sur
+# ce poste convertit LF → CRLF à chaque checkout. D'où le résultat déroutant
+# d'un `eslint` en lecture seule — 2 576 erreurs `Delete ␍` sur des fichiers
+# dont la version commitée est parfaitement propre. Le `--fix` les
+# « corrigeait » en silence, ce qui a caché la cause.
+#
+# La ligne `eol=lf` ci-dessous prend le pas sur `core.autocrlf` : git écrit
+# désormais du LF sur le disque, sur cette machine comme sur une autre. Les
+# 101 fichiers déjà sortis en CRLF ont été refaits sortir une fois, dans le
+# commit qui pose cette correction — opération invisible dans l'historique,
+# puisque les blobs, eux, n'ont jamais changé.
 * text=auto eol=lf
 
 # Binaires réels : jamais de conversion de fin de ligne, jamais de diff
