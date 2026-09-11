@@ -8,6 +8,7 @@ import type {
   WeddingInfoDto,
 } from "@invitation-app/shared";
 import { api } from "@/lib/api";
+import { httpUrlOrNull } from "@/lib/url";
 import {
   WEDDING_TIME_ZONE_LABEL,
   formatRsvpDeadline,
@@ -26,21 +27,6 @@ import {
   guestTextButtonClassName,
   sectionGapClassName,
 } from "@/components/invitation/guest-styles";
-
-/**
- * mapUrl is free text typed into the admin settings form. Anything that isn't
- * a plain http(s) URL — a `javascript:` scheme, or just a typo — is dropped
- * rather than handed to an href on the one page every guest opens.
- */
-function httpUrlOrNull(url: string | null): string | null {
-  if (!url) return null;
-  try {
-    const { protocol } = new URL(url);
-    return protocol === "http:" || protocol === "https:" ? url : null;
-  } catch {
-    return null;
-  }
-}
 
 const nameFormatter = new Intl.ListFormat("fr-FR", { style: "long", type: "conjunction" });
 
