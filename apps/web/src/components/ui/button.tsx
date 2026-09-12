@@ -4,13 +4,17 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center rounded-control text-sm font-medium transition-colors duration-(--duration-micro) ease-(--ease-in) disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
-        default: "bg-neutral-900 text-white hover:bg-neutral-700",
-        outline: "border border-neutral-300 hover:bg-neutral-100",
-        destructive: "bg-red-600 text-white hover:bg-red-500",
+        // Le registre admin : sobre, dense, aux jetons du mariage. La page
+        // invité ne passe pas par ici — voir invitation/guest-styles.ts.
+        default: "bg-bordeaux-700 text-on-bordeaux hover:bg-bordeaux-900",
+        outline: "border border-rule-strong text-ink hover:bg-cream",
+        // Pas de second rouge : le bordeaux profond et le libellé portent le
+        // danger. Le geste est de toute façon protégé par un AlertDialog.
+        destructive: "bg-bordeaux-900 text-on-bordeaux hover:bg-bordeaux-700",
       },
       size: {
         default: "h-10 px-4 py-2",

@@ -62,7 +62,10 @@ export function DataTable<T>({
       >
         <ChevronDown
           aria-hidden="true"
-          className={cn("h-4 w-4 transition-transform duration-(--duration-micro)", ouvert && "rotate-180")}
+          className={cn(
+            "h-4 w-4 transition-transform duration-(--duration-micro) ease-(--ease-in)",
+            ouvert && "rotate-180",
+          )}
         />
       </button>
     );
