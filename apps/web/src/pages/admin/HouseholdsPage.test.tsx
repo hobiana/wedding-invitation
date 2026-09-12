@@ -172,5 +172,18 @@ describe("HouseholdsPage", () => {
       expect(screen.getByText(/a confirmé 4 personnes/)).toBeInTheDocument();
       expect(screen.getByText(/son lien cessera de fonctionner/)).toBeInTheDocument();
     });
+
+    // « a confirmé 1 personnes » dans une interface qui est en français sans
+    // exception. Le foyer d'une personne n'a rien d'un cas tordu : c'est le
+    // plus courant après le couple.
+    it("agrees the noun with the number for a household of one", async () => {
+      const utilisateur = userEvent.setup();
+      renderPage({
+        households: [foyer({ displayName: "Rakotomavo", status: "CONFIRMED", confirmedCount: 1 })],
+      });
+
+      await utilisateur.click(await screen.findByRole("button", { name: "Supprimer" }));
+      expect(screen.getByText(/a confirmé 1 personne\./)).toBeInTheDocument();
+    });
   });
 });

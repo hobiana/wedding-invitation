@@ -83,7 +83,11 @@ export function HouseholdsPage() {
   function descriptionDeSuppression(foyer: HouseholdAdminDto): string {
     const lien = "Son lien d'invitation cessera de fonctionner.";
     if (foyer.status === "CONFIRMED" && foyer.confirmedCount !== null) {
-      return `Ce foyer a confirmé ${foyer.confirmedCount} personnes. Supprimer efface sa réponse, et son lien cessera de fonctionner.`;
+      // Un foyer d'une personne est le cas courant après le couple, et
+      // « a confirmé 1 personnes » est une faute dans une interface qui est
+      // en français sans exception.
+      const personnes = foyer.confirmedCount > 1 ? "personnes" : "personne";
+      return `Ce foyer a confirmé ${foyer.confirmedCount} ${personnes}. Supprimer efface sa réponse, et son lien cessera de fonctionner.`;
     }
     if (foyer.status === "DECLINED") {
       return `Ce foyer a décliné l'invitation. Supprimer efface sa réponse, et son lien cessera de fonctionner.`;
