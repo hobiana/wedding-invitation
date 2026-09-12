@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import * as RadixAlertDialog from "@radix-ui/react-alert-dialog";
 import { Button } from "./button";
+import { useFocusDeRetour } from "./use-focus-de-retour";
 
 /**
  * La confirmation avant un geste irréversible.
@@ -31,6 +32,7 @@ export function AlertDialog({
   onConfirm,
 }: AlertDialogProps) {
   const annulerRef = useRef<HTMLButtonElement>(null);
+  const rendreLeFocus = useFocusDeRetour(open);
 
   return (
     <RadixAlertDialog.Root open={open} onOpenChange={onOpenChange}>
@@ -41,6 +43,7 @@ export function AlertDialog({
             evenement.preventDefault();
             annulerRef.current?.focus();
           }}
+          onCloseAutoFocus={rendreLeFocus}
           className="fixed left-1/2 top-1/2 w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-surface border border-rule bg-ivory p-6 shadow-card"
         >
           <RadixAlertDialog.Title className="font-display text-xl text-ink">

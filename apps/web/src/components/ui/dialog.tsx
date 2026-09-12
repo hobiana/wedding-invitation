@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import * as RadixDialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
+import { useFocusDeRetour } from "./use-focus-de-retour";
 
 /**
  * Le cadre modal. Radix, décision arrêtée : le `<dialog>` natif n'a pas le
@@ -19,11 +20,16 @@ export interface DialogProps {
 }
 
 export function Dialog({ open, onOpenChange, title, description, children }: DialogProps) {
+  const rendreLeFocus = useFocusDeRetour(open);
+
   return (
     <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
       <RadixDialog.Portal>
         <RadixDialog.Overlay className="fixed inset-0 bg-ink/40" />
-        <RadixDialog.Content className="fixed left-1/2 top-1/2 w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-surface border border-rule bg-ivory p-6 shadow-card">
+        <RadixDialog.Content
+          onCloseAutoFocus={rendreLeFocus}
+          className="fixed left-1/2 top-1/2 w-[calc(100vw-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-surface border border-rule bg-ivory p-6 shadow-card"
+        >
           <div className="mb-4 flex items-start justify-between gap-4">
             <div className="space-y-1">
               <RadixDialog.Title className="font-display text-xl text-ink">
