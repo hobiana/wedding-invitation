@@ -60,6 +60,14 @@ export function HouseholdFormDialog({ initial, onSubmit, onClose }: HouseholdFor
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     const listeMembres = nomsSaisis(memberNames);
+    // Le régime ne part que s'il a bougé. Un foyer dont il n'a jamais été
+    // renseigné porte `null` ; renvoyer le champ intact écrirait `""` par
+    // dessus, et `UpdateHouseholdDto` ne sait pas revenir à `null` ensuite.
+    // Seule la garde `NOT [null, '']` du tableau de bord empêche aujourd'hui
+    // ces vides de se compter comme des régimes — une garde posée pour un tout
+    // autre incident, sur laquelle on ne s'appuie pas.
+    const regimeBouge = dietaryNotes !== (initial?.dietaryNotes ?? "");
+    const regime = regimeBouge ? { dietaryNotes } : {};
     if (!isEdit) {
       onSubmit({ displayName, allocatedSeats, memberNames: listeMembres });
       return;
@@ -83,7 +91,7 @@ export function HouseholdFormDialog({ initial, onSubmit, onClose }: HouseholdFor
         allocatedSeats,
         memberNames: listeMembres,
         status,
-        dietaryNotes,
+        ...regime,
         confirmedCount,
       });
       return;
@@ -94,7 +102,7 @@ export function HouseholdFormDialog({ initial, onSubmit, onClose }: HouseholdFor
       allocatedSeats,
       memberNames: listeMembres,
       status,
-      dietaryNotes,
+      ...regime,
       // A declined household seats nobody; the API normalises this too.
       // A still-pending household hasn't confirmed anything — omit the field
       // entirely rather than overwrite its null (no answer yet) with 0, which

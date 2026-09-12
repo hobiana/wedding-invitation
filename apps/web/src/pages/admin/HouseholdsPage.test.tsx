@@ -107,10 +107,10 @@ describe("HouseholdsPage", () => {
       expect(patchSpy).toHaveBeenCalledWith("/admin/households/h1", {
         displayName: "Famille Rakoto",
         allocatedSeats: 4,
-        // Le régime repart tel qu'il est arrivé : corriger un nombre de
-        // personnes ne doit pas effacer la note du traiteur au passage.
         memberNames: [],
-        dietaryNotes: "Deux repas végétariens",
+        // Pas de `dietaryNotes` : l'organisateur n'y a pas touché, donc le
+        // champ ne part pas. Corriger un nombre de personnes ne doit pas
+        // réécrire la note du traiteur au passage.
         status: "CONFIRMED",
         confirmedCount: 4,
       }),

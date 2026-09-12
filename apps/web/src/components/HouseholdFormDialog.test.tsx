@@ -63,7 +63,6 @@ describe("HouseholdFormDialog", () => {
       allocatedSeats: 4,
       memberNames: [],
       status: "CONFIRMED",
-      dietaryNotes: "",
       confirmedCount: 2,
     });
   });
@@ -100,7 +99,6 @@ describe("HouseholdFormDialog", () => {
       allocatedSeats: 4,
       memberNames: [],
       status: "PENDING",
-      dietaryNotes: "",
     });
   });
 
@@ -134,6 +132,39 @@ describe("HouseholdFormDialog", () => {
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ dietaryNotes: "sans arachide" }),
     );
+  });
+
+  // Un foyer dont le régime n'a jamais été renseigné porte `null`. Renvoyer le
+  // champ tel quel écrirait `""` par-dessus — et `UpdateHouseholdDto` ne sait
+  // pas revenir à `null` ensuite. Le champ ne part donc que s'il a changé.
+  it("leaves an untouched dietary note out of the payload", async () => {
+    const utilisateur = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(
+      <HouseholdFormDialog initial={foyer({ dietaryNotes: null })} onSubmit={onSubmit} onClose={() => {}} />,
+    );
+
+    await utilisateur.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit.mock.calls[0][0]).not.toHaveProperty("dietaryNotes");
+  });
+
+  it("sends the dietary note the admin actually cleared", async () => {
+    const utilisateur = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(
+      <HouseholdFormDialog
+        initial={foyer({ dietaryNotes: "sans porc" })}
+        onSubmit={onSubmit}
+        onClose={() => {}}
+      />,
+    );
+
+    await utilisateur.clear(screen.getByLabelText(/Régime alimentaire/));
+    await utilisateur.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ dietaryNotes: "" }));
   });
 
   // Le mot de l'invité appartient à l'invité.
@@ -197,8 +228,7 @@ describe("HouseholdFormDialog", () => {
         allocatedSeats: 4,
         memberNames: [],
         status: "CONFIRMED",
-        dietaryNotes: "",
-        confirmedCount: 2,
+          confirmedCount: 2,
       });
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
