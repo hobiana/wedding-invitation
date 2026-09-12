@@ -77,11 +77,15 @@ Trois choses que cet environnement ne peut pas juger :
 - **Le repli en cartes sous 768 px.** Le redimensionnement de fenêtre ne change pas le viewport ici. Le mode carte a donc été obtenu en remplaçant `matchMedia` : la table disparaît, les étiquettes sont là, rien ne déborde horizontalement. La mise en page réelle d'un téléphone reste à voir.
 - **Les cibles tactiles font 32 px** (le bouton de dépli, 32 × 32). Au-dessus du minimum WCAG (24 px), en dessous des 44 px que recommandent Apple et Google. À juger au doigt.
 
-### Une question de design à trancher — elle t'appartient
+### Une question de design — tranchée le 2026-09-12
 
 Le plan demandait de vérifier à l'écran si le bouton **Supprimer** (`bordeaux-900`) se distingue assez du bouton primaire (`bordeaux-700`), et prescrivait d'avance de passer le destructif en contour si non. **Mesuré : 1,43:1 entre les deux aplats** — à l'œil, ce sont deux rectangles de la même couleur.
 
-La prescription a pourtant été appliquée puis **retirée**, parce que la mesure a montré autre chose que ce que le plan supposait : en contour, « Supprimer » se met à ressembler à « Modifier », son voisin immédiat dans la ligne, alors que plein contre contour les séparait nettement — et le bouton primaire, lui, n'est jamais à côté de « Supprimer », il est dans l'en-tête. **L'état commité est donc inchangé.** Les deux options se défendent ; c'est un choix d'apparence, et tu arbitres l'apparence.
+La prescription du plan — passer le destructif en contour — a été appliquée puis retirée, parce que la mesure a montré autre chose que ce que le plan supposait : en contour, « Supprimer » se met à ressembler à « Modifier », son voisin immédiat dans la ligne.
+
+**Le commanditaire a tranché autrement, et plus simplement : le bouton passe au rouge** (`ec661d4`). C'est un **renversement assumé de sa propre règle** « pas de second rouge » du §3.4 de la direction artistique. Le jeton est `--color-danger` (`#c0392b`) : une brique, pas un rouge d'alerte — 2,19:1 contre `bordeaux-700`, donc franchement autre chose, mais assez chaude pour tenir à côté du crème et du sable. Texte ivoire à 5,36:1, 7,44:1 au survol.
+
+**Trois endroits portent ce renversement**, et il en fallait trois : le §3.4 est marqué périmé là où on le lit, le skill `wedding-design-system` porte la décision dans ses « décisions arrêtées », et un test de `button.test.tsx` dit la règle actuelle. Sans ça, le prochain agent qui relit le design system remet du bordeaux en croyant corriger un écart. Ce qui ne change pas : le rouge vient du jeton et de nulle part ailleurs — un `red-600` de Tailwind en dur rouvrirait le défaut que l'ancienne règle visait vraiment, et un test le verrouille.
 
 **Deux règles apprises ici, à ne pas défaire :**
 
