@@ -41,6 +41,21 @@ Arbitré le 2026-09-10, à partir du design fourni dans `images/html/` :
 9. **L'ornement malgache est retiré.** Le design ornemente à l'aquarelle de roses ; on ne garde que ça. `HemMotif.tsx` — le motif de l'ourlet de leurs tenues — et le jeton `--rule-lamba` sortent. C'est un renversement assumé de la piste ouverte dans la direction artistique du 2026-08-23, qui écartait justement les roses du commerce.
 10. **Le carrousel montre les trois vraies photos** de `images/old images - fiancailles/` : `DSC_2817`, `DSC_3536`, `DSC_3541`. Les légendes du design décrivaient les images générées et sont à réécrire d'après ce qu'on voit.
 
+## Point de reprise — 2026-09-12, refonte de l'admin en cours
+
+**Branche `feat/admin-lots-a-b`**, partie de `e465fe3`. `main` n'a pas bougé.
+
+La partie admin a été conçue puis planifiée avec le commanditaire : **spec** dans `docs/superpowers/specs/2026-09-12-admin-refonte-design.md` (sept décisions arbitrées, à ne pas rouvrir), **plan d'exécution** dans `docs/superpowers/plans/2026-09-12-admin-lots-a-b.md` (vingt tâches). L'exécution se fait par sous-agents, un lot à la fois, et **le registre de progression est `.superpowers/sdd/2026-09-12-admin-lots-a-b/progress.md`** — il porte l'état exact, les décisions prises en cours de route et leur coût si elles sont fausses. C'est lui qu'il faut lire pour reprendre, pas cette section.
+
+**Fait, commité, vérifié** (287 tests, build à exit 0) : les neuf premières tâches — `Badge`, `Card`, `Skeleton`, `EmptyState`, `useMediaQuery`, `DataTable` (table sur bureau, cartes sous 768 px, depuis une seule définition de colonnes), `Dialog` et `AlertDialog` sur Radix, et le `Button` passé aux jetons du mariage.
+
+**Reste** : l'URL d'invitation et le presse-papier, les boutons copier et partager, le filtre, le dépli du foyer, l'écran Foyers recomposé, les deux garde-fous de suppression, le dialogue de foyer avec les noms des membres et le régime, puis la vérification au navigateur.
+
+**Deux règles apprises ici, à ne pas défaire :**
+
+- **Les implémenteurs ne commitent pas.** Le plan les y invitait ; `CLAUDE.md` l'interdit. Ils laissent l'arbre modifié, l'architecte lance la suite et le build lui-même, relit, et commite.
+- **`@testing-library/user-event` est entré dans le dépôt** avec le lot 2 : il n'y était pas, et tous les tests du plan s'en servent.
+
 ## Le nouveau découpage
 
 | | Étape | État |
