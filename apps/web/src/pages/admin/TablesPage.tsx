@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CreateTableDto, HouseholdAdminDto, TableDto, UpdateTableDto } from "@invitation-app/shared";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { AlertDialog } from "@/components/ui/alert-dialog";
 import { TableBoard } from "@/components/TableBoard";
 
 const DEFAULT_CAPACITY = 10;
@@ -19,6 +20,7 @@ export function TablesPage() {
   const [newTableName, setNewTableName] = useState("");
   const [newTableCapacity, setNewTableCapacity] = useState(DEFAULT_CAPACITY);
   const [editing, setEditing] = useState<TableDraft | null>(null);
+  const [tableASupprimer, setTableASupprimer] = useState<TableDto | null>(null);
 
   const { data: tables } = useQuery({
     queryKey: ["tables"],
@@ -164,7 +166,7 @@ export function TablesPage() {
                   >
                     Modifier
                   </Button>
-                  <Button size="sm" variant="destructive" onClick={() => deleteTable.mutate(table.id)}>
+                  <Button size="sm" variant="destructive" onClick={() => setTableASupprimer(table)}>
                     Supprimer
                   </Button>
                 </li>
@@ -180,6 +182,24 @@ export function TablesPage() {
         onAssign={(tableId, householdId) => assignMutation.mutate({ tableId, householdId })}
         onUnassign={(householdId) => unassignMutation.mutate(householdId)}
       />
+
+      {tableASupprimer && (
+        <AlertDialog
+          open
+          onOpenChange={(ouvert) => !ouvert && setTableASupprimer(null)}
+          title={`Supprimer ${tableASupprimer.name} ?`}
+          description={
+            tableASupprimer.households.length > 0
+              ? `Les ${tableASupprimer.households.length} foyers placés à cette table reviendront aux foyers non placés. Aucun foyer n'est supprimé.`
+              : "Cette table est vide."
+          }
+          confirmLabel="Supprimer la table"
+          onConfirm={() => {
+            deleteTable.mutate(tableASupprimer.id);
+            setTableASupprimer(null);
+          }}
+        />
+      )}
     </div>
   );
 }
