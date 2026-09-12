@@ -8,6 +8,7 @@ import type {
 } from "@invitation-app/shared";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { AlertDialog } from "@/components/ui/alert-dialog";
 import { StatusBadge } from "@/components/StatusBadge";
 import { HouseholdFormDialog } from "@/components/HouseholdFormDialog";
 import { CopyLinkButton } from "@/components/CopyLinkButton";
@@ -27,6 +28,7 @@ export function HouseholdsPage() {
   const [error, setError] = useState<string | null>(null);
   const [recherche, setRecherche] = useState("");
   const [statut, setStatut] = useState<RsvpStatus | "ALL">("ALL");
+  const [aSupprimer, setASupprimer] = useState<HouseholdAdminDto | null>(null);
 
   const { data: households, isPending } = useQuery({
     queryKey: ["households"],
@@ -73,6 +75,22 @@ export function HouseholdsPage() {
     [households, recherche, statut],
   );
 
+  /**
+   * Ce que la suppression détruit, dit en toutes lettres. Un foyer qui a répondu
+   * emporte sa réponse, et sa réponse ne se redemande pas : c'est la phrase qui
+   * distingue ce garde-fou d'un « Êtes-vous sûr ? ».
+   */
+  function descriptionDeSuppression(foyer: HouseholdAdminDto): string {
+    const lien = "Son lien d'invitation cessera de fonctionner.";
+    if (foyer.status === "CONFIRMED" && foyer.confirmedCount !== null) {
+      return `Ce foyer a confirmé ${foyer.confirmedCount} personnes. Supprimer efface sa réponse, et son lien cessera de fonctionner.`;
+    }
+    if (foyer.status === "DECLINED") {
+      return `Ce foyer a décliné l'invitation. Supprimer efface sa réponse, et son lien cessera de fonctionner.`;
+    }
+    return `Ce foyer n'a pas encore répondu. ${lien}`;
+  }
+
   const colonnes: Column<HouseholdAdminDto>[] = [
     { id: "nom", header: "Foyer", cell: (h) => <span className="font-medium">{h.displayName}</span> },
     // `confirmedCount` reste `null` tant que le foyer n'a pas répondu : « — »
@@ -88,7 +106,7 @@ export function HouseholdsPage() {
           <Button variant="outline" size="sm" onClick={() => setEditing(h)}>
             Modifier
           </Button>
-          <Button variant="destructive" size="sm" onClick={() => deleteMutation.mutate(h.id)}>
+          <Button variant="destructive" size="sm" onClick={() => setASupprimer(h)}>
             Supprimer
           </Button>
         </div>
@@ -173,6 +191,19 @@ export function HouseholdsPage() {
           initial={editing}
           onSubmit={(dto) => updateMutation.mutate({ id: editing.id, dto })}
           onClose={() => setEditing(null)}
+        />
+      )}
+      {aSupprimer && (
+        <AlertDialog
+          open
+          onOpenChange={(ouvert) => !ouvert && setASupprimer(null)}
+          title={`Supprimer le foyer ${aSupprimer.displayName} ?`}
+          description={descriptionDeSuppression(aSupprimer)}
+          confirmLabel="Supprimer le foyer"
+          onConfirm={() => {
+            deleteMutation.mutate(aSupprimer.id);
+            setASupprimer(null);
+          }}
         />
       )}
     </div>

@@ -124,4 +124,49 @@ describe("HouseholdsPage", () => {
 
     expect(await screen.findByText(/cannot exceed allocatedSeats/i)).toBeInTheDocument();
   });
+
+  describe("deletion guard", () => {
+    // LE test de cette tâche : un clic sur « Supprimer » ne supprime pas.
+    it("never deletes on the first click", async () => {
+      const utilisateur = userEvent.setup();
+      const supprimer = vi.spyOn(apiModule.api, "delete").mockResolvedValue({});
+      renderPage({ households: [foyer({ displayName: "Rakotomavo" })] });
+
+      await utilisateur.click(await screen.findByRole("button", { name: "Supprimer" }));
+      expect(supprimer).not.toHaveBeenCalled();
+      expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    });
+
+    it("deletes only once the confirmation is pressed", async () => {
+      const utilisateur = userEvent.setup();
+      const supprimer = vi.spyOn(apiModule.api, "delete").mockResolvedValue({});
+      renderPage({ households: [foyer({ displayName: "Rakotomavo" })] });
+
+      await utilisateur.click(await screen.findByRole("button", { name: "Supprimer" }));
+      await utilisateur.click(screen.getByRole("button", { name: "Supprimer le foyer" }));
+      expect(supprimer).toHaveBeenCalledTimes(1);
+    });
+
+    it("cancels without deleting", async () => {
+      const utilisateur = userEvent.setup();
+      const supprimer = vi.spyOn(apiModule.api, "delete").mockResolvedValue({});
+      renderPage({ households: [foyer({ displayName: "Rakotomavo" })] });
+
+      await utilisateur.click(await screen.findByRole("button", { name: "Supprimer" }));
+      await utilisateur.click(screen.getByRole("button", { name: "Annuler" }));
+      expect(supprimer).not.toHaveBeenCalled();
+    });
+
+    // Ce qui distingue ce garde-fou d'un « Êtes-vous sûr ? » : il dit ce qu'on perd.
+    it("spells out what is lost when the household has already answered", async () => {
+      const utilisateur = userEvent.setup();
+      renderPage({
+        households: [foyer({ displayName: "Rakotomavo", status: "CONFIRMED", confirmedCount: 4 })],
+      });
+
+      await utilisateur.click(await screen.findByRole("button", { name: "Supprimer" }));
+      expect(screen.getByText(/a confirmé 4 personnes/)).toBeInTheDocument();
+      expect(screen.getByText(/son lien cessera de fonctionner/)).toBeInTheDocument();
+    });
+  });
 });
