@@ -190,7 +190,14 @@ export function TablesPage() {
           title={`Supprimer ${tableASupprimer.name} ?`}
           description={
             tableASupprimer.households.length > 0
-              ? `Les ${tableASupprimer.households.length} foyers placés à cette table reviendront aux foyers non placés. Aucun foyer n'est supprimé.`
+              ? // Une table à un seul foyer disait « Les 1 foyers placés » : la
+                // même faute d'accord que côté foyers, dans une interface qui
+                // est en français sans exception.
+                `${
+                  tableASupprimer.households.length === 1
+                    ? "Le foyer placé à cette table reviendra"
+                    : `Les ${tableASupprimer.households.length} foyers placés à cette table reviendront`
+                } aux foyers non placés. Aucun foyer n'est supprimé.`
               : "Cette table est vide."
           }
           confirmLabel="Supprimer la table"

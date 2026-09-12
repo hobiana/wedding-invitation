@@ -147,6 +147,36 @@ describe("TablesPage deletion guard", () => {
     });
 
     await utilisateur.click(await screen.findByRole("button", { name: "Supprimer" }));
-    expect(screen.getByText(/reviendront aux foyers non placés/)).toBeInTheDocument();
+    // Ce que le dialogue doit dire, quel que soit le nombre : les foyers ne
+    // sont pas supprimés avec la table. L'accord lui-même est vérifié juste
+    // en dessous, dans les deux cas.
+    expect(
+      screen.getByText(/aux foyers non placés\. Aucun foyer n'est supprimé\./),
+    ).toBeInTheDocument();
+  });
+
+  // « Les 1 foyers placés à cette table » — la même faute que R14 a fait
+  // corriger côté foyers, au mot près, dans le fichier voisin.
+  it("agrees the noun with the number for a table seating one household", async () => {
+    const utilisateur = userEvent.setup();
+    renderPage({ tables: [table({ name: "Table 1", households: [foyerDeTable()] })] });
+
+    await utilisateur.click(await screen.findByRole("button", { name: "Supprimer" }));
+    expect(screen.getByText(/^Le foyer placé à cette table reviendra/)).toBeInTheDocument();
+  });
+
+  it("keeps the plural for a table seating several", async () => {
+    const utilisateur = userEvent.setup();
+    renderPage({
+      tables: [
+        table({
+          name: "Table 1",
+          households: [foyerDeTable(), foyerDeTable({ id: "h2", displayName: "Andriamanana" })],
+        }),
+      ],
+    });
+
+    await utilisateur.click(await screen.findByRole("button", { name: "Supprimer" }));
+    expect(screen.getByText(/^Les 2 foyers placés à cette table reviendront/)).toBeInTheDocument();
   });
 });
