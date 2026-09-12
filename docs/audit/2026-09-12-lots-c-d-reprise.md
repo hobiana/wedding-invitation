@@ -12,9 +12,18 @@ Les lots A et B ont livré tout l'outillage dont C et D ont besoin :
 
 **Aucune migration Prisma, aucune route d'API nouvelle** pour ces deux lots.
 
-## Lot C — La coquille
+## Lot C — La coquille — IMPLÉMENTÉ, VÉRIFICATION NAVIGATEUR DUE
 
-**Fichiers :** `apps/web/src/components/AdminLayout.tsx` (57 lignes) et son `AdminLayout.test.tsx`, qui existe déjà.
+**État au 2026-09-12 :** implémenté et commité (`7c523af`). **342 tests verts, build à exit 0 — mais le lot n'a PAS été regardé dans un vrai navigateur**, l'extension Chrome s'étant déconnectée au moment de le faire. C'est une règle du projet et elle n'est pas optionnelle : trois défauts y ont déjà échappé aux tests.
+
+**À faire avant de considérer C comme livré**, et en particulier :
+
+- les onglets du bas ne recouvrent pas la dernière ligne des écrans — le `pb-20` est censé y suffire, ça se vérifie à l'œil sur la liste des foyers ;
+- le libellé « Plan de table » ne se coupe pas dans un onglet qui fait le quart d'un écran étroit ;
+- le rail tient sans déborder, et l'adresse connectée se tronque proprement si elle est longue ;
+- l'anneau de focus reste visible sur les liens du rail comme sur ceux des onglets.
+
+**Fichiers :** `apps/web/src/components/AdminLayout.tsx` et son `AdminLayout.test.tsx`.
 
 Ce que la spec demande :
 
