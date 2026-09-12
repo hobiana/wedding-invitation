@@ -132,7 +132,12 @@ export function Field({
       {error && (
         // Bordeaux, not a second red: the design system rules out putting a
         // `red-600` next to `#6E1F35`. The message itself carries the meaning.
-        <p id={errorId} className="text-sm font-medium text-bordeaux-700">
+        //
+        // `role="alert"` n'est pas redondant avec l'`aria-describedby` ci-dessus :
+        // la description n'est lue qu'à l'arrivée du focus sur le contrôle, alors
+        // que l'erreur apparaît sur un clic de soumission, focus resté sur le
+        // bouton. Sans région live, le formulaire refuse en silence.
+        <p id={errorId} role="alert" className="text-sm font-medium text-bordeaux-700">
           {error}
         </p>
       )}

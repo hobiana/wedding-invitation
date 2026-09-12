@@ -64,6 +64,29 @@ describe("Field", () => {
     expect(screen.getByText("Adresse invalide")).toBeInTheDocument();
   });
 
+  // `aria-describedby` n'est lu qu'au moment où le focus arrive sur le champ.
+  // Or l'erreur apparaît sur un clic d'« Enregistrer » : le focus est sur le
+  // bouton et n'en bouge pas, donc sans région live le formulaire refuse en
+  // silence. L'ancien bloc fait main de HouseholdFormDialog portait ce
+  // `role="alert"` ; la primitive l'avait perdu au passage.
+  it("announces the error when it appears, rather than refusing in silence", () => {
+    const { rerender } = render(
+      <Field label="Personnes confirmées">
+        <Input />
+      </Field>,
+    );
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+
+    rerender(
+      <Field label="Personnes confirmées" error="Un foyer confirmé compte au moins une personne.">
+        <Input />
+      </Field>,
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Un foyer confirmé compte au moins une personne.",
+    );
+  });
+
   it("leaves the control unmarked when there is no error", () => {
     render(
       <Field label="Email">
