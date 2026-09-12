@@ -47,14 +47,41 @@ Arbitré le 2026-09-10, à partir du design fourni dans `images/html/` :
 
 La partie admin a été conçue puis planifiée avec le commanditaire : **spec** dans `docs/superpowers/specs/2026-09-12-admin-refonte-design.md` (sept décisions arbitrées, à ne pas rouvrir), **plan d'exécution** dans `docs/superpowers/plans/2026-09-12-admin-lots-a-b.md` (vingt tâches). L'exécution se fait par sous-agents, un lot à la fois, et **le registre de progression est `.superpowers/sdd/2026-09-12-admin-lots-a-b/progress.md`** — il porte l'état exact, les décisions prises en cours de route et leur coût si elles sont fausses. C'est lui qu'il faut lire pour reprendre, pas cette section.
 
-**Fait, commité, vérifié, relu** — 18 tâches sur 20, **323 tests verts**, build à exit 0 :
+**Fait, commité, vérifié, relu** — les 20 tâches, **337 tests verts**, build à exit 0 :
 
 - **Les primitives** : `Badge`, `Card`, `Skeleton`, `EmptyState`, `useMediaQuery`, `DataTable` (table sur bureau, cartes sous 768 px, depuis une seule définition de colonnes), `Dialog` et `AlertDialog` sur Radix, `Button` aux jetons du mariage.
 - **Le lien** : `invitationUrl`, `copyToClipboard` qui dit la vérité quand il échoue, et les boutons copier et partager — avec un repli visible, parce qu'un organisateur qui croit avoir copié colle autre chose dans WhatsApp.
 - **L'écran Foyers**, recomposé : recherche qui replie les accents et cherche aussi dans les prénoms des membres, filtre par statut, ligne dépliable portant le régime, le message et le lien, squelette au chargement, état vide qui distingue « aucun foyer » de « la recherche ne donne rien ».
 - **Les deux garde-fous de suppression** : un clic sur « Supprimer » n'efface plus rien, et la confirmation dit ce qui est perdu — la réponse du foyer et son lien, ou, pour une table, que ses foyers reviennent aux non-placés sans être supprimés.
+- **Le dialogue de foyer**, repris aux primitives, portant enfin les noms des membres et le régime alimentaire, et rendant le mot de l'invité en lecture seule.
 
-**Reste deux choses** : la tâche 19 — le dialogue de foyer repris aux primitives, avec **les noms des membres** (aujourd'hui saisissables nulle part, alors que la page invité les affiche) et **le régime alimentaire** (sans quoi la tuile du tableau de bord reste à zéro pour toujours) — et la tâche 20, la vérification dans un vrai navigateur, qui est à l'architecte et n'est pas optionnelle. Puis la relecture finale de la branche avant fusion.
+**Les vingt tâches sont faites**, relues et vérifiées à l'écran. **337 tests verts**, build à exit 0. La tâche 19 a livré le dialogue de foyer repris aux primitives, avec **les noms des membres** — jusque-là saisissables nulle part, alors que la page invité les affiche — et **le régime alimentaire**, sans lequel la tuile du tableau de bord serait restée à zéro pour toujours. Reste la relecture finale de la branche avant fusion, et l'arbitrage de la question de design ci-dessous.
+
+### Ce que la vérification au navigateur a trouvé, et qu'aucun test ne voyait
+
+**[MAJEUR] Le focus ne revenait pas au bouton qui avait ouvert le dialogue.** — corrigé `4185058`.
+
+Radix annule la restitution de son `FocusScope` puis focalise `context.triggerRef` ; nos dialogues sont montés par l'état de la page, **sans `<Trigger>`** — c'est le ruling R8 — donc ce ref vaut `null`, personne ne reprend le focus, et il retombe sur `<body>`. Un organisateur au clavier qui fermait le dialogue d'une ligne devait retraverser les quarante lignes pour revenir où il était. Les deux primitives étaient touchées.
+
+**À retenir, et c'est le vrai enseignement :** la première correction **passait ses tests et ne marchait pas**. Elle mémorisait le focus dans un `useEffect`, or les effets des enfants s'exécutent avant ceux du parent — elle retenait donc le bouton « Annuler » que Radix venait de focaliser. jsdom et Chrome n'ordonnent pas ces deux focalisations de la même façon. La lecture se fait maintenant **pendant le rendu**. *Pour tout ce qui touche au focus dans ce projet, c'est le navigateur qui tranche, pas la suite.*
+
+### Vérifié à l'écran, contre la vraie base
+
+Le lien copié contient bien l'URL complète — collée pour de vrai dans un champ, pas crue sur parole. La recherche trouve « Raïssa » quand on tape « raissa ». Deux lignes restent dépliées ensemble. Un foyer en attente affiche `—`, un foyer décliné `0`. Un foyer créé par le nouveau dialogue arrive en base avec ses noms rognés, ses lignes vides sautées et `confirmedCount: null`. Passer à Confirmé sans nombre refuse, n'envoie rien, et **annonce** le refus. Le régime saisi arrive en base et la tuile du tableau de bord le compte. Le garde-fou dit « a confirmé **1 personne** ». Échap et Annuler ne suppriment rien ; le focus d'ouverture est sur Annuler. En mode carte, chaque valeur porte son étiquette.
+
+### Ce qui reste à regarder sur ton écran et sur ton téléphone
+
+Trois choses que cet environnement ne peut pas juger :
+
+- **L'anneau de focus.** `document.hasFocus()` y vaut `false` : la fenêtre n'est pas au premier plan et Chrome ne peint pas `:focus-visible` dans ce cas. Ce qui a pu être constaté à la place : la règle est bien dans le CSS produit, et **aucun** `outline:none` ni `outline:0` nulle part — aucune primitive ne l'a supprimée.
+- **Le repli en cartes sous 768 px.** Le redimensionnement de fenêtre ne change pas le viewport ici. Le mode carte a donc été obtenu en remplaçant `matchMedia` : la table disparaît, les étiquettes sont là, rien ne déborde horizontalement. La mise en page réelle d'un téléphone reste à voir.
+- **Les cibles tactiles font 32 px** (le bouton de dépli, 32 × 32). Au-dessus du minimum WCAG (24 px), en dessous des 44 px que recommandent Apple et Google. À juger au doigt.
+
+### Une question de design à trancher — elle t'appartient
+
+Le plan demandait de vérifier à l'écran si le bouton **Supprimer** (`bordeaux-900`) se distingue assez du bouton primaire (`bordeaux-700`), et prescrivait d'avance de passer le destructif en contour si non. **Mesuré : 1,43:1 entre les deux aplats** — à l'œil, ce sont deux rectangles de la même couleur.
+
+La prescription a pourtant été appliquée puis **retirée**, parce que la mesure a montré autre chose que ce que le plan supposait : en contour, « Supprimer » se met à ressembler à « Modifier », son voisin immédiat dans la ligne, alors que plein contre contour les séparait nettement — et le bouton primaire, lui, n'est jamais à côté de « Supprimer », il est dans l'en-tête. **L'état commité est donc inchangé.** Les deux options se défendent ; c'est un choix d'apparence, et tu arbitres l'apparence.
 
 **Deux règles apprises ici, à ne pas défaire :**
 
@@ -75,7 +102,7 @@ La partie admin a été conçue puis planifiée avec le commanditaire : **spec**
 | 2d bis | Verrou de défilement, apparition au défilement, pluie de pétales | ✅ `c313247` → `ee1490b` |
 | 2e | Métriques de repli des trois fontes, mesurées au navigateur | ✅ `9ddce53` |
 | 3 | Mise en ligne — **en parallèle, priorité haute** | plan écrit (`185b911`), en attente du commanditaire |
-| 4 | Admin : foyers, copie des liens, champs `dietaryNotes` et `confirmedCount` | à faire |
+| 4 | Admin : foyers, copie des liens, champs `dietaryNotes` et `confirmedCount` | ✅ branche `feat/admin-lots-a-b` |
 | 5 | Plan de table | en dernier |
 
 **La page invité tourne et a été vérifiée dans un vrai navigateur**, contre la vraie base : un foyer `PENDING` à 4 places confirme, et le serveur écrit `confirmedCount = 4` — la règle « confirmer = tout le monde vient » tient de bout en bout. Les six fontes chargent, les trois clartés d'or se résolvent, le voile de papier ne capte aucun clic, le carrousel avance.
