@@ -41,13 +41,17 @@ Arbitré le 2026-09-10, à partir du design fourni dans `images/html/` :
 9. **L'ornement malgache est retiré.** Le design ornemente à l'aquarelle de roses ; on ne garde que ça. `HemMotif.tsx` — le motif de l'ourlet de leurs tenues — et le jeton `--rule-lamba` sortent. C'est un renversement assumé de la piste ouverte dans la direction artistique du 2026-08-23, qui écartait justement les roses du commerce.
 10. **Le carrousel montre les trois vraies photos** de `images/old images - fiancailles/` : `DSC_2817`, `DSC_3536`, `DSC_3541`. Les légendes du design décrivaient les images générées et sont à réécrire d'après ce qu'on voit.
 
-## Point de reprise — 2026-09-12, refonte de l'admin en cours
+## Point de reprise — 2026-09-12, refonte de l'admin livrée et fusionnée
 
-**Branche `feat/admin-lots-a-b`**, partie de `e465fe3`. `main` n'a pas bougé.
+**Fusionnée dans `main`** le 2026-09-12, en avancement rapide depuis `e465fe3` — `main` n'avait pas bougé, la granularité « une tâche, un commit » est donc intacte et lisible. La branche `feat/admin-lots-a-b` est **conservée** : elle pointe au même endroit que `main`, elle ne coûte rien, et elle se supprime en une ligne une fois la poussée faite.
+
+**Vérifié sur le résultat fusionné**, pas seulement sur la branche : **338 tests web**, **109 api**, **18 e2e** contre la vraie base, les deux builds à exit 0, `lint` web à exit 0 avec les trois mêmes avertissements qu'à la base de la branche.
+
+**Rien n'est poussé, et c'est voulu** : le commanditaire pousse `main` lui-même. `origin/main` s'arrête toujours à `ee1490b` — **35 commits locaux** attendent sa poussée, dont toute la refonte de l'admin. Tant qu'elle n'est pas faite, ce disque est le seul exemplaire.
 
 La partie admin a été conçue puis planifiée avec le commanditaire : **spec** dans `docs/superpowers/specs/2026-09-12-admin-refonte-design.md` (sept décisions arbitrées, à ne pas rouvrir), **plan d'exécution** dans `docs/superpowers/plans/2026-09-12-admin-lots-a-b.md` (vingt tâches). L'exécution se fait par sous-agents, un lot à la fois, et **le registre de progression est `.superpowers/sdd/2026-09-12-admin-lots-a-b/progress.md`** — il porte l'état exact, les décisions prises en cours de route et leur coût si elles sont fausses. C'est lui qu'il faut lire pour reprendre, pas cette section.
 
-**Fait, commité, vérifié, relu** — les 20 tâches, **337 tests verts**, build à exit 0 :
+**Fait, commité, vérifié, relu** — les 20 tâches, **338 tests verts**, build à exit 0 :
 
 - **Les primitives** : `Badge`, `Card`, `Skeleton`, `EmptyState`, `useMediaQuery`, `DataTable` (table sur bureau, cartes sous 768 px, depuis une seule définition de colonnes), `Dialog` et `AlertDialog` sur Radix, `Button` aux jetons du mariage.
 - **Le lien** : `invitationUrl`, `copyToClipboard` qui dit la vérité quand il échoue, et les boutons copier et partager — avec un repli visible, parce qu'un organisateur qui croit avoir copié colle autre chose dans WhatsApp.
@@ -55,7 +59,7 @@ La partie admin a été conçue puis planifiée avec le commanditaire : **spec**
 - **Les deux garde-fous de suppression** : un clic sur « Supprimer » n'efface plus rien, et la confirmation dit ce qui est perdu — la réponse du foyer et son lien, ou, pour une table, que ses foyers reviennent aux non-placés sans être supprimés.
 - **Le dialogue de foyer**, repris aux primitives, portant enfin les noms des membres et le régime alimentaire, et rendant le mot de l'invité en lecture seule.
 
-**Les vingt tâches sont faites**, relues et vérifiées à l'écran. **337 tests verts**, build à exit 0. La tâche 19 a livré le dialogue de foyer repris aux primitives, avec **les noms des membres** — jusque-là saisissables nulle part, alors que la page invité les affiche — et **le régime alimentaire**, sans lequel la tuile du tableau de bord serait restée à zéro pour toujours. Reste la relecture finale de la branche avant fusion, et l'arbitrage de la question de design ci-dessous.
+**Les vingt tâches sont faites**, relues et vérifiées à l'écran. **338 tests verts**, build à exit 0. La tâche 19 a livré le dialogue de foyer repris aux primitives, avec **les noms des membres** — jusque-là saisissables nulle part, alors que la page invité les affiche — et **le régime alimentaire**, sans lequel la tuile du tableau de bord serait restée à zéro pour toujours. La relecture finale est faite : **fusionnable, zéro bloquant**, un constat majeur corrigé avant fusion (`6586754`) — la mémoire du focus se vidait au rendu de la fermeture alors que Radix n'appelle `onCloseAutoFocus` qu'au démontage, donc après ; nos appelants n'y touchaient pas, mais `open` est une prop publique et un dialogue resté monté serait retombé dans le bug que le crochet venait de fermer.
 
 ### Ce que la vérification au navigateur a trouvé, et qu'aucun test ne voyait
 
