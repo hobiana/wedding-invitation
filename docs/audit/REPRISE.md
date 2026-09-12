@@ -47,9 +47,14 @@ Arbitré le 2026-09-10, à partir du design fourni dans `images/html/` :
 
 La partie admin a été conçue puis planifiée avec le commanditaire : **spec** dans `docs/superpowers/specs/2026-09-12-admin-refonte-design.md` (sept décisions arbitrées, à ne pas rouvrir), **plan d'exécution** dans `docs/superpowers/plans/2026-09-12-admin-lots-a-b.md` (vingt tâches). L'exécution se fait par sous-agents, un lot à la fois, et **le registre de progression est `.superpowers/sdd/2026-09-12-admin-lots-a-b/progress.md`** — il porte l'état exact, les décisions prises en cours de route et leur coût si elles sont fausses. C'est lui qu'il faut lire pour reprendre, pas cette section.
 
-**Fait, commité, vérifié** (287 tests, build à exit 0) : les neuf premières tâches — `Badge`, `Card`, `Skeleton`, `EmptyState`, `useMediaQuery`, `DataTable` (table sur bureau, cartes sous 768 px, depuis une seule définition de colonnes), `Dialog` et `AlertDialog` sur Radix, et le `Button` passé aux jetons du mariage.
+**Fait, commité, vérifié, relu** — 18 tâches sur 20, **323 tests verts**, build à exit 0 :
 
-**Reste** : l'URL d'invitation et le presse-papier, les boutons copier et partager, le filtre, le dépli du foyer, l'écran Foyers recomposé, les deux garde-fous de suppression, le dialogue de foyer avec les noms des membres et le régime, puis la vérification au navigateur.
+- **Les primitives** : `Badge`, `Card`, `Skeleton`, `EmptyState`, `useMediaQuery`, `DataTable` (table sur bureau, cartes sous 768 px, depuis une seule définition de colonnes), `Dialog` et `AlertDialog` sur Radix, `Button` aux jetons du mariage.
+- **Le lien** : `invitationUrl`, `copyToClipboard` qui dit la vérité quand il échoue, et les boutons copier et partager — avec un repli visible, parce qu'un organisateur qui croit avoir copié colle autre chose dans WhatsApp.
+- **L'écran Foyers**, recomposé : recherche qui replie les accents et cherche aussi dans les prénoms des membres, filtre par statut, ligne dépliable portant le régime, le message et le lien, squelette au chargement, état vide qui distingue « aucun foyer » de « la recherche ne donne rien ».
+- **Les deux garde-fous de suppression** : un clic sur « Supprimer » n'efface plus rien, et la confirmation dit ce qui est perdu — la réponse du foyer et son lien, ou, pour une table, que ses foyers reviennent aux non-placés sans être supprimés.
+
+**Reste deux choses** : la tâche 19 — le dialogue de foyer repris aux primitives, avec **les noms des membres** (aujourd'hui saisissables nulle part, alors que la page invité les affiche) et **le régime alimentaire** (sans quoi la tuile du tableau de bord reste à zéro pour toujours) — et la tâche 20, la vérification dans un vrai navigateur, qui est à l'architecte et n'est pas optionnelle. Puis la relecture finale de la branche avant fusion.
 
 **Deux règles apprises ici, à ne pas défaire :**
 
