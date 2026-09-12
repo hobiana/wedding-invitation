@@ -11,7 +11,9 @@ L'audit est livré, le **lot 0 est terminé**, le **contrat partagé est désorm
 
 ## Le dépôt
 
-**`main` est la seule branche** et porte tout. Le commanditaire l'a poussé sur `github.com/hobiana/wedding-invitation` le 2026-09-11 : le premier verrou de la mise en ligne est levé, et `origin/main` porte tout jusqu'à `ee1490b`. **Reste à trancher qui pousse ensuite** — la question lui a été posée deux fois sans réponse, et en attendant l'architecte commite en local sans pousser : `9ddce53` et la présente mise à jour ne sont pas encore partis.
+**`main` est la branche de référence** et porte tout. Elle vit sur `github.com/hobiana/wedding-invitation`, et `origin/main` est à jour : la refonte de l'admin y est, poussée par le commanditaire le 2026-09-12.
+
+**Qui pousse : lui, et lui seul.** La question est tranchée depuis le 2026-09-12. L'architecte commite en local, fusionne les branches quand elles sont prêtes, et **ne pousse jamais** — le `git pull` lui appartient aussi, donc pas de `pull` glissé dans une procédure de fusion. Le corollaire à garder en tête : entre deux de ses poussées, le dépôt local est le seul exemplaire du travail. Le lui signaler quand l'écart devient gros, sans jamais pousser à sa place.
 
 L'application vivait dans `.worktrees/feature-invitation-app-v1` ; elle a été fusionnée et le worktree supprimé. `master` a été renommée `main` le 2026-08-23, et `develop`, `feature/invitation-app-v1` et `fix/lot-0-bloquants` supprimées après vérification qu'elles étaient intégralement contenues dans `main`.
 
@@ -47,7 +49,7 @@ Arbitré le 2026-09-10, à partir du design fourni dans `images/html/` :
 
 **Vérifié sur le résultat fusionné**, pas seulement sur la branche : **338 tests web**, **109 api**, **18 e2e** contre la vraie base, les deux builds à exit 0, `lint` web à exit 0 avec les trois mêmes avertissements qu'à la base de la branche.
 
-**Rien n'est poussé, et c'est voulu** : le commanditaire pousse `main` lui-même. `origin/main` s'arrête toujours à `ee1490b` — **35 commits locaux** attendent sa poussée, dont toute la refonte de l'admin. Tant qu'elle n'est pas faite, ce disque est le seul exemplaire.
+**Poussée par le commanditaire le 2026-09-12** : `origin/main` et `main` sont tous deux sur `0877382`, vérifié après `fetch`. Les 36 commits qui n'existaient que sur ce disque — toute la refonte de l'admin, la page invité, les métriques de repli des fontes — sont en sécurité.
 
 La partie admin a été conçue puis planifiée avec le commanditaire : **spec** dans `docs/superpowers/specs/2026-09-12-admin-refonte-design.md` (sept décisions arbitrées, à ne pas rouvrir), **plan d'exécution** dans `docs/superpowers/plans/2026-09-12-admin-lots-a-b.md` (vingt tâches). L'exécution se fait par sous-agents, un lot à la fois, et **le registre de progression est `.superpowers/sdd/2026-09-12-admin-lots-a-b/progress.md`** — il porte l'état exact, les décisions prises en cours de route et leur coût si elles sont fausses. C'est lui qu'il faut lire pour reprendre, pas cette section.
 
