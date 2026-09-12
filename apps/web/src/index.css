@@ -167,6 +167,64 @@
 }
 
 /* ---------------------------------------------------------------------------
+   Métriques de repli — mesurées au navigateur le 2026-09-12, pas estimées.
+
+   `swap` affiche la police locale tant que la webfont n'est pas arrivée. Si
+   elle n'occupe pas la même place, le texte se replie autrement et toute la page
+   saute au moment de l'échange, sous les yeux de l'invité. Écart mesuré sans
+   réglage, sur une phrase de l'invitation à 200 px et sur un bloc de six phrases
+   replié dans 420 px :
+
+     Cormorant contre Georgia        largeur +14,3 %  ligne −6,2 %  bloc +7,1 %
+     Jost contre Segoe UI            largeur  +3,4 %  ligne −8,0 %  bloc +6,7 %
+     Parisienne contre Segoe Script  largeur +45,8 %  ligne +16,5 %  bloc +38,5 %
+
+   Avec les réglages ci-dessous, les trois écarts tombent à 0,00 % — 0,02 % en
+   largeur sur Parisienne.
+
+   Comment ils s'obtiennent : `size-adjust` est le rapport des largeurs de la même
+   phrase, les deux polices au même corps. `ascent-override` et
+   `descent-override` sont les métriques de la webfont divisées par ce rapport,
+   parce que le pourcentage se compte sur le cadratin déjà ajusté. Et
+   `line-gap-override` est à 0 % parce que la mesure le dit : sur les sept polices
+   relevées, la hauteur de ligne `normal` valait exactement ascendante +
+   descendante, sans interligne propre.
+
+   Un seul `local()` par face, celui qui a été mesuré. Une liste plus longue
+   appliquerait à une autre police des nombres relevés sur celle-ci. Là où le nom
+   ne répond pas — Segoe hors de Windows, les trois sous Android — la face
+   échoue et le nom suivant de la pile sert sans réglage : sans protection, mais
+   sans faux réglage non plus.
+   --------------------------------------------------------------------------- */
+
+@font-face {
+  font-family: "Cormorant Garamond Fallback";
+  src: local("Georgia");
+  size-adjust: 87.49%;
+  ascent-override: 105.73%;
+  descent-override: 32.58%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "Jost Fallback";
+  src: local("Segoe UI");
+  size-adjust: 96.68%;
+  ascent-override: 110.68%;
+  descent-override: 38.79%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "Parisienne Fallback";
+  src: local("Segoe Script");
+  size-adjust: 68.58%;
+  ascent-override: 133.43%;
+  descent-override: 64.89%;
+  line-gap-override: 0%;
+}
+
+/* ---------------------------------------------------------------------------
    Jetons. Tailwind v4 : la configuration est ici, il n'y a pas de
    tailwind.config.js et il ne faut pas en créer — il ne serait pas lu.
 
@@ -235,9 +293,10 @@
 
   /* Familles. `script` ne porte que les prénoms et les deux ou trois phrases
      manuscrites : jamais un paragraphe, jamais une étiquette. */
-  --font-display: "Cormorant Garamond", Georgia, "Times New Roman", serif;
-  --font-sans: "Jost", system-ui, "Segoe UI", Roboto, sans-serif;
-  --font-script: "Parisienne", "Segoe Script", cursive;
+  --font-display: "Cormorant Garamond", "Cormorant Garamond Fallback", Georgia,
+    "Times New Roman", serif;
+  --font-sans: "Jost", "Jost Fallback", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-script: "Parisienne", "Parisienne Fallback", "Segoe Script", cursive;
 
   /* Corps. 17 px de texte courant dans une colonne de 520 px donne ~63
      caractères par ligne — la longueur où l'œil retrouve la ligne suivante. */
