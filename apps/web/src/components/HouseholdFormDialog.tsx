@@ -1,17 +1,24 @@
 import { useState, type FormEvent } from "react";
 import type { CreateHouseholdDto, HouseholdAdminDto, RsvpStatus } from "@invitation-app/shared";
 import { Button } from "@/components/ui/button";
+import { Dialog } from "@/components/ui/dialog";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 /**
- * Creating only ever sends the two fields a new household needs. Editing may
+ * Creating only ever sends the fields a new household needs. Editing may
  * additionally correct the RSVP itself — the spec requires admins to be able
- * to do that at any time, including past the guest-facing deadline.
+ * to do that at any time, including past the guest-facing deadline — and the
+ * catering note, since the guest form no longer asks for it.
  *
  * Shaped so one value satisfies both CreateHouseholdDto and UpdateHouseholdDto.
  */
 export interface HouseholdFormValues extends CreateHouseholdDto {
   status?: RsvpStatus;
   confirmedCount?: number;
+  dietaryNotes?: string;
 }
 
 interface HouseholdFormDialogProps {
@@ -26,12 +33,23 @@ const STATUS_LABELS: Record<RsvpStatus, string> = {
   DECLINED: "Décliné",
 };
 
-const COUNT_ERROR_ID = "confirmedCount-error";
+/**
+ * Une ligne, un nom. Les lignes vides et les espaces de bord sautent : on
+ * colle souvent ces listes depuis un message, et elles arrivent sales.
+ */
+function nomsSaisis(brut: string): string[] {
+  return brut
+    .split("\n")
+    .map((ligne) => ligne.trim())
+    .filter((ligne) => ligne !== "");
+}
 
 export function HouseholdFormDialog({ initial, onSubmit, onClose }: HouseholdFormDialogProps) {
   const isEdit = initial !== undefined;
   const [displayName, setDisplayName] = useState(initial?.displayName ?? "");
   const [allocatedSeats, setAllocatedSeats] = useState(initial?.allocatedSeats ?? 1);
+  const [memberNames, setMemberNames] = useState(initial?.memberNames.join("\n") ?? "");
+  const [dietaryNotes, setDietaryNotes] = useState(initial?.dietaryNotes ?? "");
   const [status, setStatus] = useState<RsvpStatus>(initial?.status ?? "PENDING");
   // null, not 0: a household that never answered has no count, and the input
   // must show an empty field the admin has to fill in deliberately. Defaulting
@@ -41,8 +59,9 @@ export function HouseholdFormDialog({ initial, onSubmit, onClose }: HouseholdFor
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    const listeMembres = nomsSaisis(memberNames);
     if (!isEdit) {
-      onSubmit({ displayName, allocatedSeats });
+      onSubmit({ displayName, allocatedSeats, memberNames: listeMembres });
       return;
     }
     // CONFIRMED requires a count of at least 1 — the API now rejects anything
@@ -59,14 +78,23 @@ export function HouseholdFormDialog({ initial, onSubmit, onClose }: HouseholdFor
       // submit before this handler runs — and by the API. No JS check here: it
       // would be unreachable code.
       setCountError(null);
-      onSubmit({ displayName, allocatedSeats, status, confirmedCount });
+      onSubmit({
+        displayName,
+        allocatedSeats,
+        memberNames: listeMembres,
+        status,
+        dietaryNotes,
+        confirmedCount,
+      });
       return;
     }
     setCountError(null);
     onSubmit({
       displayName,
       allocatedSeats,
+      memberNames: listeMembres,
       status,
+      dietaryNotes,
       // A declined household seats nobody; the API normalises this too.
       // A still-pending household hasn't confirmed anything — omit the field
       // entirely rather than overwrite its null (no answer yet) with 0, which
@@ -76,60 +104,65 @@ export function HouseholdFormDialog({ initial, onSubmit, onClose }: HouseholdFor
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
-      <form onSubmit={handleSubmit} className="bg-white rounded-lg p-6 w-full max-w-sm space-y-4">
-        <h2 className="text-lg font-semibold">{isEdit ? "Modifier le foyer" : "Nouveau foyer"}</h2>
-        <div className="space-y-1">
-          <label htmlFor="displayName" className="text-sm font-medium">Nom du foyer</label>
-          <input
-            id="displayName"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            className="w-full border rounded-md px-3 py-2"
-            required
-          />
-        </div>
-        <div className="space-y-1">
-          <label htmlFor="allocatedSeats" className="text-sm font-medium">Nombre de places</label>
-          <input
-            id="allocatedSeats"
+    <Dialog
+      open
+      onOpenChange={(ouvert) => !ouvert && onClose()}
+      title={isEdit ? "Modifier le foyer" : "Nouveau foyer"}
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Field label="Nom du foyer" required>
+          <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} required />
+        </Field>
+
+        <Field label="Nombre de places" hint="Le nombre de personnes invitées dans ce foyer.">
+          <Input
             type="number"
             min={1}
             value={allocatedSeats}
             onChange={(e) => setAllocatedSeats(Number(e.target.value))}
-            className="w-full border rounded-md px-3 py-2"
           />
-        </div>
+        </Field>
+
+        <Field label="Noms des invités" hint="Un nom par ligne. Ils s'affichent sur l'invitation du foyer.">
+          <Textarea rows={4} value={memberNames} onChange={(e) => setMemberNames(e.target.value)} />
+        </Field>
+
         {isEdit && (
           <>
-            <div className="space-y-1">
-              <label htmlFor="status" className="text-sm font-medium">Statut</label>
-              <select
-                id="status"
+            {/*
+              Le régime n'existe pas dans CreateHouseholdDto : le contrat ne
+              porte la mention qu'à l'édition. L'afficher à la création
+              donnerait l'illusion qu'elle est enregistrée alors qu'elle serait
+              tue en silence.
+            */}
+            <Field label="Régime alimentaire" hint="Allergies, régimes — pour le traiteur.">
+              <Textarea rows={2} value={dietaryNotes} onChange={(e) => setDietaryNotes(e.target.value)} />
+            </Field>
+
+            <Field label="Statut">
+              <Select
                 value={status}
                 onChange={(e) => {
                   setStatus(e.target.value as RsvpStatus);
                   setCountError(null);
                 }}
-                className="w-full border rounded-md px-3 py-2"
               >
                 {(Object.keys(STATUS_LABELS) as RsvpStatus[]).map((value) => (
                   <option key={value} value={value}>
                     {STATUS_LABELS[value]}
                   </option>
                 ))}
-              </select>
-            </div>
+              </Select>
+            </Field>
+
             {/*
               Only CONFIRMED carries a count. DECLINED is always 0 and PENDING
               has none yet, so showing an editable field for those two offered a
               value the form then threw away on submit.
             */}
             {status === "CONFIRMED" && (
-              <div className="space-y-1">
-                <label htmlFor="confirmedCount" className="text-sm font-medium">Personnes confirmées</label>
-                <input
-                  id="confirmedCount"
+              <Field label="Personnes confirmées" error={countError}>
+                <Input
                   type="number"
                   min={1}
                   max={allocatedSeats}
@@ -139,24 +172,29 @@ export function HouseholdFormDialog({ initial, onSubmit, onClose }: HouseholdFor
                     setConfirmedCount(raw === "" ? null : Number(raw));
                     setCountError(null);
                   }}
-                  aria-invalid={countError !== null}
-                  aria-describedby={countError ? COUNT_ERROR_ID : undefined}
-                  className="w-full border rounded-md px-3 py-2"
                 />
-                {countError && (
-                  <p id={COUNT_ERROR_ID} role="alert" className="text-sm text-red-700">
-                    {countError}
-                  </p>
-                )}
+              </Field>
+            )}
+
+            {/* Le mot du foyer lui appartient : un organisateur le lit, il ne le réécrit pas. */}
+            {initial?.message && (
+              <div className="space-y-2">
+                <span className="block text-sm font-medium text-ink">Message du foyer</span>
+                <p className="rounded-surface border border-rule bg-cream px-3 py-2 text-sm text-ink">
+                  {initial.message}
+                </p>
               </div>
             )}
           </>
         )}
+
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>Annuler</Button>
+          <Button type="button" variant="outline" onClick={onClose}>
+            Annuler
+          </Button>
           <Button type="submit">Enregistrer</Button>
         </div>
       </form>
-    </div>
+    </Dialog>
   );
 }

@@ -1,21 +1,27 @@
 import { render, screen, fireEvent } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { HouseholdAdminDto } from "@invitation-app/shared";
 import { HouseholdFormDialog } from "./HouseholdFormDialog";
 
-const existing: HouseholdAdminDto = {
-  id: "h1",
-  displayName: "Famille Rakoto",
-  allocatedSeats: 4,
-  memberNames: [],
-  status: "CONFIRMED",
-  confirmedCount: 3,
-  dietaryNotes: null,
-  message: null,
-  tableId: null,
-  createdAt: "2026-01-01T00:00:00.000Z",
-  updatedAt: "2026-01-01T00:00:00.000Z",
-};
+function foyer(partiel: Partial<HouseholdAdminDto> = {}): HouseholdAdminDto {
+  return {
+    id: "h1",
+    displayName: "Famille Rakoto",
+    allocatedSeats: 4,
+    memberNames: [],
+    status: "CONFIRMED",
+    confirmedCount: 3,
+    dietaryNotes: null,
+    message: null,
+    tableId: null,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    ...partiel,
+  };
+}
+
+const existing = foyer();
 
 describe("HouseholdFormDialog", () => {
   it("submits displayName and allocatedSeats", () => {
@@ -26,7 +32,11 @@ describe("HouseholdFormDialog", () => {
     fireEvent.change(screen.getByLabelText(/nombre de places/i), { target: { value: "4" } });
     fireEvent.click(screen.getByRole("button", { name: /enregistrer/i }));
 
-    expect(onSubmit).toHaveBeenCalledWith({ displayName: "Famille Rakoto", allocatedSeats: 4 });
+    expect(onSubmit).toHaveBeenCalledWith({
+      displayName: "Famille Rakoto",
+      allocatedSeats: 4,
+      memberNames: [],
+    });
   });
 
   it("pre-fills every field from the household being edited", () => {
@@ -51,7 +61,9 @@ describe("HouseholdFormDialog", () => {
     expect(onSubmit).toHaveBeenCalledWith({
       displayName: "Famille Rakoto",
       allocatedSeats: 4,
+      memberNames: [],
       status: "CONFIRMED",
+      dietaryNotes: "",
       confirmedCount: 2,
     });
   });
@@ -86,15 +98,68 @@ describe("HouseholdFormDialog", () => {
     expect(onSubmit).toHaveBeenCalledWith({
       displayName: "Famille Rakoto (corrigé)",
       allocatedSeats: 4,
+      memberNames: [],
       status: "PENDING",
+      dietaryNotes: "",
     });
   });
 
-  // The other half of that same bug, and the one the dialog exists for: an
-  // organiser recording an answer taken over the phone. The count field used to
-  // be pre-filled with 0 (from `?? 0` on a null), so saving without touching it
-  // sent {status: "CONFIRMED", confirmedCount: 0} — a household that confirmed
-  // its attendance yet occupies zero seats on the table plan.
+  // Sans ce champ, la vraie liste des foyers n'est saisissable que par le seed —
+  // et la page invité n'a alors aucun nom à afficher.
+  it("captures the member names, one per line", async () => {
+    const utilisateur = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<HouseholdFormDialog onSubmit={onSubmit} onClose={() => {}} />);
+
+    await utilisateur.type(screen.getByLabelText(/Nom du foyer/), "Rakotomavo");
+    await utilisateur.type(screen.getByLabelText(/Noms des invités/), "Fara\nNaina\n\n  Tiana  ");
+    await utilisateur.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ memberNames: ["Fara", "Naina", "Tiana"] }),
+    );
+  });
+
+  // Sans ce champ, la tuile « Régimes particuliers » du tableau de bord affiche
+  // 0 pour toujours : le formulaire invité ne demande plus le régime.
+  it("lets an admin record a dietary note", async () => {
+    const utilisateur = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<HouseholdFormDialog initial={foyer()} onSubmit={onSubmit} onClose={() => {}} />);
+
+    await utilisateur.clear(screen.getByLabelText(/Régime alimentaire/));
+    await utilisateur.type(screen.getByLabelText(/Régime alimentaire/), "sans arachide");
+    await utilisateur.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ dietaryNotes: "sans arachide" }),
+    );
+  });
+
+  // Le mot de l'invité appartient à l'invité.
+  it("shows the guest's message without letting the admin rewrite it", () => {
+    render(
+      <HouseholdFormDialog initial={foyer({ message: "Merci, on a hâte !" })} onSubmit={vi.fn()} onClose={() => {}} />,
+    );
+    expect(screen.getByText("Merci, on a hâte !")).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Message/)).toBeNull();
+  });
+
+  // L'invariant, qui a déjà cassé trois fois : il ne bouge pas en passant aux
+  // primitives.
+  it("still refuses a confirmation without a count", async () => {
+    const utilisateur = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<HouseholdFormDialog initial={foyer({ status: "PENDING" })} onSubmit={onSubmit} onClose={() => {}} />);
+
+    await utilisateur.selectOptions(screen.getByLabelText("Statut"), "CONFIRMED");
+    await utilisateur.clear(screen.getByLabelText(/Personnes confirmées/));
+    await utilisateur.click(screen.getByRole("button", { name: "Enregistrer" }));
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent(/au moins une personne/i);
+  });
+
   describe("PENDING → CONFIRMED", () => {
     const pending: HouseholdAdminDto = { ...existing, status: "PENDING", confirmedCount: null };
 
@@ -130,7 +195,9 @@ describe("HouseholdFormDialog", () => {
       expect(onSubmit).toHaveBeenCalledWith({
         displayName: "Famille Rakoto",
         allocatedSeats: 4,
+        memberNames: [],
         status: "CONFIRMED",
+        dietaryNotes: "",
         confirmedCount: 2,
       });
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
