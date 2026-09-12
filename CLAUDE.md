@@ -80,9 +80,9 @@ pnpm --filter @invitation-app/web test --run src/lib/datetime.test.ts           
 
 **Jest tourne en `passWithNoTests`** : un motif mal orthographié affiche « No tests found » et sort en **0**. Un run filtré qui ne trouve rien ressemble trait pour trait à un run vert.
 
-**`pnpm --filter @invitation-app/api lint` tourne avec `--fix` et modifie le dépôt.** Ce n'est pas une commande de vérification.
+**`pnpm --filter @invitation-app/api lint` vérifie sans écrire** depuis le 2026-09-11 ; c'est `lint:fix` qui corrige. Il échoue aujourd'hui sur une trentaine de vraies questions de forme, restées à trancher.
 
-**`prisma generate` ne tourne pas à l'installation** : sur un clone frais, rien ne compile tant qu'on ne l'a pas lancé à la main.
+**`prisma generate` tourne à l'installation** depuis `8d59006` : `apps/api` porte un `postinstall`. La ligne du démarrage à froid ci-dessus reste utile après une modification du schéma, plus pour déverrouiller un clone frais.
 
 ## Conventions
 

@@ -1,6 +1,6 @@
 # Où on en est — reprise de session
 
-**Dernière mise à jour :** 2026-09-11, par l'architecte.
+**Dernière mise à jour :** 2026-09-12, par l'architecte.
 À lire en premier si tu reprends ce projet sans le contexte de la conversation précédente.
 
 ## L'état en une phrase
@@ -11,7 +11,7 @@ L'audit est livré, le **lot 0 est terminé**, le **contrat partagé est désorm
 
 ## Le dépôt
 
-**`main` est la seule branche** et porte tout. Le commanditaire l'a poussé sur GitHub le 2026-09-11 : le premier verrou de la mise en ligne est levé. **Reste à trancher qui pousse ensuite** — la question lui a été posée deux fois sans réponse, et en attendant l'architecte commite en local sans pousser.
+**`main` est la seule branche** et porte tout. Le commanditaire l'a poussé sur `github.com/hobiana/wedding-invitation` le 2026-09-11 : le premier verrou de la mise en ligne est levé, et `origin/main` porte tout jusqu'à `ee1490b`. **Reste à trancher qui pousse ensuite** — la question lui a été posée deux fois sans réponse, et en attendant l'architecte commite en local sans pousser : `9ddce53` et la présente mise à jour ne sont pas encore partis.
 
 L'application vivait dans `.worktrees/feature-invitation-app-v1` ; elle a été fusionnée et le worktree supprimé. `master` a été renommée `main` le 2026-08-23, et `develop`, `feature/invitation-app-v1` et `fix/lot-0-bloquants` supprimées après vérification qu'elles étaient intégralement contenues dans `main`.
 
@@ -52,7 +52,8 @@ Arbitré le 2026-09-10, à partir du design fourni dans `images/html/` :
 | 2c | La page invité, section par section, et son assemblage | ✅ `2a5387c` → `425806c` |
 | 2c bis | Retouches après relecture à l'écran par le commanditaire | ✅ `eb38d3f` → `da1d34c` |
 | 2d | L'ouverture : enveloppe et sceau, accessible au clavier | ✅ `d5f58a4` |
-| 2e | Métriques de repli des trois fontes, mesurées au navigateur | à faire — avant qu'un invité voie la page |
+| 2d bis | Verrou de défilement, apparition au défilement, pluie de pétales | ✅ `c313247` → `ee1490b` |
+| 2e | Métriques de repli des trois fontes, mesurées au navigateur | ✅ `9ddce53` |
 | 3 | Mise en ligne — **en parallèle, priorité haute** | plan écrit (`185b911`), en attente du commanditaire |
 | 4 | Admin : foyers, copie des liens, champs `dietaryNotes` et `confirmedCount` | à faire |
 | 5 | Plan de table | en dernier |
@@ -61,7 +62,9 @@ Arbitré le 2026-09-10, à partir du design fourni dans `images/html/` :
 
 **Ce que l'exécution réelle a attrapé et qu'aucun test ne pouvait voir :** le `<title>`, la description et la carte Open Graph portaient encore « 12 juin 2027 ». Un invité partageant son lien dans un groupe WhatsApp aurait publié un aperçu annonçant juin. Corrigé (`425806c`).
 
-**Ce qui reste ouvert sur les fondations :** les **métriques de repli** des trois nouvelles fontes ne sont pas mesurées. Les anciennes avaient des `size-adjust` calés qui empêchaient la page de sauter au `swap` ; il faut les remesurer dans le navigateur avant qu'un invité voie la page. Et le poids est passé de 43 Ko à **186 Ko de latin** — c'est le prix du design, dit une fois pour toutes.
+**Les métriques de repli sont posées** (`9ddce53`), mesurées dans Chrome contre les vrais fichiers. Sans elles, `swap` confiait la page à Georgia, Segoe UI et Segoe Script à leurs propres proportions : +14,3 % de largeur et −6,2 % de hauteur de ligne sur Cormorant, +45,8 % et +16,5 % sur Parisienne, un paragraphe 7 à 38 % plus haut — tout ce qui suivait bougeait à l'arrivée de la webfont. Les trois écarts sont maintenant à 0,00 %. Le poids, lui, reste passé de 43 Ko à **186 Ko de latin** — c'est le prix du design, dit une fois pour toutes.
+
+**Un seul `local()` par face de repli**, celui qui a été mesuré. Une liste plus longue appliquerait ces nombres à une police dont ils ne viennent pas. Là où le nom manque — Segoe hors de Windows, les trois sous Android — la face échoue et le nom suivant de la pile sert sans réglage : pas de protection, mais pas de faux réglage non plus. Mesurer les replis d'Android et de macOS demande ces machines ; ça reste ouvert, et sans urgence.
 
 **Retouches du commanditaire après relecture à l'écran** (`eb38d3f` → `da1d34c`) : l'air entre le calendrier et le programme, les deux numéros à appeler, les puces et le champ au design du faire-part, une vraie carte dans le cadre du lieu avec un bouton d'itinéraire discret, la tenue retirée, le stationnement réduit à « Parking disponible sur place ». Il a lui-même commité `653cede` et `1861d9d` ; ce dernier ne retirait que la moitié de la section et laissait la garde lire encore `dressCode` — rattrapé en `da1d34c`.
 
@@ -75,6 +78,8 @@ Arbitré le 2026-09-10, à partir du design fourni dans `images/html/` :
 - **Le seuil de l'observateur est zéro.** Le bloc du plan de table mesure 0 px de haut tant qu'il n'est pas activé, et une cible sans surface ne franchit aucun seuil positif. Mesuré, pas supposé.
 
 **Second piège d'environnement, du même genre que le premier :** dans cet onglet en arrière-plan, `IntersectionObserver` ne délivre **rien** — un observateur témoin posé sur `<main>`, pourtant pleinement visible, ne tire pas. L'apparition au défilement n'est donc pas vérifiable ici ; elle l'est en tests unitaires avec un faux observateur, et c'est au commanditaire de la regarder sur son écran.
+
+**Les pétales tombent sur toute l'invitation** (`d0cdc54`, `ee1490b`), plus seulement dans la scène d'ouverture. Ils ont quitté `EnvelopeGate` pour `PetalRain`, un calque unique en `z-[60]` — au-dessus du `z-50` de la porte — qui ne s'arrête jamais : il n'y a donc plus de raccord entre les deux moments. **`pointer-events: none` sur ce calque n'est pas du confort** : il couvre la fenêtre entière, formulaire de réponse compris, et sans cette ligne il avale chaque clic et l'invité ne peut plus répondre. Le nombre de pétales suit la largeur de l'écran, borné à 16–34.
 
 **Le plan de mise en ligne est écrit** (`185b911`, `docs/audit/2026-09-11-plan-de-mise-en-ligne.md`) : Render ≈ 14 $/mois + Vercel Hobby, sept bloquants, et une liste de sept choses à faire côté commanditaire. Il n'attend plus que lui.
 
@@ -154,8 +159,10 @@ Aucun test ne pouvait l'attraper — ils s'exécutent tous dans le fuseau de la 
 
 ## Pièges connus
 
-- `pnpm --filter @invitation-app/api lint` tourne avec **`--fix`** et modifie le dépôt. Ce n'est pas une commande de vérification. Le lot 2 doit le corriger.
-- **`prisma generate` ne tourne pas à l'installation** (ni `postinstall` ni `prepare`). Sur un clone frais, rien ne compile tant qu'on ne l'a pas lancé à la main.
+- ~~`pnpm --filter @invitation-app/api lint` tourne avec `--fix`~~ — **corrigé** : `lint` vérifie sans écrire, `lint:fix` corrige. Il échoue aujourd'hui sur une trentaine de vraies questions de forme, restées à trancher.
+- ~~`prisma generate` ne tourne pas à l'installation~~ — **corrigé** en `8d59006` : `apps/api/package.json` porte un `postinstall`. `CLAUDE.md` a été rectifié le 2026-09-12 ; il affirmait encore le contraire.
+- **Le heredoc de l'outil Bash mange un niveau d'échappement.** Un `\\s` écrit dans un `<<'EOF'` arrive en `\s` dans le fichier — et dans un gabarit JS, `\s` vaut « s ». Le test écrit ainsi comparait sur un motif faux sans rien signaler. Pour tout fichier qui contient des contre-obliques, passer par l'outil Write ou par `node -e`.
+- **Mesurer une police avant de l'avoir chargée mesure la police par défaut.** `document.fonts.ready` ne couvre que les familles que la page emploie déjà : une famille absente de l'écran courant donne un écart plausible et faux (−7 % relevé sur Parisienne, qui vaut 0 % une fois `document.fonts.load()` attendu). Charger explicitement chaque famille avant de la comparer.
 - **Les fins de ligne ne sont pas normalisées** : un `eslint` en lecture seule sort environ 2 000 erreurs `Delete ␍`, presque toutes préexistantes. Il faut un `.gitattributes` décidé une fois — pas au coup par coup, sinon un `--fix` réécrit le dépôt entier et noie toute relecture.
 - **Les agents et les skills ne s'enregistrent qu'au démarrage de la session.** Un fichier d'agent créé en cours de route n'est pas invocable avant redémarrage.
 - **Les captures d'écran ne fonctionnent pas** dans cet environnement (le panneau navigateur ne composite pas). Utiliser `read_page`, `get_page_text` et `getComputedStyle`.
