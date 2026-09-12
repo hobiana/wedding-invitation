@@ -1,12 +1,13 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { HouseholdAdminDto } from "@invitation-app/shared";
 import { HouseholdsPage } from "./HouseholdsPage";
 import * as apiModule from "@/lib/api";
 
-const households: HouseholdAdminDto[] = [
-  {
+function foyer(partiel: Partial<HouseholdAdminDto>): HouseholdAdminDto {
+  return {
     id: "h1",
     displayName: "Famille Rakoto",
     allocatedSeats: 4,
@@ -18,11 +19,21 @@ const households: HouseholdAdminDto[] = [
     tableId: null,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
-  },
-];
+    ...partiel,
+  };
+}
 
-function renderPage() {
-  vi.spyOn(apiModule.api, "get").mockResolvedValue(households);
+const UN_FOYER: HouseholdAdminDto[] = [foyer({})];
+
+function renderPage({
+  households = UN_FOYER,
+  pending = false,
+}: { households?: HouseholdAdminDto[]; pending?: boolean } = {}) {
+  vi.spyOn(apiModule.api, "get").mockImplementation(() =>
+    // Une promesse qui ne se résout jamais : le seul moyen d'observer l'état
+    // de chargement sans dépendre d'un vrai délai réseau dans le test.
+    pending ? new Promise<never>(() => {}) : Promise.resolve(households),
+  );
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
@@ -34,11 +45,50 @@ function renderPage() {
 describe("HouseholdsPage", () => {
   afterEach(() => vi.restoreAllMocks());
 
-  // The catering data guests submit had no admin-facing surface at all.
+  it("waits with skeletons rather than with an empty screen", () => {
+    // Requête qui ne répond pas : l'écran doit montrer l'attente, pas du vide.
+    renderPage({ pending: true });
+    expect(screen.getAllByTestId("skeleton").length).toBeGreaterThan(0);
+    expect(screen.getByRole("status")).toHaveTextContent("Chargement des foyers…");
+  });
+
+  // The catering data guests submit had no admin-facing surface at all — it
+  // now lives in the row's unfolded detail, not in the list itself.
   it("shows the dietary notes and message a guest submitted", async () => {
     renderPage();
-    expect(await screen.findByText("Deux repas végétariens")).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: /Détail de Famille Rakoto/ }));
+    expect(screen.getByText("Deux repas végétariens")).toBeInTheDocument();
     expect(screen.getByText("Hâte d'y être !")).toBeInTheDocument();
+  });
+
+  it("filters the list as the organiser types", async () => {
+    const utilisateur = userEvent.setup();
+    renderPage({
+      households: [foyer({ displayName: "Rakotomavo" }), foyer({ id: "b2", displayName: "Andriamanana" })],
+    });
+
+    await screen.findByText("Rakotomavo");
+    await utilisateur.type(screen.getByLabelText("Rechercher un foyer"), "andria");
+
+    expect(screen.queryByText("Rakotomavo")).toBeNull();
+    expect(screen.getByText("Andriamanana")).toBeInTheDocument();
+  });
+
+  it("says so when the search finds nothing, instead of showing an empty table", async () => {
+    const utilisateur = userEvent.setup();
+    renderPage({ households: [foyer({ displayName: "Rakotomavo" })] });
+
+    await screen.findByText("Rakotomavo");
+    await utilisateur.type(screen.getByLabelText("Rechercher un foyer"), "zzz");
+
+    expect(screen.getByText("Aucun foyer ne correspond")).toBeInTheDocument();
+  });
+
+  it("offers the copy gesture on every row, named after the household", async () => {
+    renderPage({ households: [foyer({ displayName: "Rakotomavo", id: "aZ3k9Lm2" })] });
+    expect(
+      await screen.findByRole("button", { name: /Copier le lien de Rakotomavo/ }),
+    ).toBeInTheDocument();
   });
 
   // PATCH /admin/households/:id was unreachable from the UI, so admins could

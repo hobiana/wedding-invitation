@@ -1,18 +1,34 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { CreateHouseholdDto, HouseholdAdminDto, UpdateHouseholdDto } from "@invitation-app/shared";
+import type {
+  CreateHouseholdDto,
+  HouseholdAdminDto,
+  RsvpStatus,
+  UpdateHouseholdDto,
+} from "@invitation-app/shared";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
 import { HouseholdFormDialog } from "@/components/HouseholdFormDialog";
+import { CopyLinkButton } from "@/components/CopyLinkButton";
+import { HouseholdDetail } from "@/components/HouseholdDetail";
+import { DataTable, type Column } from "@/components/ui/data-table";
+import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { filterHouseholds } from "@/lib/filter-households";
 
 export function HouseholdsPage() {
   const queryClient = useQueryClient();
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<HouseholdAdminDto | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [recherche, setRecherche] = useState("");
+  const [statut, setStatut] = useState<RsvpStatus | "ALL">("ALL");
 
-  const { data: households } = useQuery({
+  const { data: households, isPending } = useQuery({
     queryKey: ["households"],
     queryFn: () => api.get<HouseholdAdminDto[]>("/admin/households"),
   });
@@ -52,60 +68,98 @@ export function HouseholdsPage() {
     onError: (err: Error) => setError(err.message),
   });
 
+  const visibles = useMemo(
+    () => filterHouseholds(households ?? [], { query: recherche, status: statut }),
+    [households, recherche, statut],
+  );
+
+  const colonnes: Column<HouseholdAdminDto>[] = [
+    { id: "nom", header: "Foyer", cell: (h) => <span className="font-medium">{h.displayName}</span> },
+    // `confirmedCount` reste `null` tant que le foyer n'a pas répondu : « — »
+    // porte cette distinction, jamais « 0 » qui dirait « personne ne vient ».
+    { id: "places", header: "Places", cell: (h) => `${h.confirmedCount ?? "—"} / ${h.allocatedSeats}` },
+    { id: "statut", header: "Statut", cell: (h) => <StatusBadge status={h.status} /> },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: (h) => (
+        <div className="flex flex-wrap gap-2">
+          <CopyLinkButton linkId={h.id} householdName={h.displayName} />
+          <Button variant="outline" size="sm" onClick={() => setEditing(h)}>
+            Modifier
+          </Button>
+          <Button variant="destructive" size="sm" onClick={() => deleteMutation.mutate(h.id)}>
+            Supprimer
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold">Foyers invités</h1>
+    <div className="space-y-6 p-6 md:p-8">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="font-display text-2xl text-ink">Foyers invités</h1>
         <Button onClick={() => setDialogOpen(true)}>Ajouter un foyer</Button>
       </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm border-collapse">
-          <thead>
-            <tr className="text-left border-b">
-              <th className="py-2">Foyer</th>
-              <th>Places</th>
-              <th>Statut</th>
-              <th>Régime / allergies</th>
-              <th>Message</th>
-              <th>Lien</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {households?.map((h) => (
-              <tr key={h.id} className="border-b align-top">
-                <td className="py-2">{h.displayName}</td>
-                <td>
-                  {h.confirmedCount ?? "—"} / {h.allocatedSeats}
-                </td>
-                <td>
-                  <StatusBadge status={h.status} />
-                </td>
-                {/* Guests can write freely here, so truncate and put the full
-                    text in the title attribute rather than wrecking the row. */}
-                <td className="max-w-[14rem] truncate" title={h.dietaryNotes ?? ""}>
-                  {h.dietaryNotes || "—"}
-                </td>
-                <td className="max-w-[14rem] truncate" title={h.message ?? ""}>
-                  {h.message || "—"}
-                </td>
-                <td>
-                  <code className="text-xs">{`${window.location.origin}/i/${h.id}`}</code>
-                </td>
-                <td className="whitespace-nowrap">
-                  <Button variant="outline" size="sm" className="mr-2" onClick={() => setEditing(h)}>
-                    Modifier
-                  </Button>
-                  <Button variant="destructive" size="sm" onClick={() => deleteMutation.mutate(h.id)}>
-                    Supprimer
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+
+      {error && (
+        <p
+          role="alert"
+          className="rounded-surface border border-bordeaux-700 bg-bordeaux-50 px-4 py-3 text-sm text-bordeaux-700"
+        >
+          {error}
+        </p>
+      )}
+
+      <div className="grid gap-3 sm:grid-cols-[1fr_12rem]">
+        <Field label="Rechercher un foyer">
+          <Input
+            value={recherche}
+            onChange={(e) => setRecherche(e.target.value)}
+            placeholder="Nom du foyer ou d'un invité"
+          />
+        </Field>
+        <Field label="Statut">
+          <Select value={statut} onChange={(e) => setStatut(e.target.value as RsvpStatus | "ALL")}>
+            <option value="ALL">Tous</option>
+            <option value="PENDING">En attente</option>
+            <option value="CONFIRMED">Confirmés</option>
+            <option value="DECLINED">Déclinés</option>
+          </Select>
+        </Field>
       </div>
+
+      {isPending ? (
+        <div className="space-y-2">
+          <p role="status" className="sr-only">
+            Chargement des foyers…
+          </p>
+          {Array.from({ length: 5 }, (_, index) => (
+            <Skeleton key={index} className="h-12 w-full" />
+          ))}
+        </div>
+      ) : visibles.length === 0 ? (
+        <EmptyState
+          title={households?.length ? "Aucun foyer ne correspond" : "Aucun foyer"}
+          description={
+            households?.length
+              ? "Essayez un autre nom, ou remettez le statut sur « Tous »."
+              : "Ajoutez le premier foyer pour commencer à distribuer les invitations."
+          }
+          action={!households?.length && <Button onClick={() => setDialogOpen(true)}>Ajouter un foyer</Button>}
+        />
+      ) : (
+        <DataTable
+          caption="Foyers invités"
+          columns={colonnes}
+          rows={visibles}
+          rowKey={(h) => h.id}
+          detail={(h) => <HouseholdDetail household={h} />}
+          detailLabel={(h) => `Détail de ${h.displayName}`}
+        />
+      )}
+
       {isDialogOpen && (
         <HouseholdFormDialog
           onSubmit={(dto) => createMutation.mutate(dto)}
