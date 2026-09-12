@@ -36,10 +36,19 @@ export function useFocusDeRetour(ouvert: boolean) {
   if (ouvert && avantOuverture.current === null) {
     avantOuverture.current = document.activeElement as HTMLElement | null;
   }
-  if (!ouvert) avantOuverture.current = null;
 
   return (evenement: Event) => {
     const cible = avantOuverture.current;
+    // Vidée ici, au moment où elle a servi — et surtout pas au rendu de la
+    // fermeture. Radix n'appelle `onCloseAutoFocus` qu'au démontage du contenu,
+    // donc après le rendu : un appelant qui garderait le dialogue monté en
+    // basculant `open` — l'usage normal de Radix, que notre interface publique
+    // autorise — aurait vu la mémoire effacée avant d'avoir servi, et le focus
+    // retomber sur `<body>`. Le bug même que ce crochet ferme.
+    //
+    // La vider est nécessaire : sans ça, la deuxième ouverture d'un dialogue
+    // resté monté rendrait le focus au déclencheur de la première.
+    avantOuverture.current = null;
     // Après une suppression confirmée, la ligne et son bouton n'existent plus.
     // `focus()` sur un nœud détaché ne fait rien et laisse le focus sur
     // `<body>` sans rien signaler : dans ce cas on laisse Radix faire.
