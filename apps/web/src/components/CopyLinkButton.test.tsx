@@ -39,6 +39,11 @@ describe("CopyLinkButton", () => {
 
     const champ = await screen.findByLabelText("Lien de Rakotomavo, à copier à la main");
     expect(champ).toHaveValue(`${window.location.origin}/i/aZ3k9Lm2`);
-    expect(screen.getByText(/presse-papier n'est pas disponible/i)).toBeInTheDocument();
+    const explication = screen.getByText(/presse-papier n'est pas disponible/i);
+    expect(explication).toBeInTheDocument();
+    // Le champ pointe l'explication : un lecteur d'écran qui atterrit dessus
+    // doit entendre pourquoi la copie automatique a échoué, pas seulement le
+    // label du champ.
+    expect(champ).toHaveAttribute("aria-describedby", explication.id);
   });
 });

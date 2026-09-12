@@ -46,4 +46,18 @@ describe("ShareLinkButton", () => {
     expect(screen.queryByRole("alert")).toBeNull();
     restore();
   });
+
+  // Un vrai échec (permission refusée, appareil sans réseau…) ne doit pas
+  // disparaître en silence — c'est justement ce que le bouton de copie évite.
+  it("points at the copy gesture when sharing genuinely fails", async () => {
+    const restore = stubPartage(vi.fn().mockRejectedValue(new Error("NetworkError")));
+    const utilisateur = userEvent.setup();
+    render(<ShareLinkButton linkId="aZ3k9Lm2" householdName="Rakotomavo" />);
+
+    await utilisateur.click(screen.getByRole("button", { name: /Partager le lien de Rakotomavo/ }));
+    expect(
+      await screen.findByText(/n'a pas abouti.*copier le lien/i),
+    ).toBeInTheDocument();
+    restore();
+  });
 });

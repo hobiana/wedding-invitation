@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { invitationUrl } from "@/lib/invitation-url";
@@ -15,6 +16,8 @@ export interface ShareLinkButtonProps {
 }
 
 export function ShareLinkButton({ linkId, householdName }: ShareLinkButtonProps) {
+  const [echec, setEchec] = useState(false);
+
   if (typeof navigator.share !== "function") return null;
 
   async function partager() {
@@ -24,17 +27,32 @@ export function ShareLinkButton({ linkId, householdName }: ShareLinkButtonProps)
         text: `Invitation pour ${householdName}`,
         url: invitationUrl(linkId),
       });
-    } catch {
-      // Fermer la feuille de partage rejette la promesse. Ce n'est pas un
-      // échec : l'organisateur a simplement changé d'avis.
+      setEchec(false);
+    } catch (erreur) {
+      // Fermer la feuille de partage rejette la promesse avec une
+      // `AbortError` : ce n'est pas un échec, l'organisateur a simplement
+      // changé d'avis. Toute autre rejet est un vrai échec, et ne doit plus
+      // disparaître en silence.
+      if (erreur instanceof DOMException && erreur.name === "AbortError") {
+        setEchec(false);
+        return;
+      }
+      setEchec(true);
     }
   }
 
   return (
-    <Button variant="outline" size="sm" onClick={partager}>
-      <Share2 aria-hidden="true" className="mr-1.5 h-4 w-4" />
-      <span aria-hidden="true">Partager</span>
-      <span className="sr-only">Partager le lien de {householdName}</span>
-    </Button>
+    <div className="space-y-1">
+      <Button variant="outline" size="sm" onClick={partager}>
+        <Share2 aria-hidden="true" className="mr-1.5 h-4 w-4" />
+        <span aria-hidden="true">Partager</span>
+        <span className="sr-only">Partager le lien de {householdName}</span>
+      </Button>
+      {echec && (
+        <p role="alert" className="text-sm text-bordeaux-700">
+          Le partage n'a pas abouti. Utilisez « Copier le lien ».
+        </p>
+      )}
+    </div>
   );
 }

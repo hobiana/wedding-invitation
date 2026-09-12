@@ -27,6 +27,7 @@ export function CopyLinkButton({ linkId, householdName }: CopyLinkButtonProps) {
   const [etat, setEtat] = useState<"repos" | "copie" | "manuel">("repos");
   const champRef = useRef<HTMLInputElement>(null);
   const url = invitationUrl(linkId);
+  const explicationId = `copy-link-fallback-${linkId}`;
 
   useEffect(() => {
     if (etat !== "copie") return;
@@ -58,15 +59,16 @@ export function CopyLinkButton({ linkId, householdName }: CopyLinkButtonProps) {
 
       {etat === "manuel" && (
         <div className="space-y-1">
-          <p className="text-sm text-bordeaux-700">
+          <p id={explicationId} className="text-sm text-bordeaux-700">
             Le presse-papier n'est pas disponible ici. Le lien est sélectionné : copiez-le avec
-            Ctrl+C.
+            Ctrl+C (Cmd+C sur Mac).
           </p>
           <input
             ref={champRef}
             readOnly
             value={url}
             aria-label={`Lien de ${householdName}, à copier à la main`}
+            aria-describedby={explicationId}
             className="w-full rounded-control border border-rule-strong bg-ivory px-2 py-1 text-xs text-ink"
           />
         </div>
