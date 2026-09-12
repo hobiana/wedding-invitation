@@ -265,6 +265,18 @@
   --color-on-bordeaux: #fbf6ee;
   --color-on-bordeaux-muted: #f0dcd1;
 
+  /* Danger. Le commanditaire a levé le 2026-09-12 sa propre règle « pas de
+     second rouge » : mesuré à l'écran, le bouton Supprimer en `bordeaux-900`
+     ne se distinguait du bouton primaire en `bordeaux-700` que de 1,43:1 —
+     deux rectangles de la même couleur, dont l'un supprime.
+
+     Une brique, pas un rouge d'alerte : 2,19:1 contre `bordeaux-700`, donc
+     franchement autre chose, mais assez chaude pour tenir à côté du crème et
+     du sable. Texte ivoire à 5,36:1, et 7,44:1 au survol. */
+  --color-danger: #c0392b;
+  --color-danger-strong: #9c2b20;
+  --color-on-danger: #fffdfa;
+
   /* Or. Une seule teinte — 27,5° — à trois clartés, parce que la dorure d'un
      faire-part ne se lit pas pareil sur papier clair et sur bordeaux.
 

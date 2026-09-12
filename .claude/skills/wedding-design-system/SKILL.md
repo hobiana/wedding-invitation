@@ -87,6 +87,14 @@ Tranchées par le commanditaire le 2026-08-22, après l'audit. Ne pas les rouvri
 - **Les prénoms des mariés et la photo sont des constantes de build**, pas des champs en base. Le produit est mono-événement par construction ; pas de migration, pas d'édition dans l'admin.
 - **Les primitives d'interface s'appuient sur Radix** (`@radix-ui/react-dialog` et sœurs), cohérent avec le shadcn/ui déjà en place. Ne pas repartir sur `<dialog>` natif.
 
+Tranchée le 2026-09-12, après vérification à l'écran de l'admin :
+
+- **Le bouton destructif est rouge — `--color-danger` (`#c0392b`).** C'est un **renversement assumé** de la règle « pas de second rouge » du §3.4 de la direction artistique, demandé par le commanditaire. Le motif est une mesure : en `bordeaux-900`, le bouton `Supprimer` ne se distinguait du bouton primaire en `bordeaux-700` que de **1,43:1** — deux rectangles de la même couleur, dont l'un supprime. Le §3.4 est donc **périmé sur ce point** ; c'est le jeton `--color-danger` qui fait foi.
+
+  Le rouge est une brique, pas un rouge d'alerte : 2,19:1 contre `bordeaux-700` — franchement autre chose — mais assez chaud pour tenir à côté du crème et du sable. Texte `--color-on-danger` à 5,36:1, 7,44:1 au survol.
+
+  **Ce qui ne change pas :** le rouge vient du jeton et de nulle part ailleurs. Un `red-600` de Tailwind planté en dur rouvrirait exactement le défaut que l'ancienne règle visait — un test le verrouille dans `button.test.tsx`.
+
 ## Périmètre
 
 Ce système couvre `apps/web`. La page publique `/i/:linkId` porte l'identité complète ; l'admin `/admin/*` réutilise les mêmes tokens dans un registre sobre et dense.

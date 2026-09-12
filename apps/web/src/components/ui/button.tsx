@@ -12,9 +12,16 @@ const buttonVariants = cva(
         // invité ne passe pas par ici — voir invitation/guest-styles.ts.
         default: "bg-bordeaux-700 text-on-bordeaux hover:bg-bordeaux-900",
         outline: "border border-rule-strong text-ink hover:bg-cream",
-        // Pas de second rouge : le bordeaux profond et le libellé portent le
-        // danger. Le geste est de toute façon protégé par un AlertDialog.
-        destructive: "bg-bordeaux-900 text-on-bordeaux hover:bg-bordeaux-700",
+        // Rouge, et c'est un arbitrage du commanditaire du 2026-09-12 qui lève
+        // sa propre règle « pas de second rouge à côté du bordeaux ».
+        //
+        // Ce qui l'a motivé, mesuré à l'écran : en `bordeaux-900`, ce bouton ne
+        // se distinguait du primaire en `bordeaux-700` que de 1,43:1. Le libellé
+        // portait seul le danger, et le garde-fou derrière.
+        //
+        // Ne pas « corriger » en relisant le design system : c'est la règle qui
+        // a changé, pas le code qui s'en écarte.
+        destructive: "bg-danger text-on-danger hover:bg-danger-strong",
       },
       size: {
         default: "h-10 px-4 py-2",

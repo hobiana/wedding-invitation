@@ -341,6 +341,8 @@ Calcul WCAG 2.1 (luminance relative), vérifié par script.
 
 ### 3.4 L'action destructive : pas de second rouge
 
+> **PÉRIMÉ depuis le 2026-09-12.** Le commanditaire a renversé cette règle après vérification à l'écran : en `bordeaux-900`, le bouton `Supprimer` ne se distinguait du bouton primaire en `bordeaux-700` que de **1,43:1**. Le destructif est désormais rouge, jeton `--color-danger` (`#c0392b`). Voir les décisions arrêtées du skill `wedding-design-system`, qui fait foi. Ce qui reste valable ci-dessous : la friction et les mots portent le danger **en plus** de la couleur, jamais la couleur seule.
+
 Le bordeaux **est** notre rouge. Ajouter un `red-600` à côté de `#6E1F35` met deux rouges voisins et discordants sur le même écran, et c'est précisément le défaut relevé à l'audit.
 
 **Décision :** le danger est porté par la **friction et les mots**, pas par une seconde teinte.

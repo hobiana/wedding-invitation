@@ -10,14 +10,25 @@ describe("Button", () => {
     expect(bouton.className).not.toMatch(/bg-neutral-/);
   });
 
-  // La direction artistique interdit un second rouge à côté du bordeaux, et
-  // `Field` peint déjà ses erreurs en bordeaux pour cette raison. Le bouton
-  // destructif tire donc son autorité de son libellé et du bordeaux profond.
-  it("never reaches for a second red on the destructive action", () => {
+  // Le commanditaire a levé le 2026-09-12 sa propre règle « pas de second rouge
+  // à côté du bordeaux », pour ce bouton et pour lui seul. La raison, mesurée à
+  // l'écran : en `bordeaux-900`, il ne se distinguait du primaire en
+  // `bordeaux-700` que de 1,43:1.
+  //
+  // Ce test dit la règle actuelle. L'ancienne version affirmait l'inverse et
+  // interdisait tout `red-*` — la remettre reviendrait à défaire un arbitrage.
+  it("carries the destructive action in the danger red, not in a second bordeaux", () => {
     render(<Button variant="destructive">Supprimer le foyer</Button>);
     const bouton = screen.getByRole("button", { name: "Supprimer le foyer" });
-    expect(bouton.className).not.toMatch(/(red|rose|orange)-\d{2,3}/);
-    expect(bouton.className).toContain("bg-bordeaux-900");
+    expect(bouton.className).toContain("bg-danger");
+    expect(bouton.className).not.toMatch(/(^|\s)bg-bordeaux-/);
+  });
+
+  // Le jeton reste la seule source du rouge : un `red-600` de Tailwind planté en
+  // dur rouvrirait la porte à un second rouge, celui que la règle levée visait.
+  it("takes its red from the theme token, never from a Tailwind palette", () => {
+    render(<Button variant="destructive">Supprimer le foyer</Button>);
+    expect(screen.getByRole("button").className).not.toMatch(/(red|rose|orange)-\d{2,3}/);
   });
 
   it("uses the control radius", () => {
