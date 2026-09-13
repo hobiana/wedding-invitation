@@ -34,32 +34,47 @@ Ce que la spec demande :
 
 **Détail à ne pas rater :** la spec nomme l'entrée « **Plan de table** », le code dit « Tables ». Renommer le libellé, pas la route (`/admin/tables`).
 
-## Lot D — Le tableau de bord
+## Lot D — Le tableau de bord — LIVRÉ, VÉRIFICATION NAVIGATEUR DUE
 
-**Fichiers :** `apps/web/src/pages/admin/DashboardPage.tsx` (77 lignes) — et **il n'a aucun fichier de test**, seul écran admin dans ce cas. En créer un.
+**État au 2026-09-13 :** implémenté, relu et commité (`c0b724c`). **359 tests web** (342 avant), build à exit 0. Les deux accrocs ci-dessous ont été tranchés comme prévu et tiennent.
 
-Ce que la spec demande :
+Livré : trois tuiles-rapports, la section « À relancer » — les `PENDING`, `createdAt` croissant, chacun avec son `CopyLinkButton` — et la grande table de foyers retirée, qui doublait l'écran Foyers sans en avoir ni la recherche, ni le dépli, ni les actions. `DashboardPage.test.tsx` existe enfin : **17 tests**, là où cet écran était le seul de l'admin sans aucun.
 
-- Trois tuiles qui sont des rapports, pas des nombres nus : « **N foyers sur M ont répondu** » avec une barre (la tuile « déclinés » saute — c'est le complément, et la barre le dit déjà) ; « **N places confirmées sur M prévues** », le chiffre du traiteur ; « **N régimes particuliers** ».
-- En dessous, « **à relancer** » : les foyers en attente, les plus anciens d'abord, chacun avec son `CopyLinkButton`. L'information et le geste qu'elle appelle au même endroit.
-- La grande table de foyers que la page duplique aujourd'hui **disparaît** — elle fait doublon avec l'écran Foyers. Il y a donc autant de code retiré qu'ajouté.
+**Vérifié par l'architecte, pas sur parole :** la mutation de `?? "—"` en `?? 0` fait tomber exactement un test — celui de l'invariant — et la restauration rend les 17. Le test mord.
 
-### Deux accrocs trouvés en lisant le code, absents de la spec
+**La barre des réponses n'a qu'un segment, et c'est une mesure, pas un raccourci.** La première version la coupait en deux, `status-yes` / `status-no` : les deux jetons ne se distinguent l'un de l'autre que de **1,26:1**, donc sur 8 px c'est un seul aplat coupé en deux et rien ne dit lequel est lequel. Chacun tient pourtant bien contre le fond (6,31:1 et 5,02:1) — **c'est leur écart mutuel qui manque, et aucun de ces deux nombres ne le révèle.** À retenir avant de mettre deux jetons `status-*` bord à bord : ils ont été dessinés pour des pastilles séparées.
 
-**1. Le « sur M prévues » n'existe pas dans le contrat.** `DashboardStatsDto` porte `totalHouseholds`, `confirmedHouseholds`, `declinedHouseholds`, `pendingHouseholds`, `totalConfirmedGuests`, `dietaryNotesCount` — **pas** le total des places allouées.
+**Reste à regarder à l'écran :** la grille des trois tuiles à 375 px, et si la légende « 21 confirmés · 11 déclinés · 8 en attente » tient sur une ligne dans une tuile d'un tiers de largeur.
 
-*Décision retenue, annoncée au commanditaire sans objection :* le calculer **côté client** en sommant `allocatedSeats` sur la liste des foyers, que la page charge déjà. Zéro changement d'API, conforme au « aucune route nouvelle » de la spec. *Coût si c'est un mauvais choix : un total qui se recalcule à chaque rendu sur 40 à 80 foyers, soit rien ; l'alternative est un champ de plus dans le DTO et son convertisseur.*
+**Une question de produit, ouverte :** la liste « à relancer » n'est pas tronquée. Huit cartes sur le seed, mais quarante si personne n'a répondu — l'écran devient long au téléphone. La pagination est hors V1 ; c'est au commanditaire de dire si ça le gêne.
 
-**2. « Les plus anciens d'abord » — anciens de quoi ?** Il n'y a pas de `respondedAt` dans `HouseholdAdminDto`, seulement `createdAt` et `updatedAt`.
+### Le piège de test qui a coûté le plus, et qui vaut pour tout cet admin
 
-*Décision retenue, annoncée sans objection :* trier par **`createdAt` croissant** — invités depuis le plus longtemps, toujours silencieux. C'est bien ceux-là qu'on relance en premier. `updatedAt` ne conviendrait pas : il bouge à chaque correction faite depuis l'admin, ce qui ferait remonter un foyer qu'on vient de modifier.
+`await screen.findByRole("region", { name: "À relancer" })` **rend la main immédiatement** : la section et son titre sont rendus dès le premier passage, pendant le chargement. Les assertions portaient donc sur des squelettes.
 
-### Ce qu'un test doit couvrir ici et qu'on oublierait
+**Le plus grave n'était pas les deux tests qui échouaient, mais celui qui passait** : « la table de foyers a disparu » vérifiait `queryByRole("table") === null` sur un écran encore vide. Il serait resté vert avec la vieille table toujours en place.
 
-- Qu'un foyer **en attente** affiche `—` et jamais `0` (l'invariant `confirmedCount`, cassé trois fois).
-- Que « à relancer » ne liste **que** les `PENDING`, et dans le bon ordre.
-- L'état vide : aucun foyer en attente n'est pas la même chose qu'aucun foyer.
-- Le `Skeleton` au chargement.
+**Règle : n'attendre que du contenu que seule la réponse produit** — une ligne de liste, un état vide, un libellé de tuile. Jamais le titre, jamais la section. Une assertion négative sur un écran vide ne prouve rien.
+
+## Lot F — Les paramètres
+
+**Moitié serveur : livrée et commitée** (`d47950e`). `AdminSettingsDto.mapUrl`, `.dressCode`, `.parkingInfo` sont en `string | null`, comme les colonnes et comme `WeddingInfoDto`. **121 tests api** (109 avant), 18 e2e, `nest build` à exit 0.
+
+Ce que la lecture du code a trouvé et que la spec ne disait pas : **`/admin/settings` ne rencontrait aucun convertisseur** — la route renvoyait la ligne Prisma brute, donc changer la déclaration dans `packages/shared` aurait été purement décoratif. `toAdminSettingsDto` est ce point de confrontation, et deux défauts en sont tombés : `weddingDate` et `rsvpDeadline` partaient en objets `Date` là où le contrat promet de l'ISO, et l'`id` « singleton » ne part plus — le formulaire le chargeait dans son état et le repostait à chaque PATCH, où le `whitelist` du `ValidationPipe` le jetait en silence.
+
+**La porte du `""` est fermée dans le service, avant Prisma** — pas seulement dans le formulaire : un `curl` passe à côté du front. Un champ vidé vaut `null`, une espace seule compte comme vide, un texte renseigné part verbatim (normaliser constate qu'un champ est vide, ça ne réécrit pas ce que l'organisateur a saisi).
+
+**Moitié web : en cours.**
+
+**À arbitrer par le commanditaire :** `venueName` et `address` acceptent aujourd'hui `""`. Colonnes non nullables, donc hors de l'alignement de ce lot, et rien n'y a été touché — mais `@IsString()` seul laisse passer la chaîne vide, et un lieu vidé par mégarde s'afficherait comme un blanc sur l'invitation. Le correctif n'est pas un `null`, c'est un `@IsNotEmpty()`.
+
+## Lot E — Le plan de table
+
+**En cours.** Le brief donné : le chemin sans glisser (menu « Placer à la table… » avec les places restantes, tables pleines grisées ; « Déplacer vers… » et « Retirer » pour un foyer placé), le glisser-déposer conservé sur bureau en plus, et la liste par table dépliable sur téléphone.
+
+**Le point qui commande tout le lot :** le menu grise une table pleine, il n'autorise rien. C'est l'API qui refuse, via `seating.ts`. Entre le chargement de la page et le clic, un autre onglet a pu remplir la table — **un refus du serveur doit rester géré et affiché en français, même sur un placement que le menu présentait comme permis.**
+
+**Et la définition unique, à ne pas multiplier :** `TableBoard.tsx` recopiait déjà `seatsFor` dans une fonction locale `seatsUsed` ; le menu « places restantes » en aurait été la troisième copie. La formule descend dans `packages/shared`, `apps/api/src/common/seating.ts` la réexporte — les trois portes de l'API continuent d'importer le même symbole au même chemin — et le web l'importe au lieu de la réécrire.
 
 ## La règle de travail, rappelée
 
