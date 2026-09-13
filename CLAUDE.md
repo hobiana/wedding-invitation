@@ -80,6 +80,8 @@ pnpm --filter @invitation-app/web test --run src/lib/datetime.test.ts           
 
 **Jest tourne en `passWithNoTests`** : un motif mal orthographié affiche « No tests found » et sort en **0**. Un run filtré qui ne trouve rien ressemble trait pour trait à un run vert.
 
+**`test` ne prouve pas que l'API compile.** `apps/api/tsconfig.json` porte `isolatedModules: true` : ts-jest transpile sans vérifier les types, et la suite passe au vert pendant que `nest build` échoue. De plus `tsconfig.build.json` exclut `**/*spec.ts`, donc les tests de l'API ne sont typecheckés par aucune commande du dépôt. La seule garde de type côté serveur est **`pnpm --filter @invitation-app/api build`** ; sur tout ce qui touche à la nullabilité ou au contrat partagé, c'est elle qui tranche. (Côté web, `build` inclut déjà `tsc -b`.)
+
 **`pnpm --filter @invitation-app/api lint` vérifie sans écrire** depuis le 2026-09-11 ; c'est `lint:fix` qui corrige. Il échoue aujourd'hui sur une trentaine de vraies questions de forme, restées à trancher.
 
 **`prisma generate` tourne à l'installation** depuis `8d59006` : `apps/api` porte un `postinstall`. La ligne du démarrage à froid ci-dessus reste utile après une modification du schéma, plus pour déverrouiller un clone frais.
