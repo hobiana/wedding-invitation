@@ -1,6 +1,6 @@
 # Où on en est — reprise de session
 
-**Dernière mise à jour :** 2026-09-12, par l'architecte.
+**Dernière mise à jour :** 2026-09-13, par l'architecte.
 À lire en premier si tu reprends ce projet sans le contexte de la conversation précédente.
 
 ## L'état en une phrase
@@ -42,6 +42,35 @@ Arbitré le 2026-09-10, à partir du design fourni dans `images/html/` :
 8. **Les photos du couple viennent de leurs vraies photos.** Le design fourni en contenait quatre portant une signature de provenance C2PA (images générées) ; elles ne servent que pour le décor — enveloppe, fleurs, texture de papier — là où rien ne prétend représenter les mariés.
 9. **L'ornement malgache est retiré.** Le design ornemente à l'aquarelle de roses ; on ne garde que ça. `HemMotif.tsx` — le motif de l'ourlet de leurs tenues — et le jeton `--rule-lamba` sortent. C'est un renversement assumé de la piste ouverte dans la direction artistique du 2026-08-23, qui écartait justement les roses du commerce.
 10. **Le carrousel montre les trois vraies photos** de `images/old images - fiancailles/` : `DSC_2817`, `DSC_3536`, `DSC_3541`. Les légendes du design décrivaient les images générées et sont à réécrire d'après ce qu'on voit.
+
+## Point de reprise — 2026-09-13, lots D et F-serveur commités, E et F-web en vol
+
+**Détail complet dans `docs/audit/2026-09-12-lots-c-d-reprise.md`** — c'est lui qu'il faut lire pour reprendre les lots C à F, pas cette section.
+
+**Décision du commanditaire ce jour : pas de vérification navigateur lot par lot.** On regarde tout d'un coup, à l'écran et au téléphone, **une fois les lots C, D, E et F faits**. Les lots C et D sont donc commités sans avoir été vus dans un vrai navigateur — c'est assumé et c'est arbitré, mais la dette reste ouverte et elle est nommée dans le document ci-dessus, lot par lot.
+
+Sur `main`, ce jour :
+
+| Commit | Ce qu'il porte |
+|---|---|
+| `d47950e` | Lot F, moitié serveur — le contrat des paramètres dit `null` là où la colonne est nullable |
+| `1dcdc6f` | `CLAUDE.md` : une suite api verte ne prouve pas que l'API compile |
+| `c0b724c` | Lot D — le tableau de bord en rapports, et ses 17 premiers tests |
+| `4fc8645` | Ce document et celui des lots C à F |
+
+**Suites au dernier point vérifié par l'architecte :** **359 web** (342 avant), **121 api** (109 avant), **18 e2e**, les deux builds à exit 0.
+
+**En vol au moment d'écrire**, en sous-agents, sur des fichiers disjoints :
+
+- **Lot E — le plan de table** (`TablesPage`, `TableBoard`, `HouseholdChip`, plus la descente de `seatsFor`/`seatsTaken` dans `packages/shared` que `apps/api/src/common/seating.ts` réexporte).
+- **Lot F, moitié web** (`SettingsPage` et son test).
+
+Si la session a été coupée avant leur retour : **leur travail est sur le disque, non commité**. `git status` le montre. Chacun devait écrire son état dans `docs/audit/ETAT-lot-E-plan-de-table.md` et `docs/audit/ETAT-lot-F-formulaire-web.md` — commencer par là. Relire le diff, relancer les suites soi-même, commiter.
+
+**Deux questions qui attendent le commanditaire :**
+
+1. **`venueName` et `address` acceptent la chaîne vide.** Colonnes non nullables, donc hors du lot F. Le correctif est un `@IsNotEmpty()`, pas un `null`. Un lieu vidé par mégarde s'afficherait comme un blanc sur l'invitation.
+2. **La liste « à relancer » du tableau de bord n'est pas tronquée** — quarante cartes si personne n'a répondu. La pagination est hors V1.
 
 ## Point de reprise — 2026-09-12, refonte de l'admin livrée et fusionnée
 
