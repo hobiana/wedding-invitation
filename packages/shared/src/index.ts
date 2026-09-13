@@ -132,9 +132,22 @@ export interface AdminSettingsDto {
   weddingDate: string;
   venueName: string;
   address: string;
-  mapUrl?: string;
-  dressCode?: string;
-  parkingInfo?: string;
+  /**
+   * Ces trois-là sont `string | null`, et non `?: string`. Les colonnes sont
+   * nullables, `WeddingInfoDto` les déclare déjà ainsi : les laisser
+   * facultatifs ici faisait dire au contrat admin l'inverse du contrat invité
+   * pour les mêmes colonnes.
+   *
+   * `null` dit « l'organisateur n'a rien renseigné ». Une chaîne vide n'est
+   * pas la même chose : elle traverse le contrat comme une valeur, et la page
+   * invité affiche une ligne blanche au lieu de ne rien afficher. C'est le
+   * serveur qui referme la porte — `SettingsService.update` ramène à `null`
+   * un champ vidé — parce qu'un champ dont la nullabilité se perd en route
+   * est perdu pour de bon : le front ne peut plus la reconstituer.
+   */
+  mapUrl: string | null;
+  dressCode: string | null;
+  parkingInfo: string | null;
   rsvpDeadline: string;
   seatingPlanActivated: boolean;
 }

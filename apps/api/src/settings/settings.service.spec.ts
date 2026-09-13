@@ -54,4 +54,61 @@ describe('SettingsService.update', () => {
       },
     });
   });
+
+  // Le piège du lot F. Le formulaire n'a que des `<input>` : vider « Lien vers
+  // la carte » produit `""`, pas `null`. Une chaîne vide traverse le contrat
+  // comme une valeur — la page invité affiche alors une ligne blanche au lieu
+  // de ne rien afficher. C'est ici, avant l'écriture Prisma, que la porte se
+  // ferme ; compter sur le front pour envoyer `null` reviendrait à ne garder
+  // qu'un seul gardien, et il est du mauvais côté du fil.
+  it('stores an emptied optional field as null rather than an empty string', async () => {
+    const { service, prisma } = await createService();
+
+    await service.update({ mapUrl: '', dressCode: '', parkingInfo: '' });
+
+    expect(prisma.weddingSettings.update).toHaveBeenCalledWith({
+      where: { id: 'singleton' },
+      data: { mapUrl: null, dressCode: null, parkingInfo: null },
+    });
+  });
+
+  // Un champ effacé au clavier laisse souvent une espace derrière lui. Pour
+  // l'invité c'est un champ vide ; pour Prisma, sans cette normalisation,
+  // c'est une valeur — et l'invitation affiche une ligne d'une espace.
+  it('treats a whitespace-only optional field as emptied', async () => {
+    const { service, prisma } = await createService();
+
+    await service.update({ parkingInfo: '   ' });
+
+    expect(prisma.weddingSettings.update).toHaveBeenCalledWith({
+      where: { id: 'singleton' },
+      data: { parkingInfo: null },
+    });
+  });
+
+  // Le pendant : la normalisation ne touche à rien d'autre. Elle ne rogne pas
+  // un texte renseigné, elle ne décide pas de ce que l'organisateur a écrit.
+  it('writes a filled optional field through verbatim', async () => {
+    const { service, prisma } = await createService();
+
+    await service.update({ dressCode: 'Tenue de ville' });
+
+    expect(prisma.weddingSettings.update).toHaveBeenCalledWith({
+      where: { id: 'singleton' },
+      data: { dressCode: 'Tenue de ville' },
+    });
+  });
+
+  // `null` reçu explicitement est déjà la bonne réponse : le formulaire des
+  // paramètres, une fois au contrat `string | null`, l'enverra tel quel.
+  it('accepts an explicit null for an optional field', async () => {
+    const { service, prisma } = await createService();
+
+    await service.update({ mapUrl: null });
+
+    expect(prisma.weddingSettings.update).toHaveBeenCalledWith({
+      where: { id: 'singleton' },
+      data: { mapUrl: null },
+    });
+  });
 });

@@ -1,5 +1,6 @@
 import type { Household, Table, WeddingSettings } from '@prisma/client';
 import type {
+  AdminSettingsDto,
   HouseholdAdminDto,
   HouseholdPublicDto,
   TableDto,
@@ -91,5 +92,29 @@ export function toWeddingInfoDto(wedding: WeddingSettings): WeddingInfoDto {
     dressCode: wedding.dressCode,
     parkingInfo: wedding.parkingInfo,
     rsvpDeadline: wedding.rsvpDeadline.toISOString(),
+  };
+}
+
+/**
+ * Les mêmes réglages vus de l'organisateur : le contrat invité, plus le
+ * basculement du plan de table — qui n'a de sens que pour lui.
+ *
+ * L'`id` « singleton » ne part pas. C'est une commodité de schéma pour tenir
+ * la table à une seule ligne, pas une information : le renvoyer faisait
+ * recharger cet `id` dans l'état du formulaire des paramètres, qui le
+ * repostait ensuite dans son PATCH. Le `whitelist` du `ValidationPipe` le
+ * jetait en silence — ce qui tient tant que personne n'active
+ * `forbidNonWhitelisted`.
+ *
+ * Les trois champs facultatifs sortent en `string | null`, comme les colonnes
+ * et comme `toWeddingInfoDto`. C'est le dernier endroit où le compilateur
+ * peut constater qu'un `null` de base reste un `null` de contrat : passé le
+ * DTO, le front n'a plus aucun moyen de rattraper la distinction entre
+ * « champ non renseigné » et « champ absent ».
+ */
+export function toAdminSettingsDto(wedding: WeddingSettings): AdminSettingsDto {
+  return {
+    ...toWeddingInfoDto(wedding),
+    seatingPlanActivated: wedding.seatingPlanActivated,
   };
 }
