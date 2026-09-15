@@ -10,6 +10,7 @@ Puis, selon ce que tu fais :
 
 | Document | Quand |
 |---|---|
+| `docs/runbook-base-de-donnees.md` | avant de créer, migrer, amorcer ou remplacer une base — Windows, macOS, Linux |
 | `docs/design/2026-08-23-direction-artistique.md` | avant toute écriture de style, de couleur, de typo ou d'animation |
 | `docs/audit/2026-08-22-rapport-architecte.md` | pour comprendre pourquoi une correction est prioritaire |
 | `docs/superpowers/specs/2026-08-19-invitation-app-design.md` | la spec fonctionnelle d'origine |
