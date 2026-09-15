@@ -1,0 +1,46 @@
+# render.yaml — l'infrastructure de l'invitation, décrite pour Render.
+#
+# Ce fichier est construit en trois fois : la base d'abord, puis l'API, puis le
+# front. Chaque étage est appliqué et vérifié seul, pour qu'un échec désigne son
+# étage sans ambiguïté. Étage courant : la base.
+#
+# Render relit ce fichier à chaque poussée sur `main`. Ce qui n'y figure pas
+# n'est jamais touché.
+#
+# Validation dans l'éditeur : https://render.com/schema/render.yaml.json
+
+databases:
+  - name: hobiana-lova-db
+    # Le nom de la base DANS l'instance. C'est celui que porte l'URL de
+    # connexion, et il est immuable après création.
+    databaseName: invitation_app
+
+    # GRATUIT, ET TEMPORAIRE — À CHANGER AVANT LE 15 OCTOBRE 2026.
+    #
+    # Une base `free` devient inaccessible 30 jours après sa création, puis
+    # Render laisse 14 jours pour la passer en payant avant de la supprimer
+    # avec toutes ses données. Le passage en payant, lui, conserve les données :
+    # c'est ce qui rend ce plan acceptable pour la phase de mise au point.
+    #
+    # Créée le 2026-09-15 : inaccessible vers le 15 octobre, supprimée vers le
+    # 29 octobre. Les réponses des invités sont attendues jusqu'au 1er décembre.
+    # Passer à `basic-256mb` avant la première invitation envoyée — c'est aussi
+    # le premier palier qui sauvegarde en continu, et une réponse d'invité
+    # perdue ne se redemande pas.
+    #
+    # `free` n'offre aucune sauvegarde. Tant que ce plan est actif, aucune
+    # donnée réelle ne doit entrer dans cette base.
+    plan: free
+
+    # La région est immuable, et l'API devra être dans la MÊME : deux régions
+    # différentes, c'est deux réseaux privés, donc pas de connexion interne.
+    region: frankfurt
+
+    # La même version majeure qu'en développement (docker-compose.yml), pour que
+    # ce qui passe en local passe en production. Une chaîne, pas un nombre.
+    postgresMajorVersion: "16"
+
+    # `ipAllowList` est volontairement absent. Une liste vide fermerait la base
+    # à tout ce qui n'est pas Render — or les migrations, l'amorçage et les
+    # sauvegardes `pg_dump` passent justement par l'URL externe, depuis la
+    # machine du commanditaire.
