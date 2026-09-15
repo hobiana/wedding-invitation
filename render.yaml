@@ -60,3 +60,94 @@ databases:
     # le réseau privé de Frankfurt, n'est pas affectée. En revanche une IP
     # résidentielle change — il faudra la remettre à jour, ou y mettre la plage
     # du fournisseur d'accès.
+
+services:
+  # ─────────────────────────────────────────────────────────────────────────
+  # L'API NestJS, construite depuis le Dockerfile déjà présent dans le dépôt.
+  # ─────────────────────────────────────────────────────────────────────────
+  - type: web
+    name: hobiana-lova-api
+    runtime: docker
+
+    # DOIT être la même région que la base. Deux régions différentes, c'est
+    # deux réseaux privés : la chaîne de connexion interne ne résoudrait pas.
+    region: frankfurt
+
+    # GRATUIT ET TEMPORAIRE, comme la base — on met la chaîne au point.
+    # Un service `free` s'endort après 15 minutes sans trafic et met près
+    # d'une minute à se réveiller. Pour un invité qui ouvre son invitation à
+    # 23 h, c'est une page blanche pendant une minute : passer à `starter`
+    # avant d'envoyer la première invitation, en même temps que la base.
+    plan: free
+
+    branch: main
+
+    # Le contexte de construction est la RACINE du dépôt, pas apps/api : le
+    # Dockerfile copie pnpm-workspace.yaml, pnpm-lock.yaml et packages/shared
+    # pour pouvoir résoudre le workspace entier. C'est aussi pour ça que le
+    # .dockerignore qui compte est celui de la racine — Docker le résout
+    # depuis le contexte, jamais depuis le dossier du Dockerfile.
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+
+    # GET /health renvoie {"status":"ok"} sans toucher la base. Un déploiement
+    # dont la santé ne répond pas ne prend pas le trafic.
+    healthCheckPath: /health
+
+    envVars:
+      # Bascule tout le comportement de production : cookie SameSite=None +
+      # Secure, et surtout les cinq variables ci-dessous deviennent des
+      # exigences dures — l'application refuse de démarrer sans elles
+      # (src/config/env.validation.ts). C'est voulu : un déploiement à moitié
+      # configuré doit échouer bruyamment, pas se connecter dans le vide.
+      - key: NODE_ENV
+        value: production
+
+      # L'URL INTERNE, sur le réseau privé de Frankfurt : elle ne sort jamais
+      # sur l'Internet public, et personne ne recopie un mot de passe à la main.
+      # Pas besoin de `?sslmode=require` ici, contrairement à l'URL externe :
+      # Render admet le texte clair sur le réseau privé.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hobiana-lova-db
+          property: connectionString
+
+      # Produit par Render à la création, et jamais affiché. Personne n'a à le
+      # connaître, donc personne ne peut le perdre ni le recopier ailleurs.
+      - key: JWT_SECRET
+        generateValue: true
+
+      # `sync: false` = saisi dans le tableau de bord, jamais dans ce fichier.
+      #
+      # FRONTEND_URL n'est pas décoratif : c'est à la fois l'origine autorisée
+      # par CORS et la valeur que la garde anti-CSRF compare. Une barre oblique
+      # finale de trop, et le navigateur ne peut plus rien écrire.
+      - key: FRONTEND_URL
+        sync: false
+
+      # Tant que Google n'est pas configuré, ces trois-là prennent un marqueur
+      # non vide (`a-configurer` par exemple). La validation exige leur
+      # PRÉSENCE, pas leur validité, et GoogleStrategy se rabat sur des
+      # valeurs factices plutôt que de faire planter le module entier au
+      # démarrage. Conséquence : l'application tourne, seul le bouton
+      # « Se connecter avec Google » ne marche pas.
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_CALLBACK_URL
+        sync: false
+
+      # Les adresses autorisées à ouvrir une session par Google, séparées par
+      # des virgules. Sans elles, n'importe quel compte Google entrerait.
+      - key: ALLOWED_ADMIN_EMAILS
+        sync: false
+
+      # PORT n'est pas déclaré : Render l'injecte, et env.validation.ts lui
+      # donne un défaut. Le fixer ici n'ajouterait qu'une occasion de se
+      # contredire.
+      #
+      # ADMIN_SEED_EMAIL / ADMIN_SEED_PASSWORD non plus : l'amorçage se fait
+      # depuis un poste, contre l'URL externe (voir docs/runbook-base-de-
+      # donnees.md). Ces valeurs n'ont rien à faire à demeure dans
+      # l'environnement du serveur.
