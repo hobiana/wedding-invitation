@@ -40,7 +40,23 @@ databases:
     # ce qui passe en local passe en production. Une chaîne, pas un nombre.
     postgresMajorVersion: "16"
 
-    # `ipAllowList` est volontairement absent. Une liste vide fermerait la base
-    # à tout ce qui n'est pas Render — or les migrations, l'amorçage et les
-    # sauvegardes `pg_dump` passent justement par l'URL externe, depuis la
-    # machine du commanditaire.
+    # `ipAllowList` absent = la base accepte une connexion depuis N'IMPORTE
+    # QUELLE adresse du monde, pourvu qu'elle ait les identifiants. C'est le
+    # défaut de Render, et c'est un choix, pas un oubli : les migrations,
+    # l'amorçage et les `pg_dump` passent par l'URL externe, depuis la machine
+    # du commanditaire, dont l'IP résidentielle change.
+    #
+    # ACCEPTABLE TANT QUE CETTE BASE EST UN BAC À SABLE VIDE.
+    #
+    # À FERMER EN MÊME TEMPS QUE LE PASSAGE EN `basic-256mb`, et avant que le
+    # premier foyer réel n'y entre — à ce moment-là elle contient des données
+    # personnelles : noms, numéros de téléphone, qui vient et qui ne vient pas.
+    #
+    #   ipAllowList:
+    #     - source: <IP publique du commanditaire>/32
+    #       description: migrations, amorçage et sauvegardes
+    #
+    # La liste ne concerne que l'accès externe : l'API, qui parle à la base par
+    # le réseau privé de Frankfurt, n'est pas affectée. En revanche une IP
+    # résidentielle change — il faudra la remettre à jour, ou y mettre la plage
+    # du fournisseur d'accès.
