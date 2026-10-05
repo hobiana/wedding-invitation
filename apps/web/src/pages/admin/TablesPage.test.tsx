@@ -360,71 +360,122 @@ describe("TablesPage states", () => {
 });
 
 /**
- * Le téléphone garde, pour l'instant, l'ancienne composition : formulaire en
- * tête, liste des tables, `TableBoard`. Un autre lot la remplace ; ces tests
- * vérifient seulement qu'elle marche encore, toasts compris.
+ * Le téléphone : les composants sont testés chacun à côté de leur fichier ;
+ * ici, seulement que la page les branche sur les bonnes requêtes et les bons
+ * toasts, et qu'elle ne rend qu'un écran à la fois.
  */
-describe("TablesPage on a phone (provisional)", () => {
+describe("TablesPage on a phone", () => {
   beforeEach(() => ecran(false));
 
-  it("still lists each table with its capacity", async () => {
-    rendre();
-    expect(await screen.findByText(/Table 1 — 8 places/)).toBeInTheDocument();
+  it("renders the phone plan alone, with its tabs", async () => {
+    rendre({ foyers: pageDe([foyer()]) });
+    // L'onglet n'apparaît qu'avec le plan chargé, compte compris.
+    expect(await screen.findByRole("tab", { name: "À placer · 1" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getAllByRole("heading", { level: 1, name: "Plan de table" })).toHaveLength(1);
+    expect(screen.queryByText("Glissez un foyer sur une table, ou cliquez-le puis choisissez sa table.")).toBeNull();
   });
 
-  it("still creates a table with the chosen capacity, and confirms it", async () => {
-    const post = vi.spyOn(apiModule.api, "post").mockResolvedValue({});
-    const { utilisateur } = rendre();
-    await utilisateur.type(await screen.findByLabelText(/nom de la table/i), "Table 2");
-    await utilisateur.clear(screen.getByLabelText(/^capacité$/i));
-    await utilisateur.type(screen.getByLabelText(/^capacité$/i), "6");
-    await utilisateur.click(screen.getByRole("button", { name: /ajouter une table/i }));
-    expect(post).toHaveBeenCalledWith("/admin/tables", { name: "Table 2", capacity: 6 });
-    expect(await screen.findByText("La table « Table 2 » est créée.")).toBeInTheDocument();
+  it("hides a declined household from « À placer »", async () => {
+    rendre({
+      foyers: pageDe([
+        foyer({ id: "non", displayName: "Famille Morel", status: "DECLINED", confirmedCount: 0 }),
+        foyer({ id: "oui", displayName: "Famille Girard" }),
+      ]),
+    });
+    expect(await screen.findByRole("group", { name: "Famille Girard" })).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Famille Morel" })).not.toBeInTheDocument();
   });
 
-  it("refuses a capacity below one before sending anything", async () => {
-    const post = vi.spyOn(apiModule.api, "post").mockResolvedValue({});
-    const { utilisateur } = rendre();
-    await utilisateur.type(await screen.findByLabelText(/nom de la table/i), "Table 2");
-    await utilisateur.clear(screen.getByLabelText(/^capacité$/i));
-    await utilisateur.type(screen.getByLabelText(/^capacité$/i), "0");
-    await utilisateur.click(screen.getByRole("button", { name: /ajouter une table/i }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("La capacité doit être d'au moins 1 place.");
-    expect(post).not.toHaveBeenCalled();
-  });
-
-  it("still edits a table", async () => {
-    const patch = vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
-    const { utilisateur } = rendre();
-    await utilisateur.click(await screen.findByRole("button", { name: /^modifier$/i }));
-    await utilisateur.clear(screen.getByLabelText(/capacité de table 1/i));
-    await utilisateur.type(screen.getByLabelText(/capacité de table 1/i), "12");
-    await utilisateur.click(screen.getByRole("button", { name: /enregistrer/i }));
-    expect(patch).toHaveBeenCalledWith("/admin/tables/t1", { name: "Table 1", capacity: 12 });
-  });
-
-  it("still deletes a table behind a confirmation", async () => {
-    const supprimer = vi.spyOn(apiModule.api, "delete").mockResolvedValue({});
-    const { utilisateur } = rendre();
-    await utilisateur.click(await screen.findByRole("button", { name: "Supprimer" }));
-    expect(supprimer).not.toHaveBeenCalled();
-    await utilisateur.click(screen.getByRole("button", { name: "Supprimer la table" }));
-    expect(supprimer).toHaveBeenCalledWith("/admin/tables/t1");
-  });
-
-  it("still seats a household through the menu, and confirms it in a toast", async () => {
+  it("seats a household through the sheet, and confirms it in a toast", async () => {
     const patch = vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
     const { utilisateur } = rendre({ foyers: pageDe([foyer()]) });
-    const carte = within(await screen.findByRole("group", { name: "Rakotomavo" }));
-    await utilisateur.click(carte.getByRole("button", { name: "Placer à la table…" }));
-    await utilisateur.click(within(screen.getByRole("dialog")).getByRole("button", { name: /table 1/i }));
+    await utilisateur.click(await screen.findByRole("button", { name: "Placer Rakotomavo" }));
+    await utilisateur.click(within(screen.getByRole("dialog", { name: "Rakotomavo" })).getByRole("button", { name: /^Table 1/ }));
     expect(patch).toHaveBeenCalledWith("/admin/tables/t1/assign/n1");
     expect(await screen.findByText("Le foyer Rakotomavo est placé à la table « Table 1 ».")).toBeInTheDocument();
   });
 
-  it("explains an empty plan", async () => {
-    rendre({ tables: [] });
-    expect(await screen.findByText("Aucune table")).toBeInTheDocument();
+  it("shows the server's refusal in French", async () => {
+    vi.spyOn(apiModule.api, "patch").mockRejectedValue(new Error('Table "Table 1" has 2 seat(s) left; this household needs 4'));
+    const { utilisateur } = rendre({ foyers: pageDe([foyer()]) });
+    await utilisateur.click(await screen.findByRole("button", { name: "Placer Rakotomavo" }));
+    await utilisateur.click(within(screen.getByRole("dialog")).getByRole("button", { name: /^Table 1/ }));
+    expect(await screen.findByText(/Le foyer Rakotomavo n'a pas pu être placé à la table « Table 1 »/)).toBeInTheDocument();
+    expect(screen.queryByText(/seat\(s\) left/)).not.toBeInTheDocument();
+  });
+
+  it("removes a household from its table", async () => {
+    const patch = vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
+    const { utilisateur } = rendre({ tables: [table({ households: [resume({ id: "n1" })] })], foyers: pageDe([foyer()]) });
+    await utilisateur.click(await screen.findByRole("tab", { name: "Tables · 1" }));
+    await utilisateur.click(screen.getByRole("button", { name: /^Table 1/ }));
+    await utilisateur.click(screen.getByRole("button", { name: "Retirer Rakotomavo de la table « Table 1 »" }));
+    expect(patch).toHaveBeenCalledWith("/admin/tables/unassign/n1");
+    expect(
+      await screen.findByText("Le foyer Rakotomavo est retiré de la table « Table 1 » et revient dans À placer."),
+    ).toBeInTheDocument();
+  });
+
+  it("creates a table, and confirms it", async () => {
+    const post = vi.spyOn(apiModule.api, "post").mockResolvedValue({});
+    const { utilisateur } = rendre();
+    await utilisateur.click(await screen.findByRole("tab", { name: "Tables · 1" }));
+    await utilisateur.click(screen.getByRole("button", { name: "Nouvelle table" }));
+    await utilisateur.click(screen.getByRole("button", { name: "Terminé" }));
+    expect(post).toHaveBeenCalledWith("/admin/tables", { name: "Table 2", capacity: 10 });
+    expect(await screen.findByText("La table « Table 2 » est créée.")).toBeInTheDocument();
+  });
+
+  it("changes a table's capacity, and confirms it", async () => {
+    const patch = vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
+    const { utilisateur } = rendre();
+    await utilisateur.click(await screen.findByRole("tab", { name: "Tables · 1" }));
+    await utilisateur.click(screen.getByRole("button", { name: /^Table 1/ }));
+    await utilisateur.click(screen.getByRole("button", { name: "Ajouter une place" }));
+    await utilisateur.click(screen.getByRole("button", { name: "Enregistrer la capacité" }));
+    expect(patch).toHaveBeenCalledWith("/admin/tables/t1", { name: "Table 1", capacity: 9 });
+    expect(await screen.findByText("La table « Table 1 » est modifiée.")).toBeInTheDocument();
+  });
+
+  it("deletes a table behind the page's confirmation", async () => {
+    const supprimer = vi.spyOn(apiModule.api, "delete").mockResolvedValue({});
+    const { utilisateur } = rendre();
+    await utilisateur.click(await screen.findByRole("tab", { name: "Tables · 1" }));
+    await utilisateur.click(screen.getByRole("button", { name: /^Table 1/ }));
+    await utilisateur.click(screen.getByRole("button", { name: "Supprimer la table « Table 1 »" }));
+    expect(supprimer).not.toHaveBeenCalled();
+    await utilisateur.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Supprimer la table" }));
+    expect(supprimer).toHaveBeenCalledWith("/admin/tables/t1");
+    expect(await screen.findByText("La table « Table 1 » est supprimée.")).toBeInTheDocument();
+  });
+
+  it("shows skeletons under the title while the plan loads", () => {
+    vi.spyOn(apiModule.api, "get").mockImplementation(() => new Promise(() => {}));
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ToastProvider>
+          <TablesPage />
+        </ToastProvider>
+      </QueryClientProvider>,
+    );
+    expect(screen.getByText("Chargement du plan de table…")).toBeInTheDocument();
+    expect(screen.getAllByTestId("skeleton").length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { level: 1, name: "Plan de table" })).toBeInTheDocument();
+  });
+
+  it("says in French when the plan could not be loaded", async () => {
+    vi.spyOn(apiModule.api, "get").mockRejectedValue(new Error("Internal server error"));
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ToastProvider>
+          <TablesPage />
+        </ToastProvider>
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(/Le plan de table n'a pas pu être chargé/);
+    expect(screen.queryByText(/Internal server error/)).not.toBeInTheDocument();
   });
 });
+

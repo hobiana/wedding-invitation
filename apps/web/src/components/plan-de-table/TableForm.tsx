@@ -3,8 +3,7 @@ import { Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { places } from "@/lib/accord";
-import { CAPACITE_INVALIDE, capaciteValide } from "@/lib/plan-de-table";
+import { CAPACITE_INVALIDE, capaciteValide, messageMinimum } from "@/lib/plan-de-table";
 
 export interface TableFormProps {
   /** Création : le lien du bas dit « Annuler ». Modification : « Supprimer ». */
@@ -20,11 +19,6 @@ export interface TableFormProps {
   onFermer: () => void;
   /** « Supprimer » (modification) : la page demande confirmation. */
   onSupprimer?: () => void;
-}
-
-/** « Au moins 5 places : déjà occupées. » — accordé, une place se dit au singulier. */
-function messageMinimum(occupees: number): string {
-  return `Au moins ${places(occupees)} : ${occupees >= 2 ? "déjà occupées" : "déjà occupée"}.`;
 }
 
 /**

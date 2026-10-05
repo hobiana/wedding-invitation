@@ -11,8 +11,7 @@ import {
 } from "@dnd-kit/core";
 import { Plus } from "lucide-react";
 import { seatsTaken, type TableDto } from "@invitation-app/shared";
-import { dragEndTarget } from "@/components/TableBoard";
-import { etatDeTable, issueDuGlisser, type FoyerEnJeu } from "@/lib/plan-de-table";
+import { dragEndTarget, etatDeTable, issueDuGlisser, type FoyerEnJeu } from "@/lib/plan-de-table";
 import { HouseholdCard, type DonneesDeGlisser, type FoyerAPlacer } from "./HouseholdCard";
 import { PlacementBanner } from "./PlacementBanner";
 import { TableCard } from "./TableCard";

@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
+import type { DragEndEvent } from "@dnd-kit/core";
 import type { TableDto, TableHouseholdSummaryDto } from "@invitation-app/shared";
 import {
   bilan,
   capaciteValide,
   choixDeTable,
+  dragEndTarget,
   etatDeTable,
   foyersAPlacer,
   issueDuGlisser,
@@ -17,6 +19,29 @@ function foyer(partiel: Partial<TableHouseholdSummaryDto> = {}): TableHouseholdS
 function table(partiel: Partial<TableDto> = {}): TableDto {
   return { id: "t", name: "Table", capacity: 8, households: [], ...partiel };
 }
+
+function dragEvent(overId: string | null): DragEndEvent {
+  return {
+    active: { id: "h1" },
+    over: overId === null ? null : { id: overId },
+  } as DragEndEvent;
+}
+
+// Déplacé de `TableBoard.test.tsx` avec la fonction : le glisser de dnd-kit ne
+// tourne pas sous jsdom, ses trois issues se testent donc ici.
+describe("dragEndTarget", () => {
+  it("means nothing when dropped on dead space or cancelled", () => {
+    expect(dragEndTarget(dragEvent(null))).toBeNull();
+  });
+
+  it("unassigns when dropped on « À placer »", () => {
+    expect(dragEndTarget(dragEvent("unassigned"))).toEqual({ householdId: "h1", tableId: null });
+  });
+
+  it("assigns when dropped on a table", () => {
+    expect(dragEndTarget(dragEvent("t1"))).toEqual({ householdId: "h1", tableId: "t1" });
+  });
+});
 
 describe("placesLibresDe", () => {
   // Invariant : un foyer sans réponse occupe toute son allocation, jamais 0.

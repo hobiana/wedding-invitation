@@ -1,3 +1,4 @@
+import type { DragEndEvent } from "@dnd-kit/core";
 import { seatsFor, seatsTaken, type RsvpStatus, type Seated, type TableDto } from "@invitation-app/shared";
 
 /**
@@ -12,10 +13,23 @@ import { seatsFor, seatsTaken, type RsvpStatus, type Seated, type TableDto } fro
 
 /**
  * L'identifiant de la zone de dépôt « À placer » : y lâcher un foyer le retire
- * de sa table. C'est la valeur que `dragEndTarget` (`TableBoard.tsx`) traduit
- * en `tableId: null` — les deux doivent rester égales.
+ * de sa table. C'est la valeur que `dragEndTarget` traduit en `tableId: null`.
  */
 export const ZONE_A_PLACER = "unassigned";
+
+/**
+ * Ce que veut dire la fin d'un glisser, ou `null` s'il ne veut rien dire.
+ *
+ * dnd-kit laisse `event.over` à `null` aussi bien pour un dépôt dans le vide
+ * que pour un glisser annulé par Échap. Les deux se confondaient autrefois
+ * avec un dépôt sur « À placer » : annuler un glisser retirait le foyer de sa
+ * table sans rien dire. Seul un dépôt explicite sur une zone compte.
+ */
+export function dragEndTarget(event: DragEndEvent): { householdId: string; tableId: string | null } | null {
+  if (!event.over) return null;
+  const cible = String(event.over.id);
+  return { householdId: String(event.active.id), tableId: cible === ZONE_A_PLACER ? null : cible };
+}
 
 /** Places libres d'une table ; négatif quand elle déborde. */
 export function placesLibresDe(table: TableDto): number {
@@ -97,6 +111,11 @@ export function capaciteValide(saisie: string): number | null {
 }
 
 export const CAPACITE_INVALIDE = "La capacité doit être d'au moins 1 place.";
+
+/** « Au moins 5 places : déjà occupées. » — accordé, une place se dit au singulier. */
+export function messageMinimum(occupees: number): string {
+  return `Au moins ${occupees} ${occupees >= 2 ? "places : déjà occupées" : "place : déjà occupée"}.`;
+}
 
 export interface Bilan {
   placesAttribuees: number;

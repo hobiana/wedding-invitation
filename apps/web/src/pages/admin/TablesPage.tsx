@@ -1,29 +1,16 @@
-import { useState, type ComponentProps, type FormEvent, type ReactNode } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AdminSettingsDto, CreateTableDto, TableDto, UpdateTableDto } from "@invitation-app/shared";
 import { api, HOUSEHOLDS_MAX_LIMIT, listHouseholds } from "@/lib/api";
 import { HouseholdsTruncationNotice } from "@/components/HouseholdsTruncationNotice";
-import { Button } from "@/components/ui/button";
 import { AlertDialog } from "@/components/ui/alert-dialog";
-import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/use-toast";
-import { TableBoard } from "@/components/TableBoard";
 import { EnTetePlanDeTable } from "@/components/plan-de-table/EnTetePlanDeTable";
 import { PlanDeTableBureau } from "@/components/plan-de-table/PlanDeTableBureau";
-import { places } from "@/lib/accord";
+import { PlanDeTableTelephone } from "@/components/plan-de-table/PlanDeTableTelephone";
 import { useMediaQuery } from "@/lib/useMediaQuery";
-import { bilan, CAPACITE_INVALIDE, capaciteValide, foyersAPlacer } from "@/lib/plan-de-table";
-
-const DEFAULT_CAPACITY = 10;
-
-interface TableDraft {
-  id: string;
-  name: string;
-  capacity: string;
-}
+import { bilan, foyersAPlacer } from "@/lib/plan-de-table";
 
 /**
  * Les messages d'échec, en français et écrits ici.
@@ -187,8 +174,18 @@ export function TablesPage() {
     </p>
   );
 
+  const aPlacer = tables && households ? foyersAPlacer(households, tables) : [];
+  // Les mêmes données et les mêmes rappels pour les deux écrans.
+  const rappels = {
+    onAssign: (tableId: string, householdId: string) => assignMutation.mutate({ tableId, householdId }),
+    onUnassign: (householdId: string) => unassignMutation.mutate(householdId),
+    onCreateTable: (dto: CreateTableDto) => createTable.mutateAsync(dto).then(() => true, () => false),
+    onUpdateTable: (id: string, dto: UpdateTableDto) =>
+      updateTable.mutateAsync({ id, dto }).then(() => true, () => false),
+    onDeleteTable: setTableASupprimer,
+  };
+
   if (bureau) {
-    const aPlacer = tables && households ? foyersAPlacer(households, tables) : [];
     return (
       <div className="space-y-8 p-6 md:p-8">
         <EnTetePlanDeTable dateDuMariage={dateDuMariage} bilan={tables && households ? bilan(tables, aPlacer) : null} />
@@ -211,250 +208,40 @@ export function TablesPage() {
         ) : echecDeChargement || !tables ? (
           echec
         ) : (
-          <PlanDeTableBureau
-            tables={tables}
-            aPlacer={aPlacer}
-            onAssign={(tableId, householdId) => assignMutation.mutate({ tableId, householdId })}
-            onUnassign={(householdId) => unassignMutation.mutate(householdId)}
-            onCreateTable={(dto) => createTable.mutateAsync(dto).then(() => true, () => false)}
-            onUpdateTable={(id, dto) => updateTable.mutateAsync({ id, dto }).then(() => true, () => false)}
-            onDeleteTable={setTableASupprimer}
-          />
+          <PlanDeTableBureau tables={tables} aPlacer={aPlacer} {...rappels} />
         )}
         {dialogueDeSuppression}
       </div>
     );
   }
 
+  // Téléphone. Le titre et le bilan appartiennent à `PlanDeTableTelephone` ;
+  // pendant le chargement et en cas d'échec, le titre seul tient leur place,
+  // pour que la page ne commence pas par un trou.
+  const titreSeul = <h1 className="mb-5 font-display text-4xl leading-tight text-ink">Plan de table</h1>;
   return (
-    <TelephoneProvisoire
-      tables={tables}
-      chargement={chargement}
-      echec={echecDeChargement ? echec : null}
-      avertissement={avertissementDeTroncature}
-      statut={statutDeChargement}
-      dialogue={dialogueDeSuppression}
-      creationEnCours={createTable.isPending}
-      modificationEnCours={updateTable.isPending}
-      onCreer={(dto, apres) => createTable.mutate(dto, { onSuccess: apres })}
-      onModifier={(id, dto, apres) => updateTable.mutate({ id, dto }, { onSuccess: apres })}
-      onDemanderSuppression={setTableASupprimer}
-      onAssign={(tableId, householdId) => assignMutation.mutate({ tableId, householdId })}
-      onUnassign={(householdId) => unassignMutation.mutate(householdId)}
-      // Les props de `TableBoard` restent celles d'avant : tous les non-placés,
-      // déclinés compris. L'écran téléphone de la maquette les remplacera.
-      unassignedHouseholds={(households ?? []).filter(
-        (h) => !(tables ?? []).some((t) => t.households.some((assis) => assis.id === h.id)),
-      )}
-    />
-  );
-}
-
-/**
- * PROVISOIRE — l'ancienne composition du téléphone, gardée telle quelle en
- * attendant l'écran téléphone des maquettes (onglets, feuille du bas), confié à
- * un autre lot. Seuls changements : les messages passent par les toasts, et la
- * logique partagée (`capaciteValide`) vient de `lib/plan-de-table`.
- */
-function TelephoneProvisoire({
-  tables,
-  chargement,
-  echec,
-  avertissement,
-  statut,
-  dialogue,
-  creationEnCours,
-  modificationEnCours,
-  onCreer,
-  onModifier,
-  onDemanderSuppression,
-  onAssign,
-  onUnassign,
-  unassignedHouseholds,
-}: {
-  tables: TableDto[] | undefined;
-  chargement: boolean;
-  echec: ReactNode;
-  avertissement: ReactNode;
-  statut: ReactNode;
-  dialogue: ReactNode;
-  creationEnCours: boolean;
-  modificationEnCours: boolean;
-  onCreer: (dto: CreateTableDto, apres: () => void) => void;
-  onModifier: (id: string, dto: UpdateTableDto, apres: () => void) => void;
-  onDemanderSuppression: (table: TableDto) => void;
-  onAssign: (tableId: string, householdId: string) => void;
-  onUnassign: (householdId: string) => void;
-  unassignedHouseholds: ComponentProps<typeof TableBoard>["unassignedHouseholds"];
-}) {
-  const [newTableName, setNewTableName] = useState("");
-  const [newTableCapacity, setNewTableCapacity] = useState(String(DEFAULT_CAPACITY));
-  const [creationTentee, setCreationTentee] = useState(false);
-  const [editing, setEditing] = useState<TableDraft | null>(null);
-
-  const capaciteCreation = capaciteValide(newTableCapacity);
-  const erreurCapaciteCreation = creationTentee && capaciteCreation === null ? CAPACITE_INVALIDE : null;
-
-  function creer(evenement: FormEvent) {
-    evenement.preventDefault();
-    setCreationTentee(true);
-    if (!newTableName.trim() || capaciteCreation === null) return;
-    onCreer({ name: newTableName.trim(), capacity: capaciteCreation }, () => {
-      setNewTableName("");
-      setNewTableCapacity(String(DEFAULT_CAPACITY));
-      setCreationTentee(false);
-    });
-  }
-
-  return (
-    <div className="space-y-6 p-6 md:p-8">
-      <h1 className="font-display text-2xl text-ink">Plan de table</h1>
-
-      <form onSubmit={creer} className="flex flex-wrap items-start gap-3" noValidate>
-        <Field label="Nom de la table" className="min-w-48 flex-1 sm:flex-none">
-          <Input value={newTableName} onChange={(e) => setNewTableName(e.target.value)} placeholder="Table des témoins" />
-        </Field>
-        <Field label="Capacité" error={erreurCapaciteCreation} className="w-28">
-          <Input
-            type="number"
-            min={1}
-            inputMode="numeric"
-            value={newTableCapacity}
-            onChange={(e) => setNewTableCapacity(e.target.value)}
-          />
-        </Field>
-        {/* Aligné sur les champs : la hauteur du libellé, puis le bouton. */}
-        <Button type="submit" className="mt-7" disabled={!newTableName.trim() || creationEnCours}>
-          Ajouter une table
-        </Button>
-      </form>
-
-      {avertissement}
-      {statut}
-
+    <div className="space-y-4 px-4 py-6">
+      {avertissementDeTroncature}
+      {statutDeChargement}
       {chargement ? (
-        <div className="grid gap-4">
-          {Array.from({ length: 3 }, (_, index) => (
-            <div key={index} className="space-y-2">
-              <Skeleton className="h-5 w-40" />
-              <Skeleton className="h-28 w-full" />
-            </div>
-          ))}
+        <div>
+          {titreSeul}
+          <Skeleton className="h-12 w-full" />
+          <div className="mt-4 space-y-2.5">
+            {Array.from({ length: 4 }, (_, index) => (
+              <Skeleton key={index} className="h-17 w-full" />
+            ))}
+          </div>
         </div>
-      ) : echec ? (
-        echec
-      ) : !tables || tables.length === 0 ? (
-        <EmptyState
-          title="Aucune table"
-          description="Créez la première table ci-dessus ; les foyers pourront ensuite y être placés."
-        />
+      ) : echecDeChargement || !tables ? (
+        <div>
+          {titreSeul}
+          {echec}
+        </div>
       ) : (
-        <>
-          <section aria-labelledby="titre-tables" className="space-y-2">
-            <h2 id="titre-tables" className="font-medium text-ink">
-              Tables
-            </h2>
-            <ul className="divide-y divide-rule rounded-surface border border-rule bg-ivory">
-              {tables.map((table) =>
-                editing?.id === table.id ? (
-                  <li key={table.id}>
-                    <EditionDeTable
-                      table={table}
-                      brouillon={editing}
-                      onChange={setEditing}
-                      enCours={modificationEnCours}
-                      onEnregistrer={(capacity) =>
-                        onModifier(table.id, { name: editing.name.trim(), capacity }, () => setEditing(null))
-                      }
-                      onAnnuler={() => setEditing(null)}
-                    />
-                  </li>
-                ) : (
-                  <li key={table.id} className="flex flex-wrap items-center gap-2 p-3">
-                    <span className="flex-1 text-ink">
-                      {table.name} — {places(table.capacity)}
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setEditing({ id: table.id, name: table.name, capacity: String(table.capacity) })}
-                    >
-                      Modifier
-                    </Button>
-                    <Button size="sm" variant="destructive" onClick={() => onDemanderSuppression(table)}>
-                      Supprimer
-                    </Button>
-                  </li>
-                ),
-              )}
-            </ul>
-          </section>
-
-          <TableBoard
-            tables={tables}
-            unassignedHouseholds={unassignedHouseholds}
-            onAssign={onAssign}
-            onUnassign={onUnassign}
-          />
-        </>
+        <PlanDeTableTelephone tables={tables} aPlacer={aPlacer} {...rappels} />
       )}
-
-      {dialogue}
+      {dialogueDeSuppression}
     </div>
-  );
-}
-
-function EditionDeTable({
-  table,
-  brouillon,
-  onChange,
-  enCours,
-  onEnregistrer,
-  onAnnuler,
-}: {
-  table: TableDto;
-  brouillon: TableDraft;
-  onChange: (brouillon: TableDraft) => void;
-  enCours: boolean;
-  onEnregistrer: (capacite: number) => void;
-  onAnnuler: () => void;
-}) {
-  const [tentee, setTentee] = useState(false);
-  const capacite = capaciteValide(brouillon.capacity);
-
-  function enregistrer(evenement: FormEvent) {
-    evenement.preventDefault();
-    setTentee(true);
-    if (!brouillon.name.trim() || capacite === null) return;
-    onEnregistrer(capacite);
-  }
-
-  return (
-    <form onSubmit={enregistrer} className="flex flex-wrap items-start gap-3 p-3" noValidate>
-      <Field label={`Nom de ${table.name}`} className="min-w-48 flex-1">
-        <Input value={brouillon.name} onChange={(e) => onChange({ ...brouillon, name: e.target.value })} />
-      </Field>
-      <Field
-        label={`Capacité de ${table.name}`}
-        error={tentee && capacite === null ? CAPACITE_INVALIDE : null}
-        className="w-36"
-      >
-        <Input
-          type="number"
-          min={1}
-          inputMode="numeric"
-          value={brouillon.capacity}
-          onChange={(e) => onChange({ ...brouillon, capacity: e.target.value })}
-        />
-      </Field>
-      <div className="mt-7 flex gap-2">
-        <Button type="submit" disabled={!brouillon.name.trim() || enCours}>
-          Enregistrer
-        </Button>
-        <Button type="button" variant="outline" onClick={onAnnuler}>
-          Annuler
-        </Button>
-      </div>
-    </form>
   );
 }

@@ -35,6 +35,16 @@ describe("HouseholdCard", () => {
     expect(bouton).toHaveTextContent("Choisir une table →");
   });
 
+  // La maquette du téléphone : « Placer › », et « en attente » sans « de réponse ».
+  it("reads « Placer › » on a phone, the chevron kept out of its name", () => {
+    render(
+      <HouseholdCard foyer={foyer({ status: "PENDING", confirmedCount: null, allocatedSeats: 1 })} onPlacer={vi.fn()} telephone />,
+    );
+    const bouton = screen.getByRole("button", { name: "Placer Famille Rakoto" });
+    expect(bouton).toHaveTextContent("Placer ›");
+    expect(screen.getByText("1 place · en attente")).toBeInTheDocument();
+  });
+
   it("can be dragged on a desktop, keeping its button", () => {
     render(
       <DndContext>

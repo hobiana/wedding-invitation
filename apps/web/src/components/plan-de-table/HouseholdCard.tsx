@@ -31,12 +31,19 @@ export interface HouseholdCardProps {
   glissable?: boolean;
   /** Le fantôme sous la souris pendant un glisser : une image, sans bouton ni repère de focus. */
   fantome?: boolean;
+  /**
+   * La carte de l'onglet « À placer » au téléphone : « Placer › », « en
+   * attente » sans « de réponse » (la ligne est plus étroite), et une cible
+   * tactile de 40 px.
+   */
+  telephone?: boolean;
 }
 
-/** « 1 place · en attente de réponse », ou « 5 places ». */
-function sousTitre(foyer: FoyerAPlacer): string {
+/** « 1 place · en attente de réponse » (« · en attente » au téléphone), ou « 5 places ». */
+function sousTitre(foyer: FoyerAPlacer, telephone: boolean): string {
   const nombre = places(seatsFor(foyer));
-  return foyer.status === "PENDING" ? `${nombre} · en attente de réponse` : nombre;
+  if (foyer.status !== "PENDING") return nombre;
+  return telephone ? `${nombre} · en attente` : `${nombre} · en attente de réponse`;
 }
 
 /**
@@ -66,6 +73,7 @@ function Apparence({
   selectionne = false,
   glissable = false,
   fantome = false,
+  telephone = false,
   nodeRef,
   listeners,
   enCoursDeGlisser = false,
@@ -84,7 +92,8 @@ function Apparence({
       data-glissable={glissable && !fantome ? "true" : undefined}
       data-selectionne={selectionne ? "true" : undefined}
       className={cn(
-        "flex items-center gap-3 rounded-surface border px-3.5 py-3 transition-colors duration-(--duration-micro) ease-(--ease-in)",
+        "flex items-center gap-3 rounded-surface border transition-colors duration-(--duration-micro) ease-(--ease-in)",
+        telephone ? "py-3 pl-4 pr-2" : "px-3.5 py-3",
         selectionne ? "border-bordeaux-700 bg-bordeaux-700" : "border-rule bg-ivory",
         glissable && "cursor-grab",
         fantome && "cursor-grabbing border-bordeaux-500 shadow-card",
@@ -93,11 +102,23 @@ function Apparence({
     >
       <div className="min-w-0 flex-1">
         {/* Pas de `truncate` : « Fa… » ne se lit pas. Le nom passe à la ligne. */}
-        <p className={cn("break-words text-sm font-medium", selectionne ? "text-on-bordeaux" : "text-ink")}>
+        <p
+          className={cn(
+            "break-words font-medium",
+            telephone ? "text-base" : "text-sm",
+            selectionne ? "text-on-bordeaux" : "text-ink",
+          )}
+        >
           {foyer.displayName}
         </p>
-        <p className={cn("mt-0.5 text-xs", selectionne ? "text-on-bordeaux-muted" : "text-ink-muted")}>
-          {sousTitre(foyer)}
+        <p
+          className={cn(
+            "mt-0.5",
+            telephone ? "text-sm" : "text-xs",
+            selectionne ? "text-on-bordeaux-muted" : "text-ink-muted",
+          )}
+        >
+          {sousTitre(foyer, telephone)}
         </p>
       </div>
       {fantome ? (
@@ -108,13 +129,22 @@ function Apparence({
           onClick={onPlacer}
           aria-label={selectionne ? `Choisir une table pour ${foyer.displayName}` : `Placer ${foyer.displayName}`}
           className={cn(
-            "inline-flex h-8 shrink-0 items-center rounded-control px-2 text-xs transition-colors duration-(--duration-micro) ease-(--ease-in)",
+            "inline-flex shrink-0 items-center rounded-control px-2 transition-colors duration-(--duration-micro) ease-(--ease-in)",
+            telephone ? "h-10 gap-1 text-sm" : "h-8 text-xs",
             selectionne
               ? "font-medium text-on-bordeaux hover:bg-bordeaux-900"
               : "text-ink-muted hover:bg-cream hover:text-ink",
           )}
         >
-          {selectionne ? "Choisir une table →" : "Placer"}
+          {selectionne ? (
+            "Choisir une table →"
+          ) : telephone ? (
+            <>
+              Placer <span aria-hidden="true">›</span>
+            </>
+          ) : (
+            "Placer"
+          )}
         </button>
       )}
     </div>
