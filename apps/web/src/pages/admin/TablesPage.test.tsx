@@ -1,8 +1,8 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { TableDto, TableHouseholdSummaryDto } from "@invitation-app/shared";
+import type { HouseholdAdminDto, TableDto, TableHouseholdSummaryDto } from "@invitation-app/shared";
 import { TablesPage } from "./TablesPage";
 import * as apiModule from "@/lib/api";
 
@@ -92,7 +92,9 @@ describe("TablesPage table management", () => {
     );
   });
 
-  it("surfaces the API's capacity conflict instead of failing silently", async () => {
+  // Le refus est montré, et en français : l'API répond en anglais, et son
+  // message recopié tel quel était un défaut de l'interface.
+  it("surfaces the API's capacity conflict in French instead of failing silently", async () => {
     vi.spyOn(apiModule.api, "patch").mockRejectedValue(
       new Error('Table "Table 1" already seats 9 guest(s); its capacity cannot be lowered to 4'),
     );
@@ -101,7 +103,156 @@ describe("TablesPage table management", () => {
     fireEvent.click(await screen.findByRole("button", { name: /modifier/i }));
     fireEvent.click(screen.getByRole("button", { name: /enregistrer/i }));
 
-    expect(await screen.findByText(/already seats 9 guest/i)).toBeInTheDocument();
+    const alerte = await screen.findByRole("alert");
+    expect(alerte).toHaveTextContent(/La table « Table 1 » n'a pas pu être modifiée/);
+    expect(alerte).toHaveTextContent(/places déjà occupées/);
+    expect(screen.queryByText(/already seats/i)).not.toBeInTheDocument();
+  });
+
+  it("refuses a capacity below one before sending anything", async () => {
+    const postSpy = vi.spyOn(apiModule.api, "post").mockResolvedValue({});
+    renderPage();
+
+    fireEvent.change(await screen.findByLabelText(/nom de la table/i), { target: { value: "Table 2" } });
+    fireEvent.change(screen.getByLabelText(/^capacité$/i), { target: { value: "0" } });
+    fireEvent.click(screen.getByRole("button", { name: /ajouter une table/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("La capacité doit être d'au moins 1 place.");
+    expect(postSpy).not.toHaveBeenCalled();
+  });
+
+  it("says in French when a table could not be created", async () => {
+    vi.spyOn(apiModule.api, "post").mockRejectedValue(new Error("name must be a string"));
+    renderPage();
+
+    fireEvent.change(await screen.findByLabelText(/nom de la table/i), { target: { value: "Table 2" } });
+    fireEvent.click(screen.getByRole("button", { name: /ajouter une table/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/La table n'a pas pu être créée/);
+    expect(screen.queryByText(/must be a string/)).not.toBeInTheDocument();
+  });
+});
+
+describe("TablesPage states", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("shows skeletons while the plan loads, then the plan", async () => {
+    let livrer: (valeur: TableDto[]) => void = () => {};
+    vi.spyOn(apiModule.api, "get").mockImplementation((path: string) =>
+      path === "/admin/tables"
+        ? new Promise<TableDto[]>((resoudre) => (livrer = resoudre))
+        : Promise.resolve([]),
+    );
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <TablesPage />
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("Chargement du plan de table…");
+    expect(screen.getAllByTestId("skeleton").length).toBeGreaterThan(0);
+
+    livrer(TABLE_UNIQUE);
+    expect(await screen.findByText(/Table 1 — 8 places/)).toBeInTheDocument();
+    expect(screen.queryByTestId("skeleton")).not.toBeInTheDocument();
+  });
+
+  it("explains an empty plan instead of showing an empty board", async () => {
+    renderPage({ tables: [] });
+    expect(await screen.findByText("Aucune table")).toBeInTheDocument();
+    expect(screen.getByText(/Créez la première table/)).toBeInTheDocument();
+  });
+
+  it("says in French when the plan could not be loaded", async () => {
+    vi.spyOn(apiModule.api, "get").mockRejectedValue(new Error("Internal server error"));
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <TablesPage />
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/Le plan de table n'a pas pu être chargé/);
+    expect(screen.queryByText(/Internal server error/)).not.toBeInTheDocument();
+  });
+});
+
+describe("TablesPage placement", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  const foyerNonPlace: HouseholdAdminDto = {
+    id: "n1",
+    displayName: "Rakotomavo",
+    allocatedSeats: 4,
+    memberNames: [],
+    status: "PENDING",
+    confirmedCount: null,
+    dietaryNotes: null,
+    message: null,
+    tableId: null,
+    createdAt: "2026-09-01T00:00:00.000Z",
+    updatedAt: "2026-09-01T00:00:00.000Z",
+  };
+
+  function renderAvecUnFoyer() {
+    const get = vi.spyOn(apiModule.api, "get").mockImplementation((path: string) =>
+      Promise.resolve(path === "/admin/tables" ? TABLE_UNIQUE : [foyerNonPlace]),
+    );
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <TablesPage />
+      </QueryClientProvider>,
+    );
+    return get;
+  }
+
+  async function placerALaTable1(utilisateur: ReturnType<typeof userEvent.setup>) {
+    // Le foyer n'existe qu'une fois la réponse arrivée : c'est lui qu'on
+    // attend, pas un titre rendu dès le premier passage.
+    const foyer = within(await screen.findByRole("group", { name: "Rakotomavo" }));
+    await utilisateur.click(foyer.getByRole("button", { name: "Placer à la table…" }));
+    const option = within(screen.getByRole("dialog")).getByRole("button", { name: /table 1/i });
+    // Le menu présentait ce placement comme permis : 8 places, 4 à placer.
+    expect(option).toBeEnabled();
+    await utilisateur.click(option);
+  }
+
+  it("seats a household through the menu and says so", async () => {
+    const utilisateur = userEvent.setup();
+    const patch = vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
+    renderAvecUnFoyer();
+
+    await placerALaTable1(utilisateur);
+
+    expect(patch).toHaveBeenCalledWith("/admin/tables/t1/assign/n1");
+    expect(await screen.findByRole("status")).toHaveTextContent("Le foyer Rakotomavo est placé à la table « Table 1 ».");
+  });
+
+  // Le menu n'autorise rien : entre le chargement et le clic, un autre onglet a
+  // pu remplir la table. Le serveur refuse — en anglais —, la page le dit en
+  // français et recharge le plan pour montrer l'état réel.
+  it("shows the server's refusal in French and refreshes the plan, even when the menu allowed it", async () => {
+    const utilisateur = userEvent.setup();
+    vi.spyOn(apiModule.api, "patch").mockRejectedValue(
+      new Error('Table "Table 1" has 2 seat(s) left; this household needs 4'),
+    );
+    const get = renderAvecUnFoyer();
+    await screen.findByRole("group", { name: "Rakotomavo" });
+    const chargementsAvant = get.mock.calls.filter(([chemin]) => chemin === "/admin/tables").length;
+
+    await placerALaTable1(utilisateur);
+
+    const alerte = await screen.findByRole("alert");
+    expect(alerte).toHaveTextContent(/Le foyer Rakotomavo n'a pas pu être placé à la table « Table 1 »/);
+    expect(alerte).toHaveTextContent(/plan vient d'être rechargé/);
+    expect(screen.queryByText(/seat\(s\) left/)).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(get.mock.calls.filter(([chemin]) => chemin === "/admin/tables").length).toBeGreaterThan(
+        chargementsAvant,
+      ),
+    );
   });
 });
 
