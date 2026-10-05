@@ -1,11 +1,11 @@
 # Où on en est — reprise de session
 
-**Dernière mise à jour :** 2026-09-13, par l'architecte.
+**Dernière mise à jour :** 2026-10-05, par l'architecte.
 À lire en premier si tu reprends ce projet sans le contexte de la conversation précédente.
 
 ## L'état en une phrase
 
-**Le mariage est dans 113 jours** (2 janvier 2027), les réponses sont attendues dans 81 (1er décembre 2026). C'est le fait qui commande tout le reste : l'application ne tourne encore que sur la machine du commanditaire, et une invitation sur `localhost` n'envoie rien à personne. **La mise en ligne est passée devant le plan de table**, qui ne sert qu'en décembre.
+**Le mariage est dans 89 jours** (2 janvier 2027), les réponses sont attendues dans 57 (1er décembre 2026). C'est le fait qui commande tout le reste : l'application ne tourne encore que sur la machine du commanditaire, et une invitation sur `localhost` n'envoie rien à personne. **La mise en ligne est passée devant le plan de table**, qui ne sert qu'en décembre.
 
 L'audit est livré, le **lot 0 est terminé**, le **contrat partagé est désormais vérifié à la compilation** (`6582760`), et le **lot 3 est repris sur le design que le commanditaire a lui-même produit** (`images/html/`). Ce design remplace le découpage d'origine des tâches 1 à 11 : voir « Le nouveau découpage » plus bas.
 
@@ -43,7 +43,30 @@ Arbitré le 2026-09-10, à partir du design fourni dans `images/html/` :
 9. **L'ornement malgache est retiré.** Le design ornemente à l'aquarelle de roses ; on ne garde que ça. `HemMotif.tsx` — le motif de l'ourlet de leurs tenues — et le jeton `--rule-lamba` sortent. C'est un renversement assumé de la piste ouverte dans la direction artistique du 2026-08-23, qui écartait justement les roses du commerce.
 10. **Le carrousel montre les trois vraies photos** de `images/old images - fiancailles/` : `DSC_2817`, `DSC_3536`, `DSC_3541`. Les légendes du design décrivaient les images générées et sont à réécrire d'après ce qu'on voit.
 
-## Point de reprise — 2026-09-13, lots D et F-serveur commités, E et F-web en vol
+## Point de reprise — 2026-10-05, lots C à F tous commités
+
+**Les lots C, D, E et F sont faits et commités sur `main`** (local, non poussé). Reste la dette annoncée le 13 septembre : **les regarder d'un coup, à l'écran et au téléphone** — aucun n'a été vu dans un vrai navigateur.
+
+| Commit | Ce qu'il porte |
+|---|---|
+| `9b57284` | Lot F, moitié web — un champ facultatif vidé part en `null`, erreurs en français, squelettes |
+| `198140d` | `seatsFor` / `seatsTaken` descendus dans `packages/shared` (l'API les réexporte) |
+| `89028ea` | `venueName` et `address` : un lieu ou une adresse vide ou blanche est refusé en 400 (`@Matches(/\S/)`) |
+| `953c045` | Lot E — plan de table : « Placer à la table… », déplacer, retirer, liste dépliable au téléphone |
+
+**Suites vérifiées par l'architecte :** **402 web**, **123 api**, **18 e2e** (Postgres lancé), les deux builds à exit 0.
+
+**À regarder dans un navigateur (lot E) :** le focus après un placement (le bouton d'ouverture est démonté, il retombe sans doute sur `<body>`), le glisser réel (dnd-kit ne tourne pas sous jsdom), la mise en page à 375 px, le contraste des options désactivées.
+
+**Laissé tel quel, à trancher :** `InvitationPage.tsx` écrit `confirmedCount ?? allocatedSeats` (lignes 136 et 362) — c'est le nombre de personnes d'un foyer, pas l'occupation d'une table ; `LoginPage.tsx:51` garde un `text-red-600` en dur ; la liste « à relancer » n'est pas tronquée.
+
+**Piège rencontré :** les e2e d'authentification échouent (3 sur 18) quand Docker Desktop n'est pas lancé — ce n'est pas une régression. `docker compose up -d` avant `test:e2e`.
+
+**Choix du 2026-10-05 :** `.agents/` et `skills-lock.json` (installés par un skill) sont dans `.gitignore` « pour l'instant » — à décider.
+
+**Prochaine étape : la mise en ligne.** Le Blueprint Render déclare la base et l'API ; reste le front (Vercel) et les sept choses côté commanditaire du plan `2026-09-11-plan-de-mise-en-ligne.md`. Le mariage est dans 89 jours, les réponses attendues dans 57.
+
+## Point de reprise — 2026-09-13, lots D et F-serveur commités, E et F-web en vol (historique)
 
 **Détail complet dans `docs/audit/2026-09-12-lots-c-d-reprise.md`** — c'est lui qu'il faut lire pour reprendre les lots C à F, pas cette section.
 
