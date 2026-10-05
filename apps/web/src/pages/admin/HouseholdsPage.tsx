@@ -231,7 +231,12 @@ export function HouseholdsPage() {
   }
 
   const colonnes: Column<HouseholdAdminDto>[] = [
-    { id: "nom", header: "Foyer", cell: (h) => <span className="font-medium">{h.displayName}</span> },
+    {
+      id: "nom",
+      header: "Foyer",
+      grow: true,
+      cell: (h) => <span className="font-medium">{h.displayName}</span>,
+    },
     // `confirmedCount` reste `null` tant que le foyer n'a pas répondu : « — »
     // porte cette distinction, jamais « 0 » qui dirait « personne ne vient ».
     { id: "places", header: "Places", cell: (h) => `${h.confirmedCount ?? "—"} / ${h.allocatedSeats}` },
@@ -240,7 +245,7 @@ export function HouseholdsPage() {
       id: "actions",
       header: "Actions",
       cell: (h) => (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 lg:flex-nowrap">
           <CopyLinkButton linkId={h.id} householdName={h.displayName} />
           <Button variant="outline" size="sm" onClick={() => setEditing(h)}>
             Modifier

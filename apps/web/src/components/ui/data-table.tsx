@@ -18,6 +18,13 @@ export interface Column<T> {
   id: string;
   header: string;
   cell: (ligne: T) => ReactNode;
+  /**
+   * Cette colonne prend toute la largeur restante ; les autres se réduisent à
+   * leur contenu. Pour la colonne qui peut être longue (le nom d'un foyer) :
+   * sans cela l'espace en trop se répartit entre toutes les colonnes. Rendu en
+   * table seulement — les cartes n'ont pas de colonnes.
+   */
+  grow?: boolean;
 }
 
 export interface DataTableProps<T> {
@@ -117,13 +124,19 @@ export function DataTable<T>({
     );
   }
 
+  // Dès qu'une colonne est extensible, les autres se réduisent à leur contenu
+  // (`w-px` + `nowrap`) et gardent un écart à droite pour ne pas se toucher.
+  const aUneExtensible = columns.some((c) => c.grow);
+  const largeur = (colonne: Column<T>) =>
+    aUneExtensible ? (colonne.grow ? "w-full pr-6" : "w-px whitespace-nowrap pr-6") : undefined;
+
   return (
     <table className="w-full border-collapse text-sm">
       <caption className="sr-only">{caption}</caption>
       <thead>
         <tr className="border-b border-rule text-left">
           {columns.map((colonne) => (
-            <th key={colonne.id} scope="col" className="py-2 font-medium text-ink-label">
+            <th key={colonne.id} scope="col" className={cn("py-2 font-medium text-ink-label", largeur(colonne))}>
               {colonne.header}
             </th>
           ))}
@@ -137,7 +150,7 @@ export function DataTable<T>({
             <Fragment key={cle}>
               <tr className="border-b border-rule align-top">
                 {columns.map((colonne) => (
-                  <td key={colonne.id} className="py-2 text-ink">
+                  <td key={colonne.id} className={cn("py-2 text-ink", largeur(colonne))}>
                     {colonne.cell(ligne)}
                   </td>
                 ))}

@@ -54,6 +54,44 @@ function renderTable(
   );
 }
 
+describe("DataTable colonne extensible", () => {
+  // Sans `grow`, l'espace en trop se répartit entre toutes les colonnes : le nom
+  // du foyer, seule colonne qui peut être longue, restait à l'étroit entre deux
+  // colonnes élargies pour rien. jsdom ne mesure aucune largeur : ce test
+  // verrouille les classes, Chrome dit si elles tiennent.
+  it("lets one column take the remaining width and shrinks the others to their content", () => {
+    const restore = stubLargeur(true);
+    render(
+      <DataTable
+        caption="Foyers invités"
+        columns={[
+          { id: "nom", header: "Foyer", cell: (f: Foyer) => f.nom, grow: true },
+          { id: "places", header: "Places", cell: (f: Foyer) => f.places },
+        ]}
+        rows={FOYERS}
+        rowKey={(f) => f.id}
+      />,
+    );
+    const entetes = screen.getAllByRole("columnheader");
+    expect(entetes[0]).toHaveClass("w-full");
+    expect(entetes[1]).toHaveClass("w-px", "whitespace-nowrap");
+    const cellule = screen.getAllByRole("row")[1].querySelectorAll("td");
+    expect(cellule[0]).toHaveClass("w-full");
+    expect(cellule[1]).toHaveClass("w-px", "whitespace-nowrap");
+    restore();
+  });
+
+  it("leaves the columns alone when none is marked to grow", () => {
+    const restore = stubLargeur(true);
+    renderTable();
+    for (const th of screen.getAllByRole("columnheader")) {
+      expect(th).not.toHaveClass("w-full");
+      expect(th).not.toHaveClass("w-px");
+    }
+    restore();
+  });
+});
+
 describe("DataTable", () => {
   it("renders a real table on the desktop", () => {
     const restore = stubLargeur(true);
