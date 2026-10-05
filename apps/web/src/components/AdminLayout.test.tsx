@@ -84,6 +84,32 @@ describe("AdminLayout", () => {
     expect(container.innerHTML).not.toMatch(/(bg|text|border)-neutral-\d{2,3}/);
   });
 
+  // Le rail s'étirait sur toute la hauteur de la page : sur un écran long
+  // (le plan de table fait 4 000 px), « Se déconnecter » — collé en bas du rail —
+  // n'apparaissait qu'en bas de la page. jsdom ne calcule aucune mise en page :
+  // ce test verrouille les classes qui épinglent le rail à la hauteur de la
+  // fenêtre ; que ça tienne à l'écran, c'est Chrome qui le dit.
+  it("pins the desktop rail to the window so logout never scrolls away", async () => {
+    renderLayout({ bureau: true });
+    const bouton = await screen.findByRole("button", { name: /se déconnecter/i });
+    const rail = bouton.closest("aside");
+    expect(rail).not.toBeNull();
+    expect(rail).toHaveClass("sticky", "top-0", "h-screen", "self-start");
+  });
+
+  // Le rail s'étirait sur toute la hauteur de la page : « Se déconnecter », collé
+  // en bas du rail, n'apparaissait qu'en bas du contenu (4 000 px sur le plan de
+  // table, 930 px dès les Paramètres). jsdom ne calcule aucune mise en page : ce
+  // test verrouille les classes qui épinglent le rail à la hauteur de la fenêtre ;
+  // que ça tienne à l'écran, c'est Chrome qui le dit.
+  it("pins the desktop rail to the window so logout never scrolls away", async () => {
+    renderLayout({ bureau: true });
+    const bouton = await screen.findByRole("button", { name: /se déconnecter/i });
+    const rail = bouton.closest("aside");
+    expect(rail).not.toBeNull();
+    expect(rail).toHaveClass("sticky", "top-0", "h-screen", "self-start");
+  });
+
   it("renders the nested admin page", async () => {
     renderLayout();
     expect(await screen.findByText("Contenu foyers")).toBeInTheDocument();

@@ -56,7 +56,10 @@ export function AdminLayout() {
   if (bureau) {
     return (
       <div className="flex min-h-screen bg-page">
-        <aside className="flex w-60 shrink-0 flex-col gap-6 border-r border-rule bg-ivory px-4 py-6">
+        {/* Épinglé à la hauteur de la fenêtre : étiré sur toute la page, le rail
+            repoussait « Se déconnecter » tout en bas du contenu (4 000 px sur le
+            plan de table). `self-start` retire l'étirement du flex parent. */}
+        <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col gap-6 self-start overflow-y-auto border-r border-rule bg-ivory px-4 py-6">
           <nav className="flex flex-col gap-1">
             {NAV_LINKS.map(({ to, label, icone: Icone, end }) => (
               <NavLink key={to} to={to} end={end} className={({ isActive }) => lienClasses(isActive, true)}>
