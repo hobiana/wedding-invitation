@@ -27,6 +27,13 @@ export interface DataTableProps<T> {
   rowKey: (ligne: T) => string;
   detail?: (ligne: T) => ReactNode;
   detailLabel?: (ligne: T) => string;
+  /**
+   * Les lignes dépliées, quand l'appelant veut les tenir lui-même — l'écran
+   * Foyers pagine, et le dépli doit survivre au changement de page. À fournir
+   * avec `onToggleExpanded` ; sans eux, la table tient son propre état.
+   */
+  expanded?: ReadonlySet<string>;
+  onToggleExpanded?: (cle: string) => void;
 }
 
 export function DataTable<T>({
@@ -36,11 +43,18 @@ export function DataTable<T>({
   rowKey,
   detail,
   detailLabel,
+  expanded,
+  onToggleExpanded,
 }: DataTableProps<T>) {
   const bureau = useMediaQuery("(min-width: 768px)");
-  const [ouverts, setOuverts] = useState<ReadonlySet<string>>(() => new Set());
+  const [ouvertsInternes, setOuverts] = useState<ReadonlySet<string>>(() => new Set());
+  const ouverts = expanded ?? ouvertsInternes;
 
   function basculer(cle: string) {
+    if (onToggleExpanded) {
+      onToggleExpanded(cle);
+      return;
+    }
     setOuverts((precedent) => {
       const suivant = new Set(precedent);
       if (suivant.has(cle)) suivant.delete(cle);

@@ -2,7 +2,7 @@ import { render, screen, fireEvent, waitFor, within } from "@testing-library/rea
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { HouseholdAdminDto, TableDto, TableHouseholdSummaryDto } from "@invitation-app/shared";
+import type { HouseholdAdminDto, Page, TableDto, TableHouseholdSummaryDto } from "@invitation-app/shared";
 import { TablesPage } from "./TablesPage";
 import * as apiModule from "@/lib/api";
 
@@ -29,9 +29,14 @@ function foyerDeTable(partiel: Partial<TableHouseholdSummaryDto> = {}): TableHou
 
 const TABLE_UNIQUE: TableDto[] = [table()];
 
+/** L'enveloppe de `GET /admin/households`, complète sauf `total` contraire. */
+function pageDe(items: HouseholdAdminDto[], total = items.length): Page<HouseholdAdminDto> {
+  return { items, total, limit: 500, offset: 0 };
+}
+
 function renderPage({ tables = TABLE_UNIQUE }: { tables?: TableDto[] } = {}) {
   vi.spyOn(apiModule.api, "get").mockImplementation((path: string) =>
-    Promise.resolve(path === "/admin/tables" ? tables : []),
+    Promise.resolve(path === "/admin/tables" ? tables : pageDe([])),
   );
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -141,7 +146,7 @@ describe("TablesPage states", () => {
     vi.spyOn(apiModule.api, "get").mockImplementation((path: string) =>
       path === "/admin/tables"
         ? new Promise<TableDto[]>((resoudre) => (livrer = resoudre))
-        : Promise.resolve([]),
+        : Promise.resolve(pageDe([])),
     );
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
@@ -197,7 +202,7 @@ describe("TablesPage placement", () => {
 
   function renderAvecUnFoyer() {
     const get = vi.spyOn(apiModule.api, "get").mockImplementation((path: string) =>
-      Promise.resolve(path === "/admin/tables" ? TABLE_UNIQUE : [foyerNonPlace]),
+      Promise.resolve(path === "/admin/tables" ? TABLE_UNIQUE : pageDe([foyerNonPlace])),
     );
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
@@ -329,5 +334,57 @@ describe("TablesPage deletion guard", () => {
 
     await utilisateur.click(await screen.findByRole("button", { name: "Supprimer" }));
     expect(screen.getByText(/^Les 2 foyers placés à cette table reviendront/)).toBeInTheDocument();
+  });
+});
+
+describe("TablesPage household list", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  const nonPlace: HouseholdAdminDto = {
+    id: "n1",
+    displayName: "Rakotomavo",
+    allocatedSeats: 4,
+    memberNames: [],
+    status: "PENDING",
+    confirmedCount: null,
+    dietaryNotes: null,
+    message: null,
+    tableId: null,
+    createdAt: "2026-09-01T00:00:00.000Z",
+    updatedAt: "2026-09-01T00:00:00.000Z",
+  };
+
+  function renderAvec(foyers: Page<HouseholdAdminDto>) {
+    const get = vi.spyOn(apiModule.api, "get").mockImplementation((path: string) =>
+      Promise.resolve(path === "/admin/tables" ? TABLE_UNIQUE : foyers),
+    );
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <TablesPage />
+      </QueryClientProvider>,
+    );
+    return get;
+  }
+
+  // Les foyers non placés se déduisent de toute la liste : une page de 100
+  // en ferait disparaître sans rien dire.
+  it("asks for every household, up to the API's ceiling", async () => {
+    const get = renderAvec(pageDe([nonPlace]));
+    await screen.findByRole("group", { name: "Rakotomavo" });
+    expect(get.mock.calls.map(([chemin]) => chemin)).toContain("/admin/households?limit=500");
+  });
+
+  it("warns that the plan is incomplete when the API holds more households than it sent", async () => {
+    renderAvec(pageDe([nonPlace], 640));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Seuls les 1 premiers foyers sur 640 sont pris en compte : des foyers non placés peuvent manquer à la liste.",
+    );
+  });
+
+  it("stays quiet when the whole list arrived", async () => {
+    renderAvec(pageDe([nonPlace]));
+    await screen.findByRole("group", { name: "Rakotomavo" });
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });

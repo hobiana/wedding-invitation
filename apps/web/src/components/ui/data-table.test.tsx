@@ -129,4 +129,54 @@ describe("DataTable", () => {
     expect(bouton).toHaveAttribute("aria-expanded", "true");
     restore();
   });
+
+  // L'écran Foyers pagine : la page tient l'état de dépli pour qu'il survive
+  // au changement de page, que la table remplace ses lignes ou non.
+  describe("when the caller owns the unfolded rows", () => {
+    function renderControle(ouverts: ReadonlySet<string>, onToggleExpanded = vi.fn()) {
+      const vue = render(
+        <DataTable
+          caption="Foyers invités"
+          columns={COLONNES}
+          rows={FOYERS}
+          rowKey={(f) => f.id}
+          detail={(f: Foyer) => <p>Détail de {f.nom}</p>}
+          detailLabel={(f: Foyer) => `Détail de ${f.nom}`}
+          expanded={ouverts}
+          onToggleExpanded={onToggleExpanded}
+        />,
+      );
+      return { ...vue, onToggleExpanded };
+    }
+
+    it("shows the rows it is told are open", () => {
+      const restore = stubLargeur(true);
+      renderControle(new Set(["b2"]));
+      expect(screen.getByText("Détail de Andriamanana")).toBeInTheDocument();
+      expect(screen.queryByText("Détail de Rakotomavo")).toBeNull();
+      expect(screen.getByRole("button", { name: "Détail de Andriamanana" })).toHaveAttribute(
+        "aria-expanded",
+        "true",
+      );
+      restore();
+    });
+
+    it("reports the toggle instead of applying it itself", async () => {
+      const restore = stubLargeur(true);
+      const utilisateur = userEvent.setup();
+      const { onToggleExpanded } = renderControle(new Set());
+      await utilisateur.click(screen.getByRole("button", { name: "Détail de Rakotomavo" }));
+      expect(onToggleExpanded).toHaveBeenCalledWith("a1");
+      // Rien ne s'ouvre tant que l'appelant ne l'a pas décidé.
+      expect(screen.queryByText("Détail de Rakotomavo")).toBeNull();
+      restore();
+    });
+
+    it("works the same in cards on a phone", () => {
+      const restore = stubLargeur(false);
+      renderControle(new Set(["a1"]));
+      expect(screen.getByText("Détail de Rakotomavo")).toBeInTheDocument();
+      restore();
+    });
+  });
 });

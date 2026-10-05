@@ -4,12 +4,32 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { RsvpStatus } from '@prisma/client';
+import { Household, RsvpStatus } from '@prisma/client';
+import type { HouseholdSortKey, SortOrder } from '@invitation-app/shared';
 import { nanoid } from 'nanoid';
 import { PrismaService } from '../prisma/prisma.service';
 import { Seated, seatsFor, seatsTaken } from '../common/seating';
 import { CreateHouseholdDto } from './dto/create-household.dto';
 import { UpdateHouseholdDto } from './dto/update-household.dto';
+import { compareHouseholds, matchesSearch } from './household-listing';
+
+/** La requête une fois les défauts appliqués par `ListHouseholdsQueryDto`. */
+export interface ListHouseholdsParams {
+  limit: number;
+  offset: number;
+  q?: string;
+  status?: RsvpStatus;
+  sort: HouseholdSortKey;
+  order: SortOrder;
+}
+
+/** Côté domaine, les foyers gardent leurs `Date` ; le contrat est fait au contrôleur. */
+export interface HouseholdPage {
+  items: Household[];
+  total: number;
+  limit: number;
+  offset: number;
+}
 
 @Injectable()
 export class HouseholdsService {
@@ -26,8 +46,28 @@ export class HouseholdsService {
     });
   }
 
-  findAll() {
-    return this.prisma.household.findMany({ orderBy: { createdAt: 'asc' } });
+  /**
+   * Une page de foyers. Le statut filtre en base ; la recherche et le tri se
+   * font en mémoire (voir `household-listing.ts`), puis on découpe. `total`
+   * compte après la recherche et avant la découpe : c'est le nombre de foyers
+   * qui correspondent, pas la taille de la page.
+   */
+  async findAll(query: ListHouseholdsParams): Promise<HouseholdPage> {
+    const households = await this.prisma.household.findMany({
+      where: query.status ? { status: query.status } : {},
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const matching = households
+      .filter((household) => matchesSearch(household, query.q ?? ''))
+      .sort(compareHouseholds(query.sort, query.order));
+
+    return {
+      items: matching.slice(query.offset, query.offset + query.limit),
+      total: matching.length,
+      limit: query.limit,
+      offset: query.offset,
+    };
   }
 
   async findOne(id: string) {

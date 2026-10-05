@@ -6,13 +6,15 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
-import type { HouseholdAdminDto } from '@invitation-app/shared';
+import type { HouseholdAdminDto, Page } from '@invitation-app/shared';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { toHouseholdAdminDto } from '../common/contract';
+import { toHouseholdAdminDto, toHouseholdPageDto } from '../common/contract';
 import { HouseholdsService } from './households.service';
 import { CreateHouseholdDto } from './dto/create-household.dto';
+import { ListHouseholdsQueryDto } from './dto/list-households.dto';
 import { UpdateHouseholdDto } from './dto/update-household.dto';
 
 /**
@@ -33,9 +35,10 @@ export class HouseholdsController {
   }
 
   @Get()
-  async findAll(): Promise<HouseholdAdminDto[]> {
-    const households = await this.householdsService.findAll();
-    return households.map(toHouseholdAdminDto);
+  async findAll(
+    @Query() query: ListHouseholdsQueryDto,
+  ): Promise<Page<HouseholdAdminDto>> {
+    return toHouseholdPageDto(await this.householdsService.findAll(query));
   }
 
   @Get(':id')

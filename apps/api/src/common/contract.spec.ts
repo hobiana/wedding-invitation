@@ -2,6 +2,7 @@ import type { Household, WeddingSettings } from '@prisma/client';
 import {
   toAdminSettingsDto,
   toHouseholdAdminDto,
+  toHouseholdPageDto,
   toTableDto,
   toWeddingInfoDto,
 } from './contract';
@@ -50,6 +51,37 @@ describe('toHouseholdAdminDto', () => {
     );
 
     expect(dto.confirmedCount).toBeNull();
+  });
+});
+
+describe('toHouseholdPageDto', () => {
+  it('wraps the converted households in the page envelope', () => {
+    const dto = toHouseholdPageDto({
+      items: [householdRow()],
+      total: 41,
+      limit: 25,
+      offset: 25,
+    });
+
+    expect(dto).toEqual({
+      items: [toHouseholdAdminDto(householdRow())],
+      total: 41,
+      limit: 25,
+      offset: 25,
+    });
+  });
+
+  // La page passe par le même convertisseur que le foyer seul : rien ne doit
+  // pouvoir y transformer le null d'un foyer en attente en zéro.
+  it('keeps a PENDING household confirmedCount at null inside a page', () => {
+    const dto = toHouseholdPageDto({
+      items: [householdRow({ status: 'PENDING', confirmedCount: null })],
+      total: 1,
+      limit: 100,
+      offset: 0,
+    });
+
+    expect(dto.items[0].confirmedCount).toBeNull();
   });
 });
 

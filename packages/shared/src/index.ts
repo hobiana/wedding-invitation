@@ -159,3 +159,32 @@ export interface AdminSettingsDto {
   rsvpDeadline: string;
   seatingPlanActivated: boolean;
 }
+
+/**
+ * Toute liste GET paginée répond par cette enveloppe, jamais par un tableau nu :
+ * sans `total`, un écran ne peut pas savoir qu'il a reçu une page tronquée.
+ * Des types seulement — `packages/shared` est du TypeScript brut que l'API ne
+ * peut pas charger au runtime (voir CLAUDE.md).
+ */
+export interface Page<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export type HouseholdSortKey = "name" | "seats" | "status" | "createdAt";
+export type SortOrder = "asc" | "desc";
+
+/** Paramètres de `GET /admin/households`. Tous facultatifs. */
+export interface ListHouseholdsQuery {
+  /** Défaut 100, plafond 500. */
+  limit?: number;
+  offset?: number;
+  q?: string;
+  status?: RsvpStatus;
+  /** Défaut `createdAt`. */
+  sort?: HouseholdSortKey;
+  /** Défaut `asc`. */
+  order?: SortOrder;
+}

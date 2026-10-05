@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { DashboardStatsDto, HouseholdAdminDto } from "@invitation-app/shared";
+import type { DashboardStatsDto, HouseholdAdminDto, Page } from "@invitation-app/shared";
 import { DashboardPage, partEnPourcent } from "./DashboardPage";
 import * as apiModule from "@/lib/api";
 
@@ -36,28 +36,39 @@ function chiffres(partiel: Partial<DashboardStatsDto>): DashboardStatsDto {
 
 function renderPage({
   households = [foyer({})],
+  total,
   stats = chiffres({}),
   pending = false,
   enErreur = false,
 }: {
   households?: HouseholdAdminDto[];
+  /** Le `total` de l'enveloppe, s'il diffère du nombre de foyers renvoyés. */
+  total?: number;
   stats?: DashboardStatsDto;
   pending?: boolean;
   enErreur?: boolean;
 } = {}) {
-  vi.spyOn(apiModule.api, "get").mockImplementation((chemin: string) => {
+  const get = vi.spyOn(apiModule.api, "get").mockImplementation((chemin: string) => {
     // Une promesse qui ne se résout jamais : le seul moyen d'observer l'état
     // de chargement sans dépendre d'un vrai délai réseau dans le test.
     if (pending) return new Promise<never>(() => {});
     if (enErreur) return Promise.reject(new Error("Request failed with status 500"));
-    return Promise.resolve(chemin === "/admin/dashboard" ? stats : households);
+    if (chemin === "/admin/dashboard") return Promise.resolve(stats);
+    const page: Page<HouseholdAdminDto> = {
+      items: households,
+      total: total ?? households.length,
+      limit: 500,
+      offset: 0,
+    };
+    return Promise.resolve(page);
   });
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  const vue = render(
     <QueryClientProvider client={queryClient}>
       <DashboardPage />
     </QueryClientProvider>,
   );
+  return { ...vue, get };
 }
 
 /**
@@ -235,6 +246,33 @@ describe("DashboardPage", () => {
         stats: chiffres({ totalHouseholds: 1, confirmedHouseholds: 1, pendingHouseholds: 0 }),
       });
       expect(await screen.findByText("Aucun foyer en attente")).toBeInTheDocument();
+    });
+  });
+
+  describe("toute la liste, ou un avertissement", () => {
+    // Le tableau de bord somme les places prévues sur la liste : il lui faut
+    // tous les foyers, au plafond de l'API, et pas la page par défaut.
+    it("asks for every household, up to the API's ceiling", async () => {
+      const { get } = renderPage();
+      await screen.findByText(/Places : — \/ 4/);
+      const chemins = get.mock.calls.map(([chemin]) => chemin as string);
+      expect(chemins).toContain("/admin/households?limit=500");
+    });
+
+    it("says the figures are incomplete when the API holds more households than it sent", async () => {
+      renderPage({
+        households: [foyer({ id: "a", allocatedSeats: 4 })],
+        total: 612,
+      });
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Seuls les 1 premiers foyers sur 612 sont pris en compte : les chiffres affichés sont incomplets.",
+      );
+    });
+
+    it("stays quiet when the whole list arrived", async () => {
+      renderPage({ households: [foyer({ id: "a" })] });
+      await screen.findByText(/Places : — \/ 4/);
+      expect(screen.queryByRole("alert")).toBeNull();
     });
   });
 

@@ -1,4 +1,6 @@
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+import type { HouseholdAdminDto, ListHouseholdsQuery, Page } from "@invitation-app/shared";
+
+const API_URL =import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
 const LOGIN_PATH = "/login";
 
@@ -47,3 +49,33 @@ export const api = {
 };
 
 export const googleLoginUrl = `${API_URL}/auth/google`;
+
+/**
+ * Le plafond de `limit` côté API. Le tableau de bord et le plan de table ont
+ * besoin de tous les foyers : ils demandent ce plafond, et comparent `total` à
+ * ce qu'ils ont reçu pour ne jamais tronquer en silence.
+ */
+export const HOUSEHOLDS_MAX_LIMIT = 500;
+
+/**
+ * Le chemin de `GET /admin/households` pour ces paramètres. Un paramètre absent
+ * ne part pas, une recherche blanche non plus — l'API appliquerait ses défauts
+ * de toute façon, et la clé de cache resterait polluée par des valeurs vides.
+ */
+export function householdsPath(query: ListHouseholdsQuery): string {
+  const params = new URLSearchParams();
+  const q = query.q?.trim();
+  if (q) params.set("q", q);
+  if (query.status) params.set("status", query.status);
+  if (query.sort) params.set("sort", query.sort);
+  if (query.order) params.set("order", query.order);
+  if (query.limit !== undefined) params.set("limit", String(query.limit));
+  if (query.offset !== undefined) params.set("offset", String(query.offset));
+  const chaine = params.toString();
+  return chaine ? `/admin/households?${chaine}` : "/admin/households";
+}
+
+/** Passe par `api.get` — c'est ce que les tests des écrans interceptent. */
+export function listHouseholds(query: ListHouseholdsQuery): Promise<Page<HouseholdAdminDto>> {
+  return api.get<Page<HouseholdAdminDto>>(householdsPath(query));
+}

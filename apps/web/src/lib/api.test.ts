@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { api } from "./api";
+import { api, householdsPath, listHouseholds } from "./api";
 
 const realLocation = window.location;
 
@@ -76,5 +76,58 @@ describe("api request 401 handling", () => {
 
     await expect(api.post("/admin/tables", {})).rejects.toThrow("Table pleine");
     expect(location.href).toBe("http://localhost/admin/tables");
+  });
+});
+
+describe("householdsPath", () => {
+  it("asks for the bare list when given no parameter", () => {
+    expect(householdsPath({})).toBe("/admin/households");
+  });
+
+  it("sends every parameter the screen sets", () => {
+    const chemin = householdsPath({
+      q: "rakoto",
+      status: "PENDING",
+      sort: "name",
+      order: "desc",
+      limit: 25,
+      offset: 50,
+    });
+    const params = new URL(chemin, "http://x").searchParams;
+    expect(new URL(chemin, "http://x").pathname).toBe("/admin/households");
+    expect(Object.fromEntries(params)).toEqual({
+      q: "rakoto",
+      status: "PENDING",
+      sort: "name",
+      order: "desc",
+      limit: "25",
+      offset: "50",
+    });
+  });
+
+  // Un « q » vide envoyé à l'API ne filtre rien mais pollue le cache et l'URL ;
+  // un « q » blanc serait pire, il chercherait des espaces.
+  it("drops a blank search instead of sending it", () => {
+    expect(householdsPath({ q: "   ", limit: 25 })).toBe("/admin/households?limit=25");
+  });
+
+  it("encodes accents and ampersands in the search", () => {
+    const chemin = householdsPath({ q: "Jean & Éric" });
+    expect(new URL(chemin, "http://x").searchParams.get("q")).toBe("Jean & Éric");
+  });
+
+  it("keeps an offset of zero rather than treating it as absent", () => {
+    expect(householdsPath({ offset: 0 })).toBe("/admin/households?offset=0");
+  });
+});
+
+describe("listHouseholds", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("goes through api.get, so the screens' mocks still see it", async () => {
+    const page = { items: [], total: 0, limit: 500, offset: 0 };
+    const get = vi.spyOn(api, "get").mockResolvedValue(page);
+    await expect(listHouseholds({ limit: 500 })).resolves.toBe(page);
+    expect(get).toHaveBeenCalledWith("/admin/households?limit=500");
   });
 });

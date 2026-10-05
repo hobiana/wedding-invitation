@@ -3,6 +3,7 @@ import type {
   AdminSettingsDto,
   HouseholdAdminDto,
   HouseholdPublicDto,
+  Page,
   TableDto,
   WeddingInfoDto,
 } from '@invitation-app/shared';
@@ -53,6 +54,25 @@ export function toHouseholdAdminDto(household: Household): HouseholdAdminDto {
     tableId: household.tableId,
     createdAt: household.createdAt.toISOString(),
     updatedAt: household.updatedAt.toISOString(),
+  };
+}
+
+/**
+ * L'enveloppe de `GET /admin/households`. Chaque foyer passe par
+ * `toHouseholdAdminDto`, pas par un recopiage : c'est là que la nullabilité de
+ * `confirmedCount` est confrontée au contrat.
+ */
+export function toHouseholdPageDto(page: {
+  items: Household[];
+  total: number;
+  limit: number;
+  offset: number;
+}): Page<HouseholdAdminDto> {
+  return {
+    items: page.items.map(toHouseholdAdminDto),
+    total: page.total,
+    limit: page.limit,
+    offset: page.offset,
   };
 }
 

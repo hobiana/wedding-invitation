@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { CreateTableDto, HouseholdAdminDto, TableDto, UpdateTableDto } from "@invitation-app/shared";
-import { api } from "@/lib/api";
+import type { CreateTableDto, TableDto, UpdateTableDto } from "@invitation-app/shared";
+import { api, HOUSEHOLDS_MAX_LIMIT, listHouseholds } from "@/lib/api";
+import { HouseholdsTruncationNotice } from "@/components/HouseholdsTruncationNotice";
 import { Button } from "@/components/ui/button";
 import { AlertDialog } from "@/components/ui/alert-dialog";
 import { Field } from "@/components/ui/field";
@@ -69,12 +70,16 @@ export function TablesPage() {
     queryKey: ["tables"],
     queryFn: () => api.get<TableDto[]>("/admin/tables"),
   });
+  // Toute la liste, au plafond de l'API : les non-placés se déduisent de tous
+  // les foyers, pas d'une page. Clé paramétrée, pour ne pas se confondre avec
+  // une page de l'écran Foyers.
+  const parametresFoyers = { limit: HOUSEHOLDS_MAX_LIMIT };
   const householdsQuery = useQuery({
-    queryKey: ["households"],
-    queryFn: () => api.get<HouseholdAdminDto[]>("/admin/households"),
+    queryKey: ["households", parametresFoyers],
+    queryFn: () => listHouseholds(parametresFoyers),
   });
   const tables = tablesQuery.data;
-  const households = householdsQuery.data;
+  const households = householdsQuery.data?.items;
   const chargement = tablesQuery.isPending || householdsQuery.isPending;
   const echecDeChargement = tablesQuery.isError || householdsQuery.isError;
 
@@ -192,6 +197,14 @@ export function TablesPage() {
         >
           {error}
         </p>
+      )}
+
+      {householdsQuery.data && (
+        <HouseholdsTruncationNotice
+          recus={householdsQuery.data.items.length}
+          total={householdsQuery.data.total}
+          consequence="des foyers non placés peuvent manquer à la liste"
+        />
       )}
 
       {/*

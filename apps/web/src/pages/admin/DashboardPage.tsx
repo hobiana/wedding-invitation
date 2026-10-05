@@ -1,7 +1,8 @@
 import { useMemo, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { DashboardStatsDto, HouseholdAdminDto } from "@invitation-app/shared";
-import { api } from "@/lib/api";
+import type { DashboardStatsDto } from "@invitation-app/shared";
+import { api, HOUSEHOLDS_MAX_LIMIT, listHouseholds } from "@/lib/api";
+import { HouseholdsTruncationNotice } from "@/components/HouseholdsTruncationNotice";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -32,16 +33,20 @@ export function DashboardPage() {
     queryFn: () => api.get<DashboardStatsDto>("/admin/dashboard"),
   });
 
-  // Même clé que l'écran Foyers : les deux écrans lisent la même liste, et
-  // une correction faite là-bas rafraîchit celui-ci sans second appel.
+  // Toute la liste, au plafond de l'API : les places prévues se somment sur
+  // tous les foyers, pas sur une page. La clé porte ses paramètres pour ne pas
+  // se confondre avec une page de l'écran Foyers, et commence par
+  // « households » : une correction faite là-bas l'invalide aussi.
+  const parametresFoyers = { limit: HOUSEHOLDS_MAX_LIMIT };
   const {
-    data: foyers,
+    data: pageFoyers,
     isPending: foyersEnAttente,
     isError: foyersEnErreur,
   } = useQuery({
-    queryKey: ["households"],
-    queryFn: () => api.get<HouseholdAdminDto[]>("/admin/households"),
+    queryKey: ["households", parametresFoyers],
+    queryFn: () => listHouseholds(parametresFoyers),
   });
+  const foyers = pageFoyers?.items;
 
   const enAttente = statsEnAttente || foyersEnAttente;
   const enErreur = statsEnErreur || foyersEnErreur;
@@ -99,6 +104,14 @@ export function DashboardPage() {
         <p role="status" className="sr-only">
           Chargement du tableau de bord…
         </p>
+      )}
+
+      {pageFoyers && (
+        <HouseholdsTruncationNotice
+          recus={pageFoyers.items.length}
+          total={pageFoyers.total}
+          consequence="les chiffres affichés sont incomplets"
+        />
       )}
 
       <div className="grid gap-4 sm:grid-cols-3">
