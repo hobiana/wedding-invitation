@@ -1,3 +1,11 @@
+/**
+ * L'occupation d'une table est du code exécutable et non un type, et elle est
+ * ici pour la même raison que le reste du fichier : c'est le seul endroit que
+ * l'API et le web importent tous les deux. Voir `seating.ts`.
+ */
+export { seatsFor, seatsTaken } from "./seating";
+export type { Seated } from "./seating";
+
 export type RsvpStatus = "PENDING" | "CONFIRMED" | "DECLINED";
 
 export interface HouseholdPublicDto {
