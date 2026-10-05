@@ -1,17 +1,29 @@
+export interface Seated {
+  confirmedCount: number | null;
+  allocatedSeats: number;
+}
+
 /**
- * L'occupation d'une table — **réexportée**, plus définie ici.
+ * Seats one household occupies at its table. A household that has not answered
+ * yet still holds its full allocation — the planner must not seat someone into
+ * space a late reply would reclaim (a PENDING household can be assigned a
+ * table on purpose, so this case is the norm, not an edge).
  *
- * La formule est descendue dans `@invitation-app/shared` : le front en avait
- * recopié une deuxième version dans `TableBoard`, et le menu « Placer à la
- * table… » en aurait fait une troisième. Ce fichier reste pour que les trois
- * portes de l'API — placer un foyer, éditer la table, éditer un foyer déjà
- * placé — continuent d'importer le même symbole au même chemin : aucun
- * appelant ne change.
+ * Three separate doors lead into a table: assigning a household to it, editing
+ * the table, and editing a household already sitting at it. They have to agree
+ * on how full it is, or one of them becomes a back door into a state the other
+ * two refuse. Hence a single definition, imported rather than restated.
  *
- * Elles doivent s'accorder sur le remplissage d'une table, sinon l'une d'elles
- * devient une porte dérobée vers un état que les deux autres refusent. On
- * l'importe, on ne la réécrit pas — et cela vaut désormais des deux côtés du
- * contrat.
+ * **Cette définition a une jumelle** dans `packages/shared/src/seating.ts`, que
+ * le web importe. Elle ne peut pas être importée ici : `shared` est du
+ * TypeScript brut, et un import de valeur fait planter `node dist/main` au
+ * démarrage (les types, eux, s'effacent). `seating.parity.spec.ts` garde les
+ * deux d'accord — si tu changes l'une, change l'autre.
  */
-export { seatsFor, seatsTaken } from '@invitation-app/shared';
-export type { Seated } from '@invitation-app/shared';
+export function seatsFor(household: Seated): number {
+  return household.confirmedCount ?? household.allocatedSeats;
+}
+
+export function seatsTaken(households: Seated[]): number {
+  return households.reduce((sum, h) => sum + seatsFor(h), 0);
+}
