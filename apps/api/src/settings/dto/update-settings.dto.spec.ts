@@ -35,4 +35,17 @@ describe('UpdateSettingsDto', () => {
   it('rejects a non-string where the contract promises text', async () => {
     await expect(pipe.transform({ dressCode: 42 }, body)).rejects.toThrow();
   });
+
+  // Colonnes non nullables : un lieu vidé par mégarde s'afficherait comme un
+  // blanc sur l'invitation. Le correctif est un refus, pas un null.
+  it.each(['venueName', 'address'])(
+    'refuses an empty or blank %s',
+    async (field) => {
+      await expect(pipe.transform({ [field]: '' }, body)).rejects.toThrow();
+      await expect(pipe.transform({ [field]: '   ' }, body)).rejects.toThrow();
+      await expect(
+        pipe.transform({ [field]: 'Domaine des Roses' }, body),
+      ).resolves.toEqual({ [field]: 'Domaine des Roses' });
+    },
+  );
 });

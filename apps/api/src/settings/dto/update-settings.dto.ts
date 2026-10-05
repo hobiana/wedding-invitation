@@ -1,9 +1,9 @@
-import { IsBoolean, IsDateString, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsDateString, IsOptional, IsString, Matches } from 'class-validator';
 
 export class UpdateSettingsDto {
   @IsOptional() @IsDateString() weddingDate?: string;
-  @IsOptional() @IsString() venueName?: string;
-  @IsOptional() @IsString() address?: string;
+  @IsOptional() @IsString() @Matches(/\S/, { message: 'venueName must not be blank' }) venueName?: string;
+  @IsOptional() @IsString() @Matches(/\S/, { message: 'address must not be blank' }) address?: string;
 
   /**
    * `string | null` et non `string` : ces trois colonnes sont nullables, et

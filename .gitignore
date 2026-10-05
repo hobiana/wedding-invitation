@@ -21,3 +21,7 @@ coverage/
 # Photos sources fournies par le commanditaire (37 Mo de brut).
 # Seules les versions optimisees pour le web seront versionnees, dans apps/web/public/.
 images/
+
+# Installés par un skill, pas encore tranchés (2026-10-05).
+.agents/
+skills-lock.json
