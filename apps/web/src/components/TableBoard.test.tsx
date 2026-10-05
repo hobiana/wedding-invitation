@@ -208,3 +208,59 @@ describe("dragEndTarget", () => {
     expect(dragEndTarget(dragEvent("t1"))).toEqual({ householdId: "h1", tableId: "t1" });
   });
 });
+
+describe("TableBoard focus après un placement", () => {
+  /**
+   * Le foyer change de colonne : son bouton « Placer à la table… » est démonté
+   * et le focus retombe sur `<body>` — relevé dans Chrome, jsdom le reproduit.
+   * Un organisateur au clavier perd alors sa place dans la page. Une fois le
+   * plan rechargé, le focus doit suivre le foyer jusqu'à sa nouvelle puce.
+   */
+  it("suit le foyer placé jusqu'à sa nouvelle puce", async () => {
+    const user = userEvent.setup();
+    ecran(true);
+    const a = foyer({ id: "h1", displayName: "Famille A" });
+    const avant = [table({ id: "t1", name: "Table 1" })];
+    const onAssign = vi.fn();
+    const { rerender } = render(
+      <TableBoard tables={avant} unassignedHouseholds={[a]} onAssign={onAssign} onUnassign={vi.fn()} />,
+    );
+
+    await user.click(chip("Famille A").getByRole("button", { name: /placer à la table/i }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: /Table 1/ }));
+    expect(onAssign).toHaveBeenCalledWith("t1", "h1");
+
+    // Le serveur a répondu : le foyer est à la table.
+    rerender(
+      <TableBoard
+        tables={[table({ id: "t1", name: "Table 1", households: [a] })]}
+        unassignedHouseholds={[]}
+        onAssign={onAssign}
+        onUnassign={vi.fn()}
+      />,
+    );
+
+    expect(document.activeElement).not.toBe(document.body);
+    expect(screen.getByRole("group", { name: "Famille A" })).toContainElement(
+      document.activeElement as HTMLElement,
+    );
+  });
+
+  it("ne vole pas le focus quand le placement a été refusé", async () => {
+    const user = userEvent.setup();
+    ecran(true);
+    const a = foyer({ id: "h1", displayName: "Famille A" });
+    const tables = [table({ id: "t1", name: "Table 1" })];
+    const props = { tables, unassignedHouseholds: [a], onAssign: vi.fn(), onUnassign: vi.fn() };
+    const { rerender } = render(<TableBoard {...props} />);
+
+    await user.click(chip("Famille A").getByRole("button", { name: /placer à la table/i }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: /Table 1/ }));
+
+    // Refus : le plan est rechargé tel quel, le foyer n'a pas bougé.
+    rerender(<TableBoard {...props} unassignedHouseholds={[foyer({ id: "h1", displayName: "Famille A" })]} />);
+
+    // Le focus est revenu au bouton qui avait ouvert le choix, et y reste.
+    expect(document.activeElement?.textContent).toMatch(/placer à la table/i);
+  });
+});

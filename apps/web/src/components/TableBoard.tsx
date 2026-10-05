@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode, useEffect, useRef } from "react";
 import { DndContext, useDroppable, type Announcements, type DragEndEvent } from "@dnd-kit/core";
 import { ChevronDown } from "lucide-react";
 import {
@@ -124,6 +124,43 @@ export function TableBoard({ tables, unassignedHouseholds, onAssign, onUnassign 
   const [placement, setPlacement] = useState<Placement | null>(null);
   const [deplies, setDeplies] = useState<ReadonlySet<string>>(() => new Set());
 
+  /**
+   * Le foyer qu'on vient de placer ou de retirer, et d'où il partait.
+   *
+   * Le foyer change de colonne : son bouton est démonté et le focus retombe sur
+   * `<body>` — l'organisateur au clavier perd sa place dans la page. Quand le
+   * plan rechargé le montre ailleurs, on suit le foyer jusqu'à sa nouvelle
+   * puce. Un refus du serveur ne le déplace pas : rien n'est alors volé, le
+   * focus est déjà revenu au bouton d'origine. Périmé au bout de 5 s, pour
+   * qu'un rechargement sans rapport ne tire pas le focus plus tard.
+   */
+  const suivi = useRef<{ id: string; depuis: string | null; le: number } | null>(null);
+  function suivre(id: string, depuis: string | null) {
+    suivi.current = { id, depuis, le: Date.now() };
+  }
+
+  useEffect(() => {
+    const s = suivi.current;
+    if (!s) return;
+    if (Date.now() - s.le > 5000) {
+      suivi.current = null;
+      return;
+    }
+    const table = tables.find((t) => t.households.some((h) => h.id === s.id));
+    const maintenant = table ? table.id : unassignedHouseholds.some((h) => h.id === s.id) ? null : undefined;
+    if (maintenant === undefined || maintenant === s.depuis) return;
+    suivi.current = null;
+    const puce = [...document.querySelectorAll<HTMLElement>("[data-household-id]")].find(
+      (e) => e.dataset.householdId === s.id,
+    );
+    // Au téléphone la table d'arrivée peut être repliée : la puce n'existe pas,
+    // le focus va alors à l'en-tête de la table, qui dit où le foyer est allé.
+    const cible =
+      puce?.querySelector<HTMLElement>("button") ??
+      (maintenant ? document.querySelector<HTMLElement>(`[aria-controls="table-${maintenant}-foyers"]`) : null);
+    cible?.focus();
+  });
+
   function handleDragEnd(event: DragEndEvent) {
     const target = dragEndTarget(event);
     if (!target) return;
@@ -150,7 +187,14 @@ export function TableBoard({ tables, unassignedHouseholds, onAssign, onUnassign 
         placed={depuis !== null}
         draggable={bureau}
         onPlace={() => setPlacement({ household: h, depuis })}
-        onRemove={depuis !== null ? () => onUnassign(h.id) : undefined}
+        onRemove={
+          depuis !== null
+            ? () => {
+                suivre(h.id, depuis);
+                onUnassign(h.id);
+              }
+            : undefined
+        }
       />
     );
   }
@@ -168,6 +212,7 @@ export function TableBoard({ tables, unassignedHouseholds, onAssign, onUnassign 
       placement={placement}
       tables={tables}
       onChoisir={(tableId) => {
+        suivre(placement.household.id, placement.depuis);
         onAssign(tableId, placement.household.id);
         setPlacement(null);
       }}

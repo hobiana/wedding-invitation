@@ -85,14 +85,18 @@ function Chip({
       style={style}
       role="group"
       aria-label={household.displayName}
+      data-household-id={household.id}
       className={cn(
         "flex flex-wrap items-center gap-2 rounded-surface border border-rule bg-ivory px-3 py-2 text-sm",
         className,
       )}
     >
       {poignee}
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-medium text-ink">{household.displayName}</p>
+      <div className="min-w-0 flex-1 basis-40">
+        {/* Pas de `truncate` : en colonne étroite (trois tables par ligne) le nom
+            devenait « Fa… », illisible. Il passe à la ligne, et les boutons
+            descendent sous lui faute de place à côté. */}
+        <p className="break-words font-medium text-ink">{household.displayName}</p>
         <p className="mt-0.5 flex flex-wrap items-center gap-2 text-ink-muted">
           <span className="tabular-nums">{places(seatsFor(household))}</span>
           <StatusBadge status={household.status} />
