@@ -1,8 +1,10 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { AdminSettingsDto } from "@invitation-app/shared";
 import { SettingsPage } from "./SettingsPage";
+import { AuthProvider } from "@/auth/AuthContext";
 import * as apiModule from "@/lib/api";
 
 /**
@@ -300,5 +302,64 @@ describe("SettingsPage — chargement et erreurs", () => {
     fireEvent.click(await screen.findByRole("button", { name: /enregistrer/i }));
 
     expect(await screen.findByText(/paramètres enregistrés/i)).toBeInTheDocument();
+  });
+});
+
+describe("SettingsPage — compte (téléphone)", () => {
+  const matchMediaOriginal = window.matchMedia;
+  afterEach(() => {
+    vi.restoreAllMocks();
+    window.matchMedia = matchMediaOriginal;
+  });
+
+  function ecran(telephone: boolean) {
+    window.matchMedia = ((query: string) => ({
+      matches: telephone,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    })) as typeof window.matchMedia;
+  }
+
+  function rendreAvecSession() {
+    vi.spyOn(apiModule.api, "get").mockImplementation(async (url: string) =>
+      (url === "/auth/me" ? { id: "u1", email: "admin@example.com" } : settings) as never,
+    );
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <AuthProvider>
+            <SettingsPage />
+          </AuthProvider>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+  }
+
+  // La barre du haut a quitté l'admin sur téléphone : l'adresse connectée et
+  // la déconnexion vivent ici, dans leur propre section.
+  it("shows who is signed in, with a logout, on a phone", async () => {
+    ecran(true);
+    rendreAvecSession();
+
+    expect(await screen.findByRole("heading", { name: "Compte" })).toBeInTheDocument();
+    expect(await screen.findByText("admin@example.com")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /se déconnecter/i })).toBeInTheDocument();
+  });
+
+  // Sur bureau le rail porte déjà la déconnexion : la doubler ici serait deux
+  // boutons pour le même geste.
+  it("does not repeat the account on desktop, where the rail has it", async () => {
+    ecran(false);
+    rendreAvecSession();
+
+    await screen.findByLabelText(/lien vers la carte/i);
+    expect(screen.queryByRole("heading", { name: "Compte" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /se déconnecter/i })).toBeNull();
   });
 });

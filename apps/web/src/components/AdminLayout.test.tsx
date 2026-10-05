@@ -69,11 +69,15 @@ describe("AdminLayout", () => {
     expect(screen.getAllByRole("link", { name: "Foyers" })).toHaveLength(1);
   });
 
-  // La déconnexion reste atteignable au téléphone : sans elle, un organisateur
-  // qui prête son écran ne peut plus fermer la session.
-  it("keeps the logout reachable on a phone", async () => {
+  // Au téléphone la barre du haut (adresse + déconnexion) n'existe plus : elle
+  // mangeait de la hauteur sur chaque écran. L'adresse et la déconnexion vivent
+  // dans Paramètres, section « Compte » (voir AccountSection).
+  it("has no top bar on a phone: the account lives in Settings", async () => {
     renderLayout({ bureau: false });
-    expect(await screen.findByRole("button", { name: /se déconnecter/i })).toBeInTheDocument();
+    await screen.findByRole("link", { name: "Foyers" });
+    expect(screen.queryByRole("button", { name: /se déconnecter/i })).toBeNull();
+    expect(screen.queryByText("admin@example.com")).toBeNull();
+    expect(document.querySelector("header")).toBeNull();
   });
 
   // Le design system interdit l'animation dans l'admin, et les gris bruts
@@ -82,19 +86,6 @@ describe("AdminLayout", () => {
     const { container } = renderLayout();
     await screen.findByRole("link", { name: "Foyers" });
     expect(container.innerHTML).not.toMatch(/(bg|text|border)-neutral-\d{2,3}/);
-  });
-
-  // Le rail s'étirait sur toute la hauteur de la page : sur un écran long
-  // (le plan de table fait 4 000 px), « Se déconnecter » — collé en bas du rail —
-  // n'apparaissait qu'en bas de la page. jsdom ne calcule aucune mise en page :
-  // ce test verrouille les classes qui épinglent le rail à la hauteur de la
-  // fenêtre ; que ça tienne à l'écran, c'est Chrome qui le dit.
-  it("pins the desktop rail to the window so logout never scrolls away", async () => {
-    renderLayout({ bureau: true });
-    const bouton = await screen.findByRole("button", { name: /se déconnecter/i });
-    const rail = bouton.closest("aside");
-    expect(rail).not.toBeNull();
-    expect(rail).toHaveClass("sticky", "top-0", "h-screen", "self-start");
   });
 
   // Le rail s'étirait sur toute la hauteur de la page : « Se déconnecter », collé

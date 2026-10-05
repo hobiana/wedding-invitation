@@ -86,13 +86,6 @@ export function AdminLayout() {
 
   return (
     <div className="flex min-h-screen flex-col bg-page">
-      <header className="flex items-center justify-between gap-3 border-b border-rule bg-ivory px-4 py-3">
-        {admin && <p className="truncate text-sm text-ink-muted">{admin.email}</p>}
-        <Button type="button" variant="outline" size="sm" onClick={handleLogout}>
-          Se déconnecter
-        </Button>
-      </header>
-
       {/* `pb-20` réserve la hauteur des onglets : sans elle, ils recouvrent la
           dernière ligne de chaque écran, qui est justement là où se trouvent
           les foyers les plus récents. */}

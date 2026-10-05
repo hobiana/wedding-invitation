@@ -7,6 +7,8 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AccountSection } from "@/components/AccountSection";
+import { useMediaQuery } from "@/lib/useMediaQuery";
 
 /**
  * Un champ facultatif vidé part en `null`, jamais en `""` : une chaîne vide
@@ -21,6 +23,8 @@ function blankToNull(value: string): string | null {
 
 export function SettingsPage() {
   const queryClient = useQueryClient();
+  // Téléphone seulement : sur bureau le rail porte déjà la déconnexion.
+  const telephone = useMediaQuery("(max-width: 767px)");
   const { data, isError } = useQuery({
     queryKey: ["settings"],
     queryFn: () => api.get<AdminSettingsDto>("/admin/settings"),
@@ -156,6 +160,7 @@ export function SettingsPage() {
           {planActif ? "Désactiver" : "Activer"}
         </Button>
       </div>
+      {telephone && <AccountSection />}
     </div>
   );
 }
