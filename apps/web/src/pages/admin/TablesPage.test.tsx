@@ -1,172 +1,347 @@
-import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { HouseholdAdminDto, Page, TableDto, TableHouseholdSummaryDto } from "@invitation-app/shared";
+import type { AdminSettingsDto, HouseholdAdminDto, Page, TableDto, TableHouseholdSummaryDto } from "@invitation-app/shared";
+import { ToastProvider } from "@/components/ui/toast";
 import { TablesPage } from "./TablesPage";
 import * as apiModule from "@/lib/api";
 
-function table(partiel: Partial<TableDto> = {}): TableDto {
-  return {
-    id: "t1",
-    name: "Table 1",
-    capacity: 8,
-    households: [],
-    ...partiel,
-  };
+/**
+ * La page rend **soit** le bureau **soit** le téléphone. jsdom n'a pas de
+ * `matchMedia` : sans ce réglage, `useMediaQuery` répond « non » et chaque
+ * test serait un test de téléphone sans le dire.
+ */
+const matchMediaOriginal = window.matchMedia;
+function ecran(bureau: boolean) {
+  window.matchMedia = ((query: string) => ({
+    matches: bureau,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => false,
+  })) as typeof window.matchMedia;
 }
+afterEach(() => {
+  window.matchMedia = matchMediaOriginal;
+  vi.restoreAllMocks();
+});
 
-function foyerDeTable(partiel: Partial<TableHouseholdSummaryDto> = {}): TableHouseholdSummaryDto {
+function table(partiel: Partial<TableDto> = {}): TableDto {
+  return { id: "t1", name: "Table 1", capacity: 8, households: [], ...partiel };
+}
+function resume(partiel: Partial<TableHouseholdSummaryDto> = {}): TableHouseholdSummaryDto {
+  return { id: "a1", displayName: "Rakotomavo", allocatedSeats: 4, confirmedCount: null, status: "PENDING", ...partiel };
+}
+function foyer(partiel: Partial<HouseholdAdminDto> = {}): HouseholdAdminDto {
   return {
-    id: "a1",
+    id: "n1",
     displayName: "Rakotomavo",
     allocatedSeats: 4,
-    confirmedCount: null,
+    memberNames: [],
     status: "PENDING",
+    confirmedCount: null,
+    dietaryNotes: null,
+    message: null,
+    tableId: null,
+    createdAt: "2026-09-01T00:00:00.000Z",
+    updatedAt: "2026-09-01T00:00:00.000Z",
     ...partiel,
   };
 }
-
-const TABLE_UNIQUE: TableDto[] = [table()];
-
-/** L'enveloppe de `GET /admin/households`, complète sauf `total` contraire. */
 function pageDe(items: HouseholdAdminDto[], total = items.length): Page<HouseholdAdminDto> {
   return { items, total, limit: 500, offset: 0 };
 }
+const REGLAGES = { weddingDate: "2027-01-02T06:00:00.000Z" } as AdminSettingsDto;
 
-function renderPage({ tables = TABLE_UNIQUE }: { tables?: TableDto[] } = {}) {
-  vi.spyOn(apiModule.api, "get").mockImplementation((path: string) =>
-    Promise.resolve(path === "/admin/tables" ? tables : pageDe([])),
-  );
+interface Donnees {
+  tables?: TableDto[];
+  foyers?: Page<HouseholdAdminDto>;
+  reglages?: AdminSettingsDto | Error;
+}
+function rendre({ tables = [table()], foyers = pageDe([]), reglages = REGLAGES }: Donnees = {}) {
+  const get = vi.spyOn(apiModule.api, "get").mockImplementation((path: string) => {
+    if (path === "/admin/tables") return Promise.resolve(tables);
+    if (path === "/admin/settings") return reglages instanceof Error ? Promise.reject(reglages) : Promise.resolve(reglages);
+    return Promise.resolve(foyers);
+  });
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  render(
     <QueryClientProvider client={queryClient}>
-      <TablesPage />
+      <ToastProvider>
+        <TablesPage />
+      </ToastProvider>
     </QueryClientProvider>,
   );
+  return { get, utilisateur: userEvent.setup() };
 }
+const chargementsDesTables = (get: ReturnType<typeof rendre>["get"]) =>
+  get.mock.calls.filter(([chemin]) => chemin === "/admin/tables").length;
 
-describe("TablesPage table management", () => {
-  afterEach(() => vi.restoreAllMocks());
+describe("TablesPage on a desktop — header", () => {
+  beforeEach(() => ecran(true));
 
-  it("lists each table with its capacity", async () => {
-    renderPage();
-    expect(await screen.findByText(/Table 1 — 8 places/)).toBeInTheDocument();
+  it("labels the reception with the wedding day, at Madagascar's time", async () => {
+    rendre();
+    expect(await screen.findByText("Réception · 2 janvier")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Plan de table" })).toBeInTheDocument();
   });
 
-  // PATCH /admin/tables/:id existed but nothing in the UI reached it.
+  // Les réglages ne chargent pas : l'étiquette manque, le plan reste utilisable.
+  it("still shows the plan when the settings could not be loaded", async () => {
+    rendre({ reglages: new Error("boom") });
+    expect(await screen.findByRole("region", { name: "Table 1" })).toBeInTheDocument();
+    expect(screen.queryByText(/Réception/)).not.toBeInTheDocument();
+  });
+
+  it("adds up the seats assigned and the households left to seat", async () => {
+    rendre({
+      tables: [table({ capacity: 8, households: [resume({ id: "s", allocatedSeats: 3 })] }), table({ id: "t2", name: "Table 2", capacity: 6 })],
+      foyers: pageDe([foyer({ id: "s" }), foyer({ id: "x", displayName: "Rabe" }), foyer({ id: "y", displayName: "Andria" })]),
+    });
+    // `<dt>` puis `<dd>` dans le DOM ; l'ordre visuel est inversé par le style.
+    expect((await screen.findByText("places attribuées")).nextElementSibling).toHaveTextContent(/^3 \/ 14$/);
+    expect(screen.getByText("foyers à placer").nextElementSibling).toHaveTextContent(/^2$/);
+  });
+});
+
+describe("TablesPage on a desktop — households", () => {
+  beforeEach(() => ecran(true));
+
+  it("asks for every household, up to the API's ceiling", async () => {
+    const { get } = rendre({ foyers: pageDe([foyer()]) });
+    await screen.findByRole("group", { name: "Rakotomavo" });
+    expect(get.mock.calls.map(([chemin]) => chemin)).toContain("/admin/households?limit=500");
+  });
+
+  // Décision du commanditaire : un foyer qui a décliné ne se place pas. Assis
+  // avant son refus, il reste visible à sa table.
+  it("hides a declined household from « À placer » but keeps it at its table", async () => {
+    rendre({
+      tables: [table({ households: [resume({ id: "assis", displayName: "Famille Rabe", status: "DECLINED", confirmedCount: 0 })] })],
+      foyers: pageDe([
+        foyer({ id: "assis", displayName: "Famille Rabe", status: "DECLINED", confirmedCount: 0 }),
+        foyer({ id: "non", displayName: "Famille Morel", status: "DECLINED", confirmedCount: 0 }),
+        foyer({ id: "oui", displayName: "Famille Girard" }),
+      ]),
+    });
+    expect(await screen.findByRole("group", { name: "Famille Girard" })).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Famille Morel" })).not.toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "Table 1" })).getByText("Famille Rabe")).toBeInTheDocument();
+  });
+
+  it("warns that the plan is incomplete when the API holds more households than it sent", async () => {
+    rendre({ foyers: pageDe([foyer()], 640) });
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Seuls les 1 premiers foyers sur 640 sont pris en compte : des foyers non placés peuvent manquer à la liste.",
+    );
+  });
+
+  it("stays quiet when the whole list arrived", async () => {
+    rendre({ foyers: pageDe([foyer()]) });
+    await screen.findByRole("group", { name: "Rakotomavo" });
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+});
+
+describe("TablesPage on a desktop — placing", () => {
+  beforeEach(() => ecran(true));
+
+  async function placerALaTable1(utilisateur: ReturnType<typeof userEvent.setup>) {
+    // Le foyer n'existe qu'une fois la réponse arrivée : c'est lui qu'on attend.
+    await utilisateur.click(await screen.findByRole("button", { name: "Placer Rakotomavo" }));
+    await utilisateur.click(screen.getByRole("button", { name: "Placer ici, à la table « Table 1 »" }));
+  }
+
+  it("seats a household and confirms it in a toast", async () => {
+    const patch = vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
+    const { utilisateur } = rendre({ foyers: pageDe([foyer()]) });
+    await placerALaTable1(utilisateur);
+    expect(patch).toHaveBeenCalledWith("/admin/tables/t1/assign/n1");
+    expect(await screen.findByText("Le foyer Rakotomavo est placé à la table « Table 1 ».")).toBeInTheDocument();
+  });
+
+  // Le serveur refuse — en anglais. La page le dit en français et recharge.
+  it("shows the server's refusal in French and refreshes the plan", async () => {
+    vi.spyOn(apiModule.api, "patch").mockRejectedValue(new Error('Table "Table 1" has 2 seat(s) left; this household needs 4'));
+    const { utilisateur, get } = rendre({ foyers: pageDe([foyer()]) });
+    await screen.findByRole("group", { name: "Rakotomavo" });
+    const avant = chargementsDesTables(get);
+
+    await placerALaTable1(utilisateur);
+
+    expect(
+      await screen.findByText(
+        "Le foyer Rakotomavo n'a pas pu être placé à la table « Table 1 » : elle n'a sans doute plus assez de places. Le plan vient d'être rechargé.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/seat\(s\) left/)).not.toBeInTheDocument();
+    await waitFor(() => expect(chargementsDesTables(get)).toBeGreaterThan(avant));
+  });
+
+  it("removes a household from its table and says where it went", async () => {
+    const patch = vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
+    const { utilisateur } = rendre({
+      tables: [table({ households: [resume({ id: "n1" })] })],
+      foyers: pageDe([foyer()]),
+    });
+    await utilisateur.click(await screen.findByRole("button", { name: "Retirer Rakotomavo de la table « Table 1 »" }));
+    expect(patch).toHaveBeenCalledWith("/admin/tables/unassign/n1");
+    expect(
+      await screen.findByText("Le foyer Rakotomavo est retiré de la table « Table 1 » et revient dans À placer."),
+    ).toBeInTheDocument();
+  });
+
+  // Un foyer décliné ne revient pas dans « À placer » : le toast ne le promet pas.
+  it("does not promise « À placer » to a declined household", async () => {
+    vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
+    const { utilisateur } = rendre({
+      tables: [table({ households: [resume({ id: "n1", status: "DECLINED", confirmedCount: 0 })] })],
+      foyers: pageDe([foyer({ status: "DECLINED", confirmedCount: 0 })]),
+    });
+    await utilisateur.click(await screen.findByRole("button", { name: "Retirer Rakotomavo de la table « Table 1 »" }));
+    expect(await screen.findByText("Le foyer Rakotomavo est retiré de la table « Table 1 ».")).toBeInTheDocument();
+  });
+
+  it("says in French when a household could not be removed", async () => {
+    vi.spyOn(apiModule.api, "patch").mockRejectedValue(new Error("Household not found"));
+    const { utilisateur } = rendre({ tables: [table({ households: [resume({ id: "n1" })] })], foyers: pageDe([foyer()]) });
+    await utilisateur.click(await screen.findByRole("button", { name: "Retirer Rakotomavo de la table « Table 1 »" }));
+    expect(
+      await screen.findByText("Le foyer Rakotomavo n'a pas pu être retiré de sa table. Le plan vient d'être rechargé."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/not found/)).not.toBeInTheDocument();
+  });
+});
+
+describe("TablesPage on a desktop — tables", () => {
+  beforeEach(() => ecran(true));
+
+  it("creates a table from the draft and confirms it", async () => {
+    const post = vi.spyOn(apiModule.api, "post").mockResolvedValue({});
+    const { utilisateur } = rendre();
+    await utilisateur.click(await screen.findByRole("button", { name: "Nouvelle table" }));
+    await utilisateur.click(screen.getByRole("button", { name: "Terminé" }));
+    expect(post).toHaveBeenCalledWith("/admin/tables", { name: "Table 2", capacity: 10 });
+    expect(await screen.findByText("La table « Table 2 » est créée.")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("form", { name: "Nouvelle table" })).not.toBeInTheDocument());
+  });
+
+  it("says in French when a table could not be created, keeping the draft", async () => {
+    vi.spyOn(apiModule.api, "post").mockRejectedValue(new Error("name must be a string"));
+    const { utilisateur } = rendre();
+    await utilisateur.click(await screen.findByRole("button", { name: "Nouvelle table" }));
+    await utilisateur.click(screen.getByRole("button", { name: "Terminé" }));
+    expect(await screen.findByText(/La table n'a pas pu être créée/)).toBeInTheDocument();
+    expect(screen.queryByText(/must be a string/)).not.toBeInTheDocument();
+    expect(screen.getByRole("form", { name: "Nouvelle table" })).toBeInTheDocument();
+  });
+
   it("renames a table and changes its capacity", async () => {
-    const patchSpy = vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
-    renderPage();
-
-    fireEvent.click(await screen.findByRole("button", { name: /modifier/i }));
-    fireEvent.change(screen.getByLabelText(/nom de table 1/i), { target: { value: "Table des amis" } });
-    fireEvent.change(screen.getByLabelText(/capacité de table 1/i), { target: { value: "12" } });
-    fireEvent.click(screen.getByRole("button", { name: /enregistrer/i }));
-
-    await waitFor(() =>
-      expect(patchSpy).toHaveBeenCalledWith("/admin/tables/t1", {
-        name: "Table des amis",
-        capacity: 12,
-      }),
-    );
+    const patch = vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
+    const { utilisateur } = rendre();
+    await utilisateur.click(await screen.findByRole("button", { name: "Modifier la table « Table 1 »" }));
+    const nom = screen.getByLabelText("Nom");
+    await utilisateur.clear(nom);
+    await utilisateur.type(nom, "Table des amis");
+    await utilisateur.click(screen.getByRole("button", { name: "Ajouter une place" }));
+    await utilisateur.click(screen.getByRole("button", { name: "Terminé" }));
+    expect(patch).toHaveBeenCalledWith("/admin/tables/t1", { name: "Table des amis", capacity: 9 });
+    expect(await screen.findByText("La table « Table des amis » est modifiée.")).toBeInTheDocument();
   });
 
-  // DELETE /admin/tables/:id was likewise unreachable. Deleting is now guarded
-  // by a confirmation (task 18) : the DELETE only fires once it is pressed.
-  it("deletes a table once the confirmation is pressed", async () => {
-    const deleteSpy = vi.spyOn(apiModule.api, "delete").mockResolvedValue({});
-    renderPage();
-
-    fireEvent.click(await screen.findByRole("button", { name: "Supprimer" }));
-    fireEvent.click(screen.getByRole("button", { name: "Supprimer la table" }));
-
-    await waitFor(() => expect(deleteSpy).toHaveBeenCalledWith("/admin/tables/t1"));
-  });
-
-  it("sends the chosen capacity when creating a table instead of always defaulting to 10", async () => {
-    const postSpy = vi.spyOn(apiModule.api, "post").mockResolvedValue({});
-    renderPage();
-
-    fireEvent.change(await screen.findByLabelText(/nom de la table/i), { target: { value: "Table 2" } });
-    fireEvent.change(screen.getByLabelText(/^capacité$/i), { target: { value: "6" } });
-    fireEvent.click(screen.getByRole("button", { name: /ajouter une table/i }));
-
-    await waitFor(() =>
-      expect(postSpy).toHaveBeenCalledWith("/admin/tables", { name: "Table 2", capacity: 6 }),
-    );
-  });
-
-  // Le refus est montré, et en français : l'API répond en anglais, et son
-  // message recopié tel quel était un défaut de l'interface.
-  it("surfaces the API's capacity conflict in French instead of failing silently", async () => {
+  it("surfaces the API's capacity conflict in French", async () => {
     vi.spyOn(apiModule.api, "patch").mockRejectedValue(
       new Error('Table "Table 1" already seats 9 guest(s); its capacity cannot be lowered to 4'),
     );
-    renderPage();
-
-    fireEvent.click(await screen.findByRole("button", { name: /modifier/i }));
-    fireEvent.click(screen.getByRole("button", { name: /enregistrer/i }));
-
-    const alerte = await screen.findByRole("alert");
-    expect(alerte).toHaveTextContent(/La table « Table 1 » n'a pas pu être modifiée/);
-    expect(alerte).toHaveTextContent(/places déjà occupées/);
+    const { utilisateur } = rendre();
+    await utilisateur.click(await screen.findByRole("button", { name: "Modifier la table « Table 1 »" }));
+    await utilisateur.click(screen.getByRole("button", { name: "Terminé" }));
+    expect(await screen.findByText(/La table « Table 1 » n'a pas pu être modifiée/)).toBeInTheDocument();
     expect(screen.queryByText(/already seats/i)).not.toBeInTheDocument();
   });
+});
 
-  it("refuses a capacity below one before sending anything", async () => {
-    const postSpy = vi.spyOn(apiModule.api, "post").mockResolvedValue({});
-    renderPage();
+describe("TablesPage on a desktop — deleting", () => {
+  beforeEach(() => ecran(true));
 
-    fireEvent.change(await screen.findByLabelText(/nom de la table/i), { target: { value: "Table 2" } });
-    fireEvent.change(screen.getByLabelText(/^capacité$/i), { target: { value: "0" } });
-    fireEvent.click(screen.getByRole("button", { name: /ajouter une table/i }));
+  async function demanderLaSuppression(tables: TableDto[] = [table()]) {
+    const supprimer = vi.spyOn(apiModule.api, "delete").mockResolvedValue({});
+    const vue = rendre({ tables });
+    await vue.utilisateur.click(await screen.findByRole("button", { name: "Modifier la table « Table 1 »" }));
+    await vue.utilisateur.click(screen.getByRole("button", { name: "Supprimer" }));
+    return { ...vue, supprimer };
+  }
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("La capacité doit être d'au moins 1 place.");
-    expect(postSpy).not.toHaveBeenCalled();
+  it("never deletes a table on the first click", async () => {
+    const { supprimer } = await demanderLaSuppression();
+    expect(supprimer).not.toHaveBeenCalled();
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
   });
 
-  it("says in French when a table could not be created", async () => {
-    vi.spyOn(apiModule.api, "post").mockRejectedValue(new Error("name must be a string"));
-    renderPage();
+  it("deletes once the confirmation is pressed, and confirms it", async () => {
+    const { supprimer, utilisateur } = await demanderLaSuppression();
+    await utilisateur.click(screen.getByRole("button", { name: "Supprimer la table" }));
+    expect(supprimer).toHaveBeenCalledWith("/admin/tables/t1");
+    expect(await screen.findByText("La table « Table 1 » est supprimée.")).toBeInTheDocument();
+  });
 
-    fireEvent.change(await screen.findByLabelText(/nom de la table/i), { target: { value: "Table 2" } });
-    fireEvent.click(screen.getByRole("button", { name: /ajouter une table/i }));
+  it("cancels without deleting", async () => {
+    const { supprimer, utilisateur } = await demanderLaSuppression();
+    await utilisateur.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Annuler" }));
+    expect(supprimer).not.toHaveBeenCalled();
+  });
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(/La table n'a pas pu être créée/);
-    expect(screen.queryByText(/must be a string/)).not.toBeInTheDocument();
+  // Supprimer une table ne détruit pas les foyers : ils reviennent dans « À placer ».
+  it("says the one household seated there goes back to « À placer »", async () => {
+    await demanderLaSuppression([table({ households: [resume()] })]);
+    expect(
+      screen.getByText("Le foyer placé à cette table reviendra dans À placer. Aucun foyer n'est supprimé."),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the plural for a table seating several", async () => {
+    await demanderLaSuppression([table({ households: [resume(), resume({ id: "h2", displayName: "Andriamanana" })] })]);
+    expect(screen.getByText(/^Les 2 foyers placés à cette table reviendront dans À placer\./)).toBeInTheDocument();
+  });
+
+  it("says in French when a table could not be deleted", async () => {
+    vi.spyOn(apiModule.api, "delete").mockRejectedValue(new Error("Internal server error"));
+    const { utilisateur } = rendre();
+    await utilisateur.click(await screen.findByRole("button", { name: "Modifier la table « Table 1 »" }));
+    await utilisateur.click(screen.getByRole("button", { name: "Supprimer" }));
+    await utilisateur.click(screen.getByRole("button", { name: "Supprimer la table" }));
+    expect(await screen.findByText("La table « Table 1 » n'a pas pu être supprimée. Réessayez dans un instant.")).toBeInTheDocument();
+    expect(screen.queryByText(/Internal server error/)).not.toBeInTheDocument();
   });
 });
 
 describe("TablesPage states", () => {
-  afterEach(() => vi.restoreAllMocks());
+  beforeEach(() => ecran(true));
 
   it("shows skeletons while the plan loads, then the plan", async () => {
     let livrer: (valeur: TableDto[]) => void = () => {};
     vi.spyOn(apiModule.api, "get").mockImplementation((path: string) =>
-      path === "/admin/tables"
-        ? new Promise<TableDto[]>((resoudre) => (livrer = resoudre))
-        : Promise.resolve(pageDe([])),
+      path === "/admin/tables" ? new Promise<TableDto[]>((resoudre) => (livrer = resoudre)) : Promise.resolve(pageDe([])),
     );
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       <QueryClientProvider client={queryClient}>
-        <TablesPage />
+        <ToastProvider>
+          <TablesPage />
+        </ToastProvider>
       </QueryClientProvider>,
     );
 
-    expect(screen.getByRole("status")).toHaveTextContent("Chargement du plan de table…");
+    expect(screen.getByText("Chargement du plan de table…")).toBeInTheDocument();
     expect(screen.getAllByTestId("skeleton").length).toBeGreaterThan(0);
 
-    livrer(TABLE_UNIQUE);
-    expect(await screen.findByText(/Table 1 — 8 places/)).toBeInTheDocument();
+    livrer([table()]);
+    expect(await screen.findByRole("region", { name: "Table 1" })).toBeInTheDocument();
     expect(screen.queryByTestId("skeleton")).not.toBeInTheDocument();
-  });
-
-  it("explains an empty plan instead of showing an empty board", async () => {
-    renderPage({ tables: [] });
-    expect(await screen.findByText("Aucune table")).toBeInTheDocument();
-    expect(screen.getByText(/Créez la première table/)).toBeInTheDocument();
   });
 
   it("says in French when the plan could not be loaded", async () => {
@@ -174,217 +349,82 @@ describe("TablesPage states", () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       <QueryClientProvider client={queryClient}>
-        <TablesPage />
+        <ToastProvider>
+          <TablesPage />
+        </ToastProvider>
       </QueryClientProvider>,
     );
-
     expect(await screen.findByRole("alert")).toHaveTextContent(/Le plan de table n'a pas pu être chargé/);
     expect(screen.queryByText(/Internal server error/)).not.toBeInTheDocument();
   });
 });
 
-describe("TablesPage placement", () => {
-  afterEach(() => vi.restoreAllMocks());
+/**
+ * Le téléphone garde, pour l'instant, l'ancienne composition : formulaire en
+ * tête, liste des tables, `TableBoard`. Un autre lot la remplace ; ces tests
+ * vérifient seulement qu'elle marche encore, toasts compris.
+ */
+describe("TablesPage on a phone (provisional)", () => {
+  beforeEach(() => ecran(false));
 
-  const foyerNonPlace: HouseholdAdminDto = {
-    id: "n1",
-    displayName: "Rakotomavo",
-    allocatedSeats: 4,
-    memberNames: [],
-    status: "PENDING",
-    confirmedCount: null,
-    dietaryNotes: null,
-    message: null,
-    tableId: null,
-    createdAt: "2026-09-01T00:00:00.000Z",
-    updatedAt: "2026-09-01T00:00:00.000Z",
-  };
+  it("still lists each table with its capacity", async () => {
+    rendre();
+    expect(await screen.findByText(/Table 1 — 8 places/)).toBeInTheDocument();
+  });
 
-  function renderAvecUnFoyer() {
-    const get = vi.spyOn(apiModule.api, "get").mockImplementation((path: string) =>
-      Promise.resolve(path === "/admin/tables" ? TABLE_UNIQUE : pageDe([foyerNonPlace])),
-    );
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
-      <QueryClientProvider client={queryClient}>
-        <TablesPage />
-      </QueryClientProvider>,
-    );
-    return get;
-  }
+  it("still creates a table with the chosen capacity, and confirms it", async () => {
+    const post = vi.spyOn(apiModule.api, "post").mockResolvedValue({});
+    const { utilisateur } = rendre();
+    await utilisateur.type(await screen.findByLabelText(/nom de la table/i), "Table 2");
+    await utilisateur.clear(screen.getByLabelText(/^capacité$/i));
+    await utilisateur.type(screen.getByLabelText(/^capacité$/i), "6");
+    await utilisateur.click(screen.getByRole("button", { name: /ajouter une table/i }));
+    expect(post).toHaveBeenCalledWith("/admin/tables", { name: "Table 2", capacity: 6 });
+    expect(await screen.findByText("La table « Table 2 » est créée.")).toBeInTheDocument();
+  });
 
-  async function placerALaTable1(utilisateur: ReturnType<typeof userEvent.setup>) {
-    // Le foyer n'existe qu'une fois la réponse arrivée : c'est lui qu'on
-    // attend, pas un titre rendu dès le premier passage.
-    const foyer = within(await screen.findByRole("group", { name: "Rakotomavo" }));
-    await utilisateur.click(foyer.getByRole("button", { name: "Placer à la table…" }));
-    const option = within(screen.getByRole("dialog")).getByRole("button", { name: /table 1/i });
-    // Le menu présentait ce placement comme permis : 8 places, 4 à placer.
-    expect(option).toBeEnabled();
-    await utilisateur.click(option);
-  }
+  it("refuses a capacity below one before sending anything", async () => {
+    const post = vi.spyOn(apiModule.api, "post").mockResolvedValue({});
+    const { utilisateur } = rendre();
+    await utilisateur.type(await screen.findByLabelText(/nom de la table/i), "Table 2");
+    await utilisateur.clear(screen.getByLabelText(/^capacité$/i));
+    await utilisateur.type(screen.getByLabelText(/^capacité$/i), "0");
+    await utilisateur.click(screen.getByRole("button", { name: /ajouter une table/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("La capacité doit être d'au moins 1 place.");
+    expect(post).not.toHaveBeenCalled();
+  });
 
-  it("seats a household through the menu and says so", async () => {
-    const utilisateur = userEvent.setup();
+  it("still edits a table", async () => {
     const patch = vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
-    renderAvecUnFoyer();
-
-    await placerALaTable1(utilisateur);
-
-    expect(patch).toHaveBeenCalledWith("/admin/tables/t1/assign/n1");
-    expect(await screen.findByRole("status")).toHaveTextContent("Le foyer Rakotomavo est placé à la table « Table 1 ».");
+    const { utilisateur } = rendre();
+    await utilisateur.click(await screen.findByRole("button", { name: /^modifier$/i }));
+    await utilisateur.clear(screen.getByLabelText(/capacité de table 1/i));
+    await utilisateur.type(screen.getByLabelText(/capacité de table 1/i), "12");
+    await utilisateur.click(screen.getByRole("button", { name: /enregistrer/i }));
+    expect(patch).toHaveBeenCalledWith("/admin/tables/t1", { name: "Table 1", capacity: 12 });
   });
 
-  // Le menu n'autorise rien : entre le chargement et le clic, un autre onglet a
-  // pu remplir la table. Le serveur refuse — en anglais —, la page le dit en
-  // français et recharge le plan pour montrer l'état réel.
-  it("shows the server's refusal in French and refreshes the plan, even when the menu allowed it", async () => {
-    const utilisateur = userEvent.setup();
-    vi.spyOn(apiModule.api, "patch").mockRejectedValue(
-      new Error('Table "Table 1" has 2 seat(s) left; this household needs 4'),
-    );
-    const get = renderAvecUnFoyer();
-    await screen.findByRole("group", { name: "Rakotomavo" });
-    const chargementsAvant = get.mock.calls.filter(([chemin]) => chemin === "/admin/tables").length;
-
-    await placerALaTable1(utilisateur);
-
-    const alerte = await screen.findByRole("alert");
-    expect(alerte).toHaveTextContent(/Le foyer Rakotomavo n'a pas pu être placé à la table « Table 1 »/);
-    expect(alerte).toHaveTextContent(/plan vient d'être rechargé/);
-    expect(screen.queryByText(/seat\(s\) left/)).not.toBeInTheDocument();
-    await waitFor(() =>
-      expect(get.mock.calls.filter(([chemin]) => chemin === "/admin/tables").length).toBeGreaterThan(
-        chargementsAvant,
-      ),
-    );
-  });
-});
-
-describe("TablesPage deletion guard", () => {
-  afterEach(() => vi.restoreAllMocks());
-
-  it("never deletes a table on the first click", async () => {
-    const utilisateur = userEvent.setup();
+  it("still deletes a table behind a confirmation", async () => {
     const supprimer = vi.spyOn(apiModule.api, "delete").mockResolvedValue({});
-    renderPage({ tables: [table({ name: "Table 1" })] });
-
+    const { utilisateur } = rendre();
     await utilisateur.click(await screen.findByRole("button", { name: "Supprimer" }));
     expect(supprimer).not.toHaveBeenCalled();
-    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
-  });
-
-  it("deletes only once the confirmation is pressed", async () => {
-    const utilisateur = userEvent.setup();
-    const supprimer = vi.spyOn(apiModule.api, "delete").mockResolvedValue({});
-    renderPage({ tables: [table({ name: "Table 1" })] });
-
-    await utilisateur.click(await screen.findByRole("button", { name: "Supprimer" }));
     await utilisateur.click(screen.getByRole("button", { name: "Supprimer la table" }));
-    expect(supprimer).toHaveBeenCalledTimes(1);
+    expect(supprimer).toHaveBeenCalledWith("/admin/tables/t1");
   });
 
-  it("cancels without deleting", async () => {
-    const utilisateur = userEvent.setup();
-    const supprimer = vi.spyOn(apiModule.api, "delete").mockResolvedValue({});
-    renderPage({ tables: [table({ name: "Table 1" })] });
-
-    await utilisateur.click(await screen.findByRole("button", { name: "Supprimer" }));
-    await utilisateur.click(screen.getByRole("button", { name: "Annuler" }));
-    expect(supprimer).not.toHaveBeenCalled();
+  it("still seats a household through the menu, and confirms it in a toast", async () => {
+    const patch = vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
+    const { utilisateur } = rendre({ foyers: pageDe([foyer()]) });
+    const carte = within(await screen.findByRole("group", { name: "Rakotomavo" }));
+    await utilisateur.click(carte.getByRole("button", { name: "Placer à la table…" }));
+    await utilisateur.click(within(screen.getByRole("dialog")).getByRole("button", { name: /table 1/i }));
+    expect(patch).toHaveBeenCalledWith("/admin/tables/t1/assign/n1");
+    expect(await screen.findByText("Le foyer Rakotomavo est placé à la table « Table 1 ».")).toBeInTheDocument();
   });
 
-  // Supprimer une table ne détruit pas les foyers : elle les renvoie aux non
-  // placés. Le dire évite de croire qu'on perd des invités.
-  it("says where the seated households go", async () => {
-    const utilisateur = userEvent.setup();
-    renderPage({
-      tables: [table({ name: "Table 1", households: [foyerDeTable()] })],
-    });
-
-    await utilisateur.click(await screen.findByRole("button", { name: "Supprimer" }));
-    // Ce que le dialogue doit dire, quel que soit le nombre : les foyers ne
-    // sont pas supprimés avec la table. L'accord lui-même est vérifié juste
-    // en dessous, dans les deux cas.
-    expect(
-      screen.getByText(/aux foyers non placés\. Aucun foyer n'est supprimé\./),
-    ).toBeInTheDocument();
-  });
-
-  // « Les 1 foyers placés à cette table » — la même faute que R14 a fait
-  // corriger côté foyers, au mot près, dans le fichier voisin.
-  it("agrees the noun with the number for a table seating one household", async () => {
-    const utilisateur = userEvent.setup();
-    renderPage({ tables: [table({ name: "Table 1", households: [foyerDeTable()] })] });
-
-    await utilisateur.click(await screen.findByRole("button", { name: "Supprimer" }));
-    expect(screen.getByText(/^Le foyer placé à cette table reviendra/)).toBeInTheDocument();
-  });
-
-  it("keeps the plural for a table seating several", async () => {
-    const utilisateur = userEvent.setup();
-    renderPage({
-      tables: [
-        table({
-          name: "Table 1",
-          households: [foyerDeTable(), foyerDeTable({ id: "h2", displayName: "Andriamanana" })],
-        }),
-      ],
-    });
-
-    await utilisateur.click(await screen.findByRole("button", { name: "Supprimer" }));
-    expect(screen.getByText(/^Les 2 foyers placés à cette table reviendront/)).toBeInTheDocument();
-  });
-});
-
-describe("TablesPage household list", () => {
-  afterEach(() => vi.restoreAllMocks());
-
-  const nonPlace: HouseholdAdminDto = {
-    id: "n1",
-    displayName: "Rakotomavo",
-    allocatedSeats: 4,
-    memberNames: [],
-    status: "PENDING",
-    confirmedCount: null,
-    dietaryNotes: null,
-    message: null,
-    tableId: null,
-    createdAt: "2026-09-01T00:00:00.000Z",
-    updatedAt: "2026-09-01T00:00:00.000Z",
-  };
-
-  function renderAvec(foyers: Page<HouseholdAdminDto>) {
-    const get = vi.spyOn(apiModule.api, "get").mockImplementation((path: string) =>
-      Promise.resolve(path === "/admin/tables" ? TABLE_UNIQUE : foyers),
-    );
-    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
-      <QueryClientProvider client={queryClient}>
-        <TablesPage />
-      </QueryClientProvider>,
-    );
-    return get;
-  }
-
-  // Les foyers non placés se déduisent de toute la liste : une page de 100
-  // en ferait disparaître sans rien dire.
-  it("asks for every household, up to the API's ceiling", async () => {
-    const get = renderAvec(pageDe([nonPlace]));
-    await screen.findByRole("group", { name: "Rakotomavo" });
-    expect(get.mock.calls.map(([chemin]) => chemin)).toContain("/admin/households?limit=500");
-  });
-
-  it("warns that the plan is incomplete when the API holds more households than it sent", async () => {
-    renderAvec(pageDe([nonPlace], 640));
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Seuls les 1 premiers foyers sur 640 sont pris en compte : des foyers non placés peuvent manquer à la liste.",
-    );
-  });
-
-  it("stays quiet when the whole list arrived", async () => {
-    renderAvec(pageDe([nonPlace]));
-    await screen.findByRole("group", { name: "Rakotomavo" });
-    expect(screen.queryByRole("alert")).toBeNull();
+  it("explains an empty plan", async () => {
+    rendre({ tables: [] });
+    expect(await screen.findByText("Aucune table")).toBeInTheDocument();
   });
 });

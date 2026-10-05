@@ -88,7 +88,26 @@ export function formatWeddingTime(iso: string, { compact = false } = {}): string
   return `${hours}${NNBSP}h${NNBSP}${minute}`;
 }
 
-const datePartsFormatter = new Intl.DateTimeFormat("fr-FR", {
+const dayMonthFormatter = new Intl.DateTimeFormat("fr-FR", {
+  day: "numeric",
+  month: "long",
+  timeZone: WEDDING_TIME_ZONE,
+});
+
+/**
+ * `2 janvier` — l'étiquette « Réception · 2 janvier » du plan de table.
+ *
+ * `null` plutôt qu'une exception pour une valeur qui n'est pas une date :
+ * l'étiquette est un ornement de l'admin, elle s'efface sans faire tomber
+ * l'écran (un `formatToParts` sur une date invalide lève `RangeError`).
+ */
+export function formatWeddingDayMonth(iso: string): string | null {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  return withFrenchOrdinal(dayMonthFormatter.formatToParts(date));
+}
+
+const datePartsFormatter =new Intl.DateTimeFormat("fr-FR", {
   weekday: "long",
   day: "2-digit",
   month: "long",

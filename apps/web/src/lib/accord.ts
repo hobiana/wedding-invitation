@@ -17,6 +17,11 @@ export function placesRestantes(n: number): string {
   return accorder(n, "place restante", "places restantes");
 }
 
+/** « 1 place libre », « 3 places libres » — sous chaque table du plan. */
+export function placesLibres(n: number): string {
+  return accorder(n, "place libre", "places libres");
+}
+
 export function foyers(n: number): string {
   return accorder(n, "foyer", "foyers");
 }

@@ -1,7 +1,8 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import * as RadixToast from "@radix-ui/react-toast";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ToastContext, type ToastOptions, type ToastTone } from "./use-toast";
 
 /**
  * La confirmation d'un geste : placé, retiré, créé, supprimé. Radix, comme les
@@ -18,24 +19,11 @@ import { cn } from "@/lib/utils";
  * Un message d'erreur est écrit en français par l'appelant ; on n'affiche
  * jamais le texte brut de l'API ici.
  */
-export type ToastTone = "success" | "error";
-
-export interface ToastOptions {
-  message: string;
-  tone?: ToastTone;
-}
-
 interface ToastItem {
   id: number;
   message: string;
   tone: ToastTone;
 }
-
-interface ToastContextValue {
-  toast: (options: ToastOptions) => void;
-}
-
-const ToastContext = createContext<ToastContextValue | null>(null);
 
 /** Quatre secondes : le temps de lire une phrase, sans rester dans le chemin. */
 const DUREE_MS = 4000;
@@ -84,10 +72,4 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       </RadixToast.Provider>
     </ToastContext.Provider>
   );
-}
-
-export function useToast(): ToastContextValue {
-  const contexte = useContext(ToastContext);
-  if (!contexte) throw new Error("useToast doit être utilisé dans un <ToastProvider>.");
-  return contexte;
 }

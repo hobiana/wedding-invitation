@@ -3,6 +3,7 @@ import {
   WEDDING_TIME_ZONE,
   formatRsvpDeadline,
   formatWeddingDate,
+  formatWeddingDayMonth,
   formatWeddingTime,
   weddingDateParts,
   weddingMonthGrid,
@@ -67,6 +68,22 @@ describe("formatWeddingDate", () => {
   it("keeps a late-evening UTC instant on the venue's calendar day", () => {
     process.env.TZ = "America/New_York";
     expect(formatWeddingDate("2027-06-11T23:30:00.000Z")).toBe("samedi 12 juin 2027");
+  });
+});
+
+describe("formatWeddingDayMonth", () => {
+  // L'étiquette « Réception · 2 janvier » du plan de table : ni année ni zéro.
+  it("gives the day and month at the venue, without a leading zero", () => {
+    expect(formatWeddingDayMonth("2027-01-02T06:00:00.000Z")).toBe("2 janvier");
+  });
+
+  // 22 h UTC le 31 décembre, c'est déjà le 1er janvier à Antananarivo.
+  it("uses the venue's day and the French ordinal for the first", () => {
+    expect(formatWeddingDayMonth("2026-12-31T22:00:00.000Z")).toBe("1er janvier");
+  });
+
+  it("returns null for a value that is not a date", () => {
+    expect(formatWeddingDayMonth("pas une date")).toBeNull();
   });
 });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { foyers, places, placesRestantes } from "./accord";
+import { foyers, places, placesLibres, placesRestantes } from "./accord";
 
 describe("accord", () => {
   // En français, zéro et un sont au singulier : « 0 place », « 1 place ».
@@ -12,6 +12,11 @@ describe("accord", () => {
   it("agrees the remaining seats, adjective included", () => {
     expect(placesRestantes(1)).toBe("1 place restante");
     expect(placesRestantes(6)).toBe("6 places restantes");
+  });
+
+  it("agrees the free seats of a table", () => {
+    expect(placesLibres(1)).toBe("1 place libre");
+    expect(placesLibres(3)).toBe("3 places libres");
   });
 
   it("puts two and more in the plural", () => {

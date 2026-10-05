@@ -1,7 +1,8 @@
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import { ToastProvider, useToast } from "./toast";
+import { ToastProvider } from "./toast";
+import { useToast } from "./use-toast";
 
 function Declencheur({ message, tone }: { message: string; tone?: "success" | "error" }) {
   const { toast } = useToast();

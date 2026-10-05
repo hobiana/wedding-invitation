@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from "react";
+import { useState, type ComponentProps, type FormEvent, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { CreateTableDto, TableDto, UpdateTableDto } from "@invitation-app/shared";
+import type { AdminSettingsDto, CreateTableDto, TableDto, UpdateTableDto } from "@invitation-app/shared";
 import { api, HOUSEHOLDS_MAX_LIMIT, listHouseholds } from "@/lib/api";
 import { HouseholdsTruncationNotice } from "@/components/HouseholdsTruncationNotice";
 import { Button } from "@/components/ui/button";
@@ -9,8 +9,13 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { useToast } from "@/components/ui/use-toast";
 import { TableBoard } from "@/components/TableBoard";
+import { EnTetePlanDeTable } from "@/components/plan-de-table/EnTetePlanDeTable";
+import { PlanDeTableBureau } from "@/components/plan-de-table/PlanDeTableBureau";
 import { places } from "@/lib/accord";
+import { useMediaQuery } from "@/lib/useMediaQuery";
+import { bilan, CAPACITE_INVALIDE, capaciteValide, foyersAPlacer } from "@/lib/plan-de-table";
 
 const DEFAULT_CAPACITY = 10;
 
@@ -19,18 +24,6 @@ interface TableDraft {
   name: string;
   capacity: string;
 }
-
-/**
- * La capacité saisie, ou `null` si elle ne vaut pas une table. Gardée en texte
- * dans l'état : un champ numérique vidé vaut `""`, et `Number("")` donnerait 0
- * sans que l'organisateur l'ait tapé.
- */
-function capaciteValide(saisie: string): number | null {
-  const n = Number(saisie);
-  return saisie.trim() !== "" && Number.isInteger(n) && n >= 1 ? n : null;
-}
-
-const CAPACITE_INVALIDE = "La capacité doit être d'au moins 1 place.";
 
 /**
  * Les messages d'échec, en français et écrits ici.
@@ -56,14 +49,19 @@ const ECHECS = {
     `Le foyer ${foyer} n'a pas pu être retiré de sa table. Le plan vient d'être rechargé.`,
 };
 
+/** « Les 2 foyers placés à cette table reviendront dans À placer. » — accordé. */
+function devenirDesFoyers(table: TableDto): string {
+  const n = table.households.length;
+  if (n === 0) return "Cette table est vide.";
+  return `${
+    n === 1 ? "Le foyer placé à cette table reviendra" : `Les ${n} foyers placés à cette table reviendront`
+  } dans À placer. Aucun foyer n'est supprimé.`;
+}
+
 export function TablesPage() {
   const queryClient = useQueryClient();
-  const [error, setError] = useState<string | null>(null);
-  const [annonce, setAnnonce] = useState<string | null>(null);
-  const [newTableName, setNewTableName] = useState("");
-  const [newTableCapacity, setNewTableCapacity] = useState(String(DEFAULT_CAPACITY));
-  const [creationTentee, setCreationTentee] = useState(false);
-  const [editing, setEditing] = useState<TableDraft | null>(null);
+  const { toast } = useToast();
+  const bureau = useMediaQuery("(min-width: 768px)");
   const [tableASupprimer, setTableASupprimer] = useState<TableDto | null>(null);
 
   const tablesQuery = useQuery({
@@ -78,10 +76,17 @@ export function TablesPage() {
     queryKey: ["households", parametresFoyers],
     queryFn: () => listHouseholds(parametresFoyers),
   });
+  // Seulement pour l'étiquette « Réception · 2 janvier » : un échec l'efface,
+  // il ne bloque rien.
+  const settingsQuery = useQuery({
+    queryKey: ["settings"],
+    queryFn: () => api.get<AdminSettingsDto>("/admin/settings"),
+  });
   const tables = tablesQuery.data;
   const households = householdsQuery.data?.items;
   const chargement = tablesQuery.isPending || householdsQuery.isPending;
   const echecDeChargement = tablesQuery.isError || householdsQuery.isError;
+  const dateDuMariage = typeof settingsQuery.data?.weddingDate === "string" ? settingsQuery.data.weddingDate : null;
 
   function nomDeTable(id: string) {
     return tables?.find((t) => t.id === id)?.name ?? id;
@@ -95,67 +100,197 @@ export function TablesPage() {
     queryClient.invalidateQueries({ queryKey: ["households"] });
   }
 
-  /** Chaque geste repart d'un écran sans message périmé. */
-  function nouveauGeste() {
-    setError(null);
-    setAnnonce(null);
-  }
-
+  // Chaque geste se confirme ou se refuse dans un toast, en français. Le cache
+  // est invalidé dans tous les cas : un refus veut dire que l'écran ne disait
+  // plus l'état réel.
   const createTable = useMutation({
     mutationFn: (dto: CreateTableDto) => api.post("/admin/tables", dto),
-    onMutate: nouveauGeste,
-    onSuccess: (_resultat, dto) => {
-      setNewTableName("");
-      setNewTableCapacity(String(DEFAULT_CAPACITY));
-      setCreationTentee(false);
-      setAnnonce(`La table « ${dto.name} » est créée.`);
-    },
-    onError: () => setError(ECHECS.creation),
+    onSuccess: (_resultat, dto) => toast({ message: `La table « ${dto.name} » est créée.` }),
+    onError: () => toast({ message: ECHECS.creation, tone: "error" }),
     onSettled: refreshBoard,
   });
 
-  // The API has always exposed PATCH/DELETE on a table; nothing in the UI
-  // reached them, so a table could only ever be created, never corrected.
   const updateTable = useMutation({
     mutationFn: ({ id, dto }: { id: string; dto: UpdateTableDto }) => api.patch(`/admin/tables/${id}`, dto),
-    onMutate: nouveauGeste,
-    onSuccess: () => setEditing(null),
-    onError: (_err, { id }) => setError(ECHECS.modification(nomDeTable(id))),
+    onSuccess: (_resultat, { id, dto }) =>
+      toast({ message: `La table « ${dto.name ?? nomDeTable(id)} » est modifiée.` }),
+    onError: (_err, { id }) => toast({ message: ECHECS.modification(nomDeTable(id)), tone: "error" }),
     onSettled: refreshBoard,
   });
 
   const deleteTable = useMutation({
     mutationFn: (table: TableDto) => api.delete(`/admin/tables/${table.id}`),
-    onMutate: nouveauGeste,
-    onSuccess: (_resultat, table) => setAnnonce(`La table « ${table.name} » est supprimée.`),
-    onError: (_err, table) => setError(ECHECS.suppression(table.name)),
+    onSuccess: (_resultat, table) => toast({ message: `La table « ${table.name} » est supprimée.` }),
+    onError: (_err, table) => toast({ message: ECHECS.suppression(table.name), tone: "error" }),
     onSettled: refreshBoard,
   });
 
-  // Un refus recharge le plan autant qu'un succès : s'il a été refusé, c'est
-  // que l'écran ne disait plus l'état réel.
   const assignMutation = useMutation({
     mutationFn: ({ tableId, householdId }: { tableId: string; householdId: string }) =>
       api.patch(`/admin/tables/${tableId}/assign/${householdId}`),
-    onMutate: nouveauGeste,
     onSuccess: (_resultat, { tableId, householdId }) =>
-      setAnnonce(`Le foyer ${nomDeFoyer(householdId)} est placé à la table « ${nomDeTable(tableId)} ».`),
+      toast({ message: `Le foyer ${nomDeFoyer(householdId)} est placé à la table « ${nomDeTable(tableId)} ».` }),
     onError: (_err, { tableId, householdId }) =>
-      setError(ECHECS.placement(nomDeFoyer(householdId), nomDeTable(tableId))),
+      toast({ message: ECHECS.placement(nomDeFoyer(householdId), nomDeTable(tableId)), tone: "error" }),
     onSettled: refreshBoard,
   });
 
   const unassignMutation = useMutation({
     mutationFn: (householdId: string) => api.patch(`/admin/tables/unassign/${householdId}`),
-    onMutate: nouveauGeste,
-    onSuccess: (_resultat, householdId) => setAnnonce(`Le foyer ${nomDeFoyer(householdId)} est retiré de sa table.`),
-    onError: (_err, householdId) => setError(ECHECS.retrait(nomDeFoyer(householdId))),
+    onSuccess: (_resultat, householdId) => {
+      // Lu avant le rechargement (`onSettled`) : le plan en cache dit encore
+      // de quelle table il part.
+      const depuis = tables?.find((t) => t.households.some((h) => h.id === householdId));
+      const assis = depuis?.households.find((h) => h.id === householdId);
+      const debut = depuis
+        ? `Le foyer ${nomDeFoyer(householdId)} est retiré de la table « ${depuis.name} »`
+        : `Le foyer ${nomDeFoyer(householdId)} est retiré de sa table`;
+      // Un foyer qui a décliné ne revient pas dans « À placer » : il y est masqué.
+      toast({ message: assis?.status === "DECLINED" ? `${debut}.` : `${debut} et revient dans À placer.` });
+    },
+    onError: (_err, householdId) => toast({ message: ECHECS.retrait(nomDeFoyer(householdId)), tone: "error" }),
     onSettled: refreshBoard,
   });
 
-  // A household is "unassigned" only if it doesn't appear in ANY table's households array.
-  const assignedIds = new Set(tables?.flatMap((t) => t.households.map((h) => h.id)) ?? []);
-  const unassignedHouseholds = (households ?? []).filter((h) => !assignedIds.has(h.id));
+  const avertissementDeTroncature = householdsQuery.data && (
+    <HouseholdsTruncationNotice
+      recus={householdsQuery.data.items.length}
+      total={householdsQuery.data.total}
+      consequence="des foyers non placés peuvent manquer à la liste"
+    />
+  );
+
+  const dialogueDeSuppression = tableASupprimer && (
+    <AlertDialog
+      open
+      onOpenChange={(ouvert) => !ouvert && setTableASupprimer(null)}
+      title={`Supprimer ${tableASupprimer.name} ?`}
+      description={devenirDesFoyers(tableASupprimer)}
+      confirmLabel="Supprimer la table"
+      onConfirm={() => {
+        deleteTable.mutate(tableASupprimer);
+        setTableASupprimer(null);
+      }}
+    />
+  );
+
+  // Toujours présente, pour qu'un lecteur d'écran l'écoute avant qu'elle parle.
+  const statutDeChargement = (
+    <p role="status" className="sr-only">
+      {chargement ? "Chargement du plan de table…" : ""}
+    </p>
+  );
+
+  const echec = (
+    <p role="alert" className="rounded-surface border border-bordeaux-700 bg-bordeaux-50 px-4 py-3 text-sm text-bordeaux-700">
+      Le plan de table n'a pas pu être chargé. Vérifiez votre connexion, puis rechargez la page.
+    </p>
+  );
+
+  if (bureau) {
+    const aPlacer = tables && households ? foyersAPlacer(households, tables) : [];
+    return (
+      <div className="space-y-8 p-6 md:p-8">
+        <EnTetePlanDeTable dateDuMariage={dateDuMariage} bilan={tables && households ? bilan(tables, aPlacer) : null} />
+        {avertissementDeTroncature}
+        {statutDeChargement}
+        {chargement ? (
+          <div className="grid gap-8 lg:grid-cols-[17rem_minmax(0,1fr)]">
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-32" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+            </div>
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-4">
+              {Array.from({ length: 3 }, (_, index) => (
+                <Skeleton key={index} className="h-56 w-full" />
+              ))}
+            </div>
+          </div>
+        ) : echecDeChargement || !tables ? (
+          echec
+        ) : (
+          <PlanDeTableBureau
+            tables={tables}
+            aPlacer={aPlacer}
+            onAssign={(tableId, householdId) => assignMutation.mutate({ tableId, householdId })}
+            onUnassign={(householdId) => unassignMutation.mutate(householdId)}
+            onCreateTable={(dto) => createTable.mutateAsync(dto).then(() => true, () => false)}
+            onUpdateTable={(id, dto) => updateTable.mutateAsync({ id, dto }).then(() => true, () => false)}
+            onDeleteTable={setTableASupprimer}
+          />
+        )}
+        {dialogueDeSuppression}
+      </div>
+    );
+  }
+
+  return (
+    <TelephoneProvisoire
+      tables={tables}
+      chargement={chargement}
+      echec={echecDeChargement ? echec : null}
+      avertissement={avertissementDeTroncature}
+      statut={statutDeChargement}
+      dialogue={dialogueDeSuppression}
+      creationEnCours={createTable.isPending}
+      modificationEnCours={updateTable.isPending}
+      onCreer={(dto, apres) => createTable.mutate(dto, { onSuccess: apres })}
+      onModifier={(id, dto, apres) => updateTable.mutate({ id, dto }, { onSuccess: apres })}
+      onDemanderSuppression={setTableASupprimer}
+      onAssign={(tableId, householdId) => assignMutation.mutate({ tableId, householdId })}
+      onUnassign={(householdId) => unassignMutation.mutate(householdId)}
+      // Les props de `TableBoard` restent celles d'avant : tous les non-placés,
+      // déclinés compris. L'écran téléphone de la maquette les remplacera.
+      unassignedHouseholds={(households ?? []).filter(
+        (h) => !(tables ?? []).some((t) => t.households.some((assis) => assis.id === h.id)),
+      )}
+    />
+  );
+}
+
+/**
+ * PROVISOIRE — l'ancienne composition du téléphone, gardée telle quelle en
+ * attendant l'écran téléphone des maquettes (onglets, feuille du bas), confié à
+ * un autre lot. Seuls changements : les messages passent par les toasts, et la
+ * logique partagée (`capaciteValide`) vient de `lib/plan-de-table`.
+ */
+function TelephoneProvisoire({
+  tables,
+  chargement,
+  echec,
+  avertissement,
+  statut,
+  dialogue,
+  creationEnCours,
+  modificationEnCours,
+  onCreer,
+  onModifier,
+  onDemanderSuppression,
+  onAssign,
+  onUnassign,
+  unassignedHouseholds,
+}: {
+  tables: TableDto[] | undefined;
+  chargement: boolean;
+  echec: ReactNode;
+  avertissement: ReactNode;
+  statut: ReactNode;
+  dialogue: ReactNode;
+  creationEnCours: boolean;
+  modificationEnCours: boolean;
+  onCreer: (dto: CreateTableDto, apres: () => void) => void;
+  onModifier: (id: string, dto: UpdateTableDto, apres: () => void) => void;
+  onDemanderSuppression: (table: TableDto) => void;
+  onAssign: (tableId: string, householdId: string) => void;
+  onUnassign: (householdId: string) => void;
+  unassignedHouseholds: ComponentProps<typeof TableBoard>["unassignedHouseholds"];
+}) {
+  const [newTableName, setNewTableName] = useState("");
+  const [newTableCapacity, setNewTableCapacity] = useState(String(DEFAULT_CAPACITY));
+  const [creationTentee, setCreationTentee] = useState(false);
+  const [editing, setEditing] = useState<TableDraft | null>(null);
 
   const capaciteCreation = capaciteValide(newTableCapacity);
   const erreurCapaciteCreation = creationTentee && capaciteCreation === null ? CAPACITE_INVALIDE : null;
@@ -164,7 +299,11 @@ export function TablesPage() {
     evenement.preventDefault();
     setCreationTentee(true);
     if (!newTableName.trim() || capaciteCreation === null) return;
-    createTable.mutate({ name: newTableName.trim(), capacity: capaciteCreation });
+    onCreer({ name: newTableName.trim(), capacity: capaciteCreation }, () => {
+      setNewTableName("");
+      setNewTableCapacity(String(DEFAULT_CAPACITY));
+      setCreationTentee(false);
+    });
   }
 
   return (
@@ -185,39 +324,16 @@ export function TablesPage() {
           />
         </Field>
         {/* Aligné sur les champs : la hauteur du libellé, puis le bouton. */}
-        <Button type="submit" className="mt-7" disabled={!newTableName.trim() || createTable.isPending}>
+        <Button type="submit" className="mt-7" disabled={!newTableName.trim() || creationEnCours}>
           Ajouter une table
         </Button>
       </form>
 
-      {error && (
-        <p
-          role="alert"
-          className="rounded-surface border border-bordeaux-700 bg-bordeaux-50 px-4 py-3 text-sm text-bordeaux-700"
-        >
-          {error}
-        </p>
-      )}
-
-      {householdsQuery.data && (
-        <HouseholdsTruncationNotice
-          recus={householdsQuery.data.items.length}
-          total={householdsQuery.data.total}
-          consequence="des foyers non placés peuvent manquer à la liste"
-        />
-      )}
-
-      {/*
-        Toujours présente, pour qu'un lecteur d'écran l'écoute avant qu'elle
-        parle. Au téléphone, un foyer placé part dans une table repliée : sans
-        cette phrase, il disparaît de l'écran sans que rien dise où.
-      */}
-      <p role="status" className={chargement ? "sr-only" : "text-sm text-ink-muted"}>
-        {chargement ? "Chargement du plan de table…" : annonce}
-      </p>
+      {avertissement}
+      {statut}
 
       {chargement ? (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-4">
           {Array.from({ length: 3 }, (_, index) => (
             <div key={index} className="space-y-2">
               <Skeleton className="h-5 w-40" />
@@ -225,13 +341,8 @@ export function TablesPage() {
             </div>
           ))}
         </div>
-      ) : echecDeChargement ? (
-        <p
-          role="alert"
-          className="rounded-surface border border-bordeaux-700 bg-bordeaux-50 px-4 py-3 text-sm text-bordeaux-700"
-        >
-          Le plan de table n'a pas pu être chargé. Vérifiez votre connexion, puis rechargez la page.
-        </p>
+      ) : echec ? (
+        echec
       ) : !tables || tables.length === 0 ? (
         <EmptyState
           title="Aucune table"
@@ -251,9 +362,9 @@ export function TablesPage() {
                       table={table}
                       brouillon={editing}
                       onChange={setEditing}
-                      enCours={updateTable.isPending}
+                      enCours={modificationEnCours}
                       onEnregistrer={(capacity) =>
-                        updateTable.mutate({ id: table.id, dto: { name: editing.name.trim(), capacity } })
+                        onModifier(table.id, { name: editing.name.trim(), capacity }, () => setEditing(null))
                       }
                       onAnnuler={() => setEditing(null)}
                     />
@@ -266,13 +377,11 @@ export function TablesPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() =>
-                        setEditing({ id: table.id, name: table.name, capacity: String(table.capacity) })
-                      }
+                      onClick={() => setEditing({ id: table.id, name: table.name, capacity: String(table.capacity) })}
                     >
                       Modifier
                     </Button>
-                    <Button size="sm" variant="destructive" onClick={() => setTableASupprimer(table)}>
+                    <Button size="sm" variant="destructive" onClick={() => onDemanderSuppression(table)}>
                       Supprimer
                     </Button>
                   </li>
@@ -284,36 +393,13 @@ export function TablesPage() {
           <TableBoard
             tables={tables}
             unassignedHouseholds={unassignedHouseholds}
-            onAssign={(tableId, householdId) => assignMutation.mutate({ tableId, householdId })}
-            onUnassign={(householdId) => unassignMutation.mutate(householdId)}
+            onAssign={onAssign}
+            onUnassign={onUnassign}
           />
         </>
       )}
 
-      {tableASupprimer && (
-        <AlertDialog
-          open
-          onOpenChange={(ouvert) => !ouvert && setTableASupprimer(null)}
-          title={`Supprimer ${tableASupprimer.name} ?`}
-          description={
-            tableASupprimer.households.length > 0
-              ? // Une table à un seul foyer disait « Les 1 foyers placés » : la
-                // même faute d'accord que côté foyers, dans une interface qui
-                // est en français sans exception.
-                `${
-                  tableASupprimer.households.length === 1
-                    ? "Le foyer placé à cette table reviendra"
-                    : `Les ${tableASupprimer.households.length} foyers placés à cette table reviendront`
-                } aux foyers non placés. Aucun foyer n'est supprimé.`
-              : "Cette table est vide."
-          }
-          confirmLabel="Supprimer la table"
-          onConfirm={() => {
-            deleteTable.mutate(tableASupprimer);
-            setTableASupprimer(null);
-          }}
-        />
-      )}
+      {dialogue}
     </div>
   );
 }
