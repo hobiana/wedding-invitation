@@ -4,6 +4,7 @@ import {
   compteARebours,
   echelleBarre,
   friseDuBandeau,
+  foyersARelancer,
   foyersPartiels,
   joursAvantLimite,
   limitePassee,
@@ -272,5 +273,32 @@ describe("tauxDeReponse", () => {
 
   it("vaut zéro sans foyer, jamais NaN", () => {
     expect(tauxDeReponse(0, 0)).toBe(0);
+  });
+});
+
+describe("foyersARelancer", () => {
+  type Relance = Pick<HouseholdAdminDto, "id" | "displayName" | "status" | "allocatedSeats">;
+  const r = (id: string, displayName: string, allocatedSeats: number, status: RsvpStatus = "PENDING"): Relance => ({
+    id,
+    displayName,
+    allocatedSeats,
+    status,
+  });
+
+  it("ne garde que les foyers sans réponse", () => {
+    const liste = [r("a", "A", 2, "CONFIRMED"), r("b", "B", 2), r("c", "C", 2, "DECLINED")];
+    expect(foyersARelancer(liste).map((f) => f.id)).toEqual(["b"]);
+  });
+
+  // « les plus grands foyers en premier » : relancer d'abord là où il y a le plus de places en jeu.
+  it("met les plus grands foyers en premier, puis l'ordre alphabétique", () => {
+    const liste = [r("a", "Tante Hanta", 1), r("b", "Famille Ravelo", 5), r("c", "Élodie", 2), r("d", "Camille", 2)];
+    expect(foyersARelancer(liste).map((f) => f.id)).toEqual(["b", "d", "c", "a"]);
+  });
+
+  it("ne modifie pas la liste reçue", () => {
+    const liste = [r("a", "A", 1), r("b", "B", 5)];
+    foyersARelancer(liste);
+    expect(liste.map((f) => f.id)).toEqual(["a", "b"]);
   });
 });

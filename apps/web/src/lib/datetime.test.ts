@@ -4,6 +4,7 @@ import {
   formatRsvpDeadline,
   formatWeddingDate,
   formatWeddingDayMonth,
+  formatJourMoisCourt,
   formatWeddingTime,
   weddingDateParts,
   weddingMonthGrid,
@@ -84,6 +85,19 @@ describe("formatWeddingDayMonth", () => {
 
   it("returns null for a value that is not a date", () => {
     expect(formatWeddingDayMonth("pas une date")).toBeNull();
+  });
+});
+
+describe("formatJourMoisCourt", () => {
+  // Les repères de la frise du tableau de bord : « 8 oct. », « 2 janv. ».
+  it("gives the day and the abbreviated month at the venue", () => {
+    expect(formatJourMoisCourt("2026-10-08T09:00:00.000Z")).toBe("8 oct.");
+    expect(formatJourMoisCourt("2027-01-02T06:00:00.000Z")).toBe("2 janv.");
+  });
+
+  // 22 h UTC le 30 novembre, c'est déjà le 1er décembre à Antananarivo.
+  it("uses the venue's day and the French ordinal for the first", () => {
+    expect(formatJourMoisCourt("2026-11-30T22:00:00.000Z")).toBe("1er déc.");
   });
 });
 

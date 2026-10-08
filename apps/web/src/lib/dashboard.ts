@@ -195,6 +195,21 @@ export function motsDesInvites(foyers: readonly AvecMot[], max = 4): MotDInvite[
     .map((f) => ({ id: f.id, nom: f.displayName, statut: f.status, message: (f.message ?? "").trim() }));
 }
 
+const ordreDesNoms = new Intl.Collator("fr", { sensitivity: "base" });
+
+type ARelancer = Pick<HouseholdAdminDto, "displayName" | "status" | "allocatedSeats">;
+
+/**
+ * Les foyers sans réponse, **les plus grands d'abord** : on relance d'abord là
+ * où il y a le plus de places en jeu. À égalité, l'ordre alphabétique, pour
+ * qu'une liste ne change pas d'ordre d'un rechargement à l'autre.
+ */
+export function foyersARelancer<T extends ARelancer>(foyers: readonly T[]): T[] {
+  return foyers
+    .filter((f) => f.status === "PENDING")
+    .sort((a, b) => b.allocatedSeats - a.allocatedSeats || ordreDesNoms.compare(a.displayName, b.displayName));
+}
+
 /** La part des foyers qui ont répondu, en pour-cent entier : 34 / 42 → 81. */
 export function tauxDeReponse(repondus: number, total: number): number {
   return total > 0 ? Math.round((repondus / total) * 100) : 0;

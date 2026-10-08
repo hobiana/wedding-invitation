@@ -107,6 +107,17 @@ export function formatWeddingDayMonth(iso: string): string | null {
   return withFrenchOrdinal(dayMonthFormatter.formatToParts(date));
 }
 
+const dayShortMonthFormatter = new Intl.DateTimeFormat("fr-FR", {
+  day: "numeric",
+  month: "short",
+  timeZone: WEDDING_TIME_ZONE,
+});
+
+/** `8 oct.`, `1er déc.` — les repères de la frise du tableau de bord. */
+export function formatJourMoisCourt(iso: string): string {
+  return withFrenchOrdinal(dayShortMonthFormatter.formatToParts(new Date(iso)));
+}
+
 const datePartsFormatter =new Intl.DateTimeFormat("fr-FR", {
   weekday: "long",
   day: "2-digit",
