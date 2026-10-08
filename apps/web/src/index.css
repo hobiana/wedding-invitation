@@ -329,6 +329,8 @@
   --container-hero: 640px;
   /* La carte du design : 680 px, et la page blanche tout autour. */
   --container-card: 725px;
+  /* La colonne du formulaire des Paramètres (maquette du 2026-10). */
+  --container-reglages: 690px;
 
   /* Rayons. 2 px et non 0 : un rayon nul lit « journal » et se comporte mal
      sur les densités de pixels non entières. */

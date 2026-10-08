@@ -12,3 +12,15 @@ if (typeof Element !== "undefined") {
   Element.prototype.setPointerCapture ??= () => {};
   Element.prototype.releasePointerCapture ??= () => {};
 }
+
+/**
+ * jsdom n'a pas non plus `ResizeObserver`. Radix Switch, posé **dans un
+ * `<form>`**, monte une case cachée qui mesure la piste avec : sans lui, la
+ * page des Paramètres plante au rendu. Un observateur qui n'observe rien —
+ * aucune mise en page n'existe sous jsdom, il n'y aurait rien à rapporter.
+ */
+globalThis.ResizeObserver ??= class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};

@@ -59,6 +59,41 @@ describe("Switch", () => {
     expect(piste.className).not.toMatch(/(red|rose|gray|neutral|slate)-\d{2,3}/);
   });
 
+  // La ligne de réglage des Paramètres : libellé et description à gauche,
+  // piste à droite. La description est rattachée, mais ne gonfle pas le nom.
+  describe("avec une description", () => {
+    it("keeps the name to the label and describes the switch with the rest", () => {
+      render(
+        <Switch
+          checked={false}
+          label="Plan de table visible par les invités"
+          description="Masqué — activation entièrement manuelle."
+          onCheckedChange={vi.fn()}
+        />,
+      );
+      const piste = screen.getByRole("switch", { name: "Plan de table visible par les invités" });
+      expect(piste).toHaveAccessibleDescription("Masqué — activation entièrement manuelle.");
+    });
+
+    it("still toggles from a click on its label", async () => {
+      const onCheckedChange = vi.fn();
+      render(
+        <Switch checked={false} label="Plan visible" description="Masqué" onCheckedChange={onCheckedChange} />,
+      );
+      await userEvent.setup().click(screen.getByText("Plan visible"));
+      expect(onCheckedChange).toHaveBeenCalledWith(true);
+    });
+  });
+
+  it("can be disabled while a change is on its way", async () => {
+    const onCheckedChange = vi.fn();
+    render(<Switch checked={false} disabled label="Plan visible" onCheckedChange={onCheckedChange} />);
+    const piste = screen.getByRole("switch");
+    expect(piste).toBeDisabled();
+    await userEvent.setup().click(piste);
+    expect(onCheckedChange).not.toHaveBeenCalled();
+  });
+
   // Cible tactile ≥ 40 px : la ligne entière (piste + libellé) fait 40 px de haut.
   it("offers a touch target at least 40 px high", () => {
     render(<Switch checked label="Afficher les membres" onCheckedChange={vi.fn()} />);

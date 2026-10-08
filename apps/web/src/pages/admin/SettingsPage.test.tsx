@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -173,7 +173,7 @@ describe("SettingsPage — champs facultatifs", () => {
   it("tient le lieu et l'adresse pour obligatoires", async () => {
     renderPage();
 
-    const lieu = (await screen.findByLabelText(/lieu/i)) as HTMLInputElement;
+    const lieu = (await screen.findByLabelText(/^lieu/i, { selector: "input" })) as HTMLInputElement;
     const adresse = screen.getByLabelText(/adresse/i) as HTMLInputElement;
 
     expect(lieu.required).toBe(true);
@@ -185,8 +185,12 @@ describe("SettingsPage — champs facultatifs", () => {
     renderPage();
 
     // Tous les facultatifs vides : c'est le tir où une normalisation trop
-    // large emporterait aussi les deux champs obligatoires.
-    fireEvent.click(await screen.findByRole("button", { name: /enregistrer/i }));
+    // large emporterait aussi les deux champs obligatoires. On touche une date
+    // pour que le formulaire ait quelque chose à enregistrer.
+    fireEvent.change(await screen.findByLabelText(/date limite de réponse/i), {
+      target: { value: "2027-04-15T18:30" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /enregistrer/i }));
 
     await waitFor(() => expect(patchSpy).toHaveBeenCalled());
     const body = dernierCorps(patchSpy);
@@ -266,7 +270,10 @@ describe("SettingsPage — seuil maximum d'invités", () => {
     const patchSpy = vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: /enregistrer/i }));
+    fireEvent.change(await screen.findByLabelText(/^lieu/i, { selector: "input" }), {
+      target: { value: "Espace Ny Akanintsika" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /enregistrer/i }));
 
     await waitFor(() => expect(patchSpy).toHaveBeenCalled());
     expect(dernierCorps(patchSpy).maxGuests).toBe(180);
@@ -374,20 +381,201 @@ describe("SettingsPage — plan de table", () => {
     fireEvent.change(await screen.findByLabelText(/seuil maximum d'invités/i), {
       target: { value: "0" },
     });
-    fireEvent.click(await screen.findByRole("button", { name: /^activer$/i }));
+    fireEvent.click(await screen.findByRole("switch", { name: /plan de table visible par les invités/i }));
 
     await waitFor(() => expect(patchSpy).toHaveBeenCalled());
     expect(dernierCorps(patchSpy)).toEqual({ seatingPlanActivated: true });
   });
 
-  it("propose de désactiver quand le plan est déjà visible", async () => {
+  it("masque le plan quand il est déjà visible", async () => {
     const patchSpy = vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
     renderPage({ seatingPlanActivated: true });
 
-    fireEvent.click(await screen.findByRole("button", { name: /désactiver/i }));
+    const interrupteur = await screen.findByRole("switch", { name: /plan de table visible/i });
+    expect(interrupteur).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(interrupteur);
 
     await waitFor(() => expect(patchSpy).toHaveBeenCalled());
     expect(dernierCorps(patchSpy)).toEqual({ seatingPlanActivated: false });
+  });
+
+  // L'état est dit en toutes lettres, pas par la seule position de la pastille.
+  it("dit en toutes lettres que le plan est masqué", async () => {
+    renderPage();
+    expect(
+      await screen.findByRole("switch", { name: /plan de table visible/i }),
+    ).toHaveAccessibleDescription(/^masqué — activation entièrement manuelle/i);
+  });
+
+  it("dit « Visible » quand le plan est activé", async () => {
+    renderPage({ seatingPlanActivated: true });
+    expect(
+      await screen.findByRole("switch", { name: /plan de table visible/i }),
+    ).toHaveAccessibleDescription(/^visible/i);
+  });
+
+  // La bascule part tout de suite, sans « Enregistrer » ; elle ne doit pas
+  // pour autant effacer ce que l'organisateur tapait à côté.
+  it("garde la saisie en cours quand on bascule le plan de table", async () => {
+    const patchSpy = vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
+    renderPage();
+
+    fireEvent.change(await screen.findByLabelText(/^lieu/i, { selector: "input" }), { target: { value: "Ailleurs" } });
+    fireEvent.click(screen.getByRole("switch", { name: /plan de table visible/i }));
+
+    await waitFor(() => expect(patchSpy).toHaveBeenCalled());
+    expect(dernierCorps(patchSpy)).toEqual({ seatingPlanActivated: true });
+    expect(screen.getByLabelText(/^lieu/i, { selector: "input" })).toHaveValue("Ailleurs");
+    expect(screen.getByText(/modifications non enregistrées/i)).toBeInTheDocument();
+  });
+
+  it("dit en français qu'une bascule a échoué", async () => {
+    vi.spyOn(apiModule.api, "patch").mockRejectedValue(new Error("Request failed with status 500"));
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("switch", { name: /plan de table visible/i }));
+
+    const alerte = await screen.findByRole("alert");
+    expect(alerte).toHaveTextContent(/plan de table n'a pas pu être modifié/i);
+    expect(alerte).not.toHaveTextContent(/Request failed/);
+  });
+});
+
+describe("SettingsPage — mise en page", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("titre la page et dit à quoi servent ces informations", async () => {
+    renderPage();
+
+    expect(await screen.findByRole("heading", { level: 1, name: "Paramètres du mariage" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Ces informations alimentent l'invitation et le formulaire de réponse."),
+    ).toBeInTheDocument();
+  });
+
+  // Quatre cartes, chacune une région nommée par son titre : un lecteur
+  // d'écran saute de l'une à l'autre.
+  it.each([
+    ["Dates", /date du mariage/i],
+    ["Lieu", /lien vers la carte/i],
+    ["Informations pratiques", /informations parking/i],
+    ["Invités", /seuil maximum d'invités/i],
+  ])("range ses champs dans la carte « %s »", async (titre, champ) => {
+    renderPage();
+
+    const carte = await screen.findByRole("region", { name: titre });
+    expect(within(carte).getByRole("heading", { level: 2, name: titre })).toBeInTheDocument();
+    expect(within(carte).getByLabelText(champ)).toBeInTheDocument();
+  });
+
+  it("place l'interrupteur du plan de table dans la carte « Invités »", async () => {
+    renderPage();
+
+    const carte = await screen.findByRole("region", { name: "Invités" });
+    expect(within(carte).getByRole("switch", { name: /plan de table visible/i })).toBeInTheDocument();
+  });
+
+  it("rattache l'aide de la date limite au champ", async () => {
+    renderPage();
+
+    expect(await screen.findByLabelText(/date limite de réponse/i)).toHaveAccessibleDescription(
+      /les invités pourront répondre jusqu'à la date limite/i,
+    );
+  });
+});
+
+describe("SettingsPage — barre d'enregistrement", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("dit que tout est à jour, bouton désactivé, tant que rien n'a changé", async () => {
+    renderPage();
+
+    expect(await screen.findByText("Tout est à jour")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /enregistrer/i })).toBeDisabled();
+  });
+
+  it("signale des modifications non enregistrées dès qu'un champ change", async () => {
+    renderPage();
+
+    fireEvent.change(await screen.findByLabelText(/^adresse/i), { target: { value: "2 rue des Lys" } });
+
+    expect(screen.getByText(/modifications non enregistrées/i)).toBeInTheDocument();
+    expect(screen.queryByText("Tout est à jour")).toBeNull();
+    expect(screen.getByRole("button", { name: /enregistrer/i })).toBeEnabled();
+  });
+
+  it("compte le seuil comme une modification", async () => {
+    renderPage();
+
+    fireEvent.change(await screen.findByLabelText(/seuil maximum d'invités/i), { target: { value: "200" } });
+
+    expect(screen.getByRole("button", { name: /enregistrer/i })).toBeEnabled();
+  });
+
+  // Taper puis effacer n'est pas une modification : rien à enregistrer.
+  it("revient à « Tout est à jour » quand la saisie retrouve la valeur enregistrée", async () => {
+    renderPage();
+
+    const adresse = await screen.findByLabelText(/^adresse/i);
+    fireEvent.change(adresse, { target: { value: "2 rue des Lys" } });
+    fireEvent.change(adresse, { target: { value: "1 rue des Fleurs" } });
+
+    expect(screen.getByText("Tout est à jour")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /enregistrer/i })).toBeDisabled();
+  });
+
+  // Un facultatif `null` côté serveur et une case vide côté écran, c'est la
+  // même chose : pas de fausse alerte au premier coup d'œil.
+  it("ne compte pas un facultatif vide comme une modification", async () => {
+    renderPage();
+
+    const carte = await screen.findByLabelText(/lien vers la carte/i);
+    fireEvent.change(carte, { target: { value: "x" } });
+    fireEvent.change(carte, { target: { value: "" } });
+
+    expect(screen.getByText("Tout est à jour")).toBeInTheDocument();
+  });
+});
+
+describe("SettingsPage — tester le lien vers la carte", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("ouvre le lien dans un nouvel onglet, sans Referer", async () => {
+    renderPage({ mapUrl: "https://maps.example/domaine" });
+
+    const lien = await screen.findByRole("link", { name: /^tester/i });
+    expect(lien).toHaveAttribute("href", "https://maps.example/domaine");
+    expect(lien).toHaveAttribute("target", "_blank");
+    expect(lien).toHaveAttribute("rel", expect.stringContaining("noreferrer"));
+  });
+
+  it("suit la saisie en cours, avant même l'enregistrement", async () => {
+    renderPage();
+
+    fireEvent.change(await screen.findByLabelText(/lien vers la carte/i), {
+      target: { value: "https://maps.example/nouveau" },
+    });
+
+    expect(screen.getByRole("link", { name: /^tester/i })).toHaveAttribute(
+      "href",
+      "https://maps.example/nouveau",
+    );
+  });
+
+  it("est désactivé quand le champ est vide", async () => {
+    renderPage();
+
+    expect(await screen.findByRole("button", { name: /^tester/i })).toBeDisabled();
+    expect(screen.queryByRole("link", { name: /^tester/i })).toBeNull();
+  });
+
+  // Un `javascript:` dans un `href` s'exécuterait au clic, dans la session
+  // de l'organisateur. La page invité refuse déjà tout ce qui n'est pas http(s).
+  it("refuse d'ouvrir autre chose qu'une adresse http(s)", async () => {
+    renderPage({ mapUrl: "javascript:alert(1)" });
+
+    expect(await screen.findByRole("button", { name: /^tester/i })).toBeDisabled();
+    expect(screen.queryByRole("link", { name: /^tester/i })).toBeNull();
   });
 });
 
@@ -434,7 +622,8 @@ describe("SettingsPage — chargement et erreurs", () => {
     );
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: /enregistrer/i }));
+    fireEvent.change(await screen.findByLabelText(/^lieu/i, { selector: "input" }), { target: { value: "Ailleurs" } });
+    fireEvent.click(screen.getByRole("button", { name: /enregistrer/i }));
 
     const alerte = await screen.findByRole("alert");
     expect(alerte).toHaveTextContent(/n'ont pas pu être enregistrés/i);
@@ -446,7 +635,8 @@ describe("SettingsPage — chargement et erreurs", () => {
     vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
     renderPage();
 
-    fireEvent.click(await screen.findByRole("button", { name: /enregistrer/i }));
+    fireEvent.change(await screen.findByLabelText(/^lieu/i, { selector: "input" }), { target: { value: "Ailleurs" } });
+    fireEvent.click(screen.getByRole("button", { name: /enregistrer/i }));
 
     expect(await screen.findByText(/paramètres enregistrés/i)).toBeInTheDocument();
   });
