@@ -36,6 +36,31 @@ describe('UpdateSettingsDto', () => {
     await expect(pipe.transform({ dressCode: 42 }, body)).rejects.toThrow();
   });
 
+  // Le seuil d'invités : un nombre de personnes, donc un entier strictement
+  // positif. Le plafond refuse les fautes de frappe (18000 pour 180) avant
+  // qu'elles n'aplatissent la barre du tableau de bord.
+  describe('maxGuests', () => {
+    it.each([1, 180, 10000])('accepts the whole number %d', async (value) => {
+      await expect(pipe.transform({ maxGuests: value }, body)).resolves.toEqual(
+        { maxGuests: value },
+      );
+    });
+
+    // `null` explicite = « aucun seuil ». C'est ce que le formulaire enverra
+    // pour un champ vidé ; le refuser rendrait le seuil impossible à retirer.
+    it('accepts an explicit null to clear the threshold', async () => {
+      await expect(pipe.transform({ maxGuests: null }, body)).resolves.toEqual({
+        maxGuests: null,
+      });
+    });
+
+    it.each([0, -5, 1.5, 10001, '180', true])('refuses %p', async (value) => {
+      await expect(
+        pipe.transform({ maxGuests: value }, body),
+      ).rejects.toThrow();
+    });
+  });
+
   // Colonnes non nullables : un lieu vidé par mégarde s'afficherait comme un
   // blanc sur l'invitation. Le correctif est un refus, pas un null.
   it.each(['venueName', 'address'])(

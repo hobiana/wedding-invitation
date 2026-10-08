@@ -91,6 +91,7 @@ async function main() {
       parkingInfo: "Parking disponible sur place",
       rsvpDeadline: new Date("2026-12-01T20:59:59Z"),
       seatingPlanActivated: false,
+      maxGuests: 180,
     },
     create: {
       id: "singleton",
@@ -102,6 +103,7 @@ async function main() {
       parkingInfo: "Parking disponible sur place",
       rsvpDeadline: new Date("2026-12-01T20:59:59Z"),
       seatingPlanActivated: false,
+      maxGuests: 180,
     },
   });
 

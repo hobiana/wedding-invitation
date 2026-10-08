@@ -21,6 +21,29 @@ function blankToNull(value: string): string | null {
   return value.trim() === "" ? null : value;
 }
 
+/** Le plafond de `UpdateSettingsDto.maxGuests` côté API (`@Max(10000)`). */
+const SEUIL_PLAFOND = 10000;
+
+/**
+ * Lit la saisie du seuil d'invités. Vide = « aucun seuil » = `null`, même règle
+ * que `blankToNull` ; jamais `0`, qui voudrait dire « personne ». Les refus sont
+ * rédigés ici, en français : le 400 de l'API est en anglais et ne s'affiche pas.
+ */
+function lireSeuil(saisie: string): { valeur: number | null } | { erreur: string } {
+  const texte = saisie.trim();
+  if (texte === "") return { valeur: null };
+  // Des chiffres seulement : `Number("12.5")`, `Number("1e3")` ou `Number("0x10")`
+  // passeraient un contrôle plus lâche.
+  const valeur = /^\d+$/.test(texte) ? Number(texte) : Number.NaN;
+  if (!Number.isInteger(valeur) || valeur < 1) {
+    return { erreur: "Indiquez un nombre entier d'au moins 1, ou laissez le champ vide." };
+  }
+  if (valeur > SEUIL_PLAFOND) {
+    return { erreur: "Le seuil ne peut pas dépasser 10 000 invités." };
+  }
+  return { valeur };
+}
+
 export function SettingsPage() {
   const queryClient = useQueryClient();
   // Téléphone seulement : sur bureau le rail porte déjà la déconnexion.
@@ -34,6 +57,11 @@ export function SettingsPage() {
   // taper sans l'avoir enregistré.
   const [saisie, setSaisie] = useState<AdminSettingsDto | null>(null);
   const form = saisie ?? data ?? null;
+  // Le seuil se garde en texte tant qu'il est saisi : un `number` ne sait pas
+  // représenter « 12. » ou « abc », et le refus doit porter sur ce qui est tapé.
+  // `null` = pas encore touché, on affiche alors la valeur du serveur.
+  const [seuilSaisi, setSeuilSaisi] = useState<string | null>(null);
+  const [erreurSeuil, setErreurSeuil] = useState<string | null>(null);
 
   const updateMutation = useMutation({
     mutationFn: (dto: Partial<AdminSettingsDto>) => api.patch("/admin/settings", dto),
@@ -64,6 +92,11 @@ export function SettingsPage() {
     );
   }
 
+  // `typeof` plutôt que `=== null` : une API pas encore migrée omet le champ, et
+  // la case afficherait alors le mot « undefined ».
+  const seuilAffiche =
+    seuilSaisi ?? (typeof form.maxGuests === "number" ? String(form.maxGuests) : "");
+
   function modifier(patch: Partial<AdminSettingsDto>) {
     if (form) setSaisie({ ...form, ...patch });
   }
@@ -71,9 +104,15 @@ export function SettingsPage() {
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!form) return;
+    const seuil = lireSeuil(seuilAffiche);
+    if ("erreur" in seuil) {
+      setErreurSeuil(seuil.erreur);
+      return;
+    }
     // `seatingPlanActivated` reste hors du corps : la bascule est un geste
     // isolé, et un formulaire resté ouvert ne doit pas la réécrire.
     updateMutation.mutate({
+      maxGuests: seuil.valeur,
       weddingDate: form.weddingDate,
       rsvpDeadline: form.rsvpDeadline,
       venueName: form.venueName,
@@ -128,6 +167,27 @@ export function SettingsPage() {
           <Textarea
             value={form.parkingInfo ?? ""}
             onChange={(e) => modifier({ parkingInfo: e.target.value })}
+          />
+        </Field>
+        {/* `type="text"` + `inputMode="numeric"` plutôt que `type="number"` : ce
+            dernier vide sa valeur sur une saisie invalide (on ne pourrait plus
+            dire ce qui est refusé) et la molette le modifie au survol. Pas de
+            `pattern` non plus : le message natif suivrait la langue du
+            navigateur, pas celle de l'interface. */}
+        <Field
+          label="Seuil maximum d'invités"
+          hint="Laissez vide pour ne fixer aucun seuil."
+          error={erreurSeuil}
+        >
+          <Input
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            value={seuilAffiche}
+            onChange={(e) => {
+              setSeuilSaisi(e.target.value);
+              setErreurSeuil(null);
+            }}
           />
         </Field>
         <Button type="submit" disabled={updateMutation.isPending}>

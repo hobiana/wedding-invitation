@@ -1,4 +1,13 @@
-import { IsBoolean, IsDateString, IsOptional, IsString, Matches } from 'class-validator';
+import {
+  IsBoolean,
+  IsDateString,
+  IsInt,
+  IsOptional,
+  IsString,
+  Matches,
+  Max,
+  Min,
+} from 'class-validator';
 
 export class UpdateSettingsDto {
   @IsOptional() @IsDateString() weddingDate?: string;
@@ -18,4 +27,12 @@ export class UpdateSettingsDto {
 
   @IsOptional() @IsDateString() rsvpDeadline?: string;
   @IsOptional() @IsBoolean() seatingPlanActivated?: boolean;
+
+  /**
+   * Seuil d'invités. Même règle que les champs texte facultatifs : absent =
+   * ne pas toucher, `null` = « aucun seuil » (`@IsOptional()` laisse passer
+   * les deux, sans exécuter les validations suivantes). Sinon un entier
+   * de 1 à 10 000 — le plafond refuse les fautes de frappe, pas un vrai seuil.
+   */
+  @IsOptional() @IsInt() @Min(1) @Max(10000) maxGuests?: number | null;
 }

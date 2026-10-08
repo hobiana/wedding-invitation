@@ -34,6 +34,7 @@ async function main() {
       address: "Antananarivo, Madagascar",
       rsvpDeadline: new Date("2026-12-01T20:59:59Z"), // fin du 1er décembre à Antananarivo
       seatingPlanActivated: false,
+      maxGuests: 180,
     },
   });
   console.log("Seeded default WeddingSettings");

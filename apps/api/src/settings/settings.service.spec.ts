@@ -99,6 +99,43 @@ describe('SettingsService.update', () => {
     });
   });
 
+  // Le seuil d'invités part tel quel : pas de `blankToNull`, ce n'est pas du
+  // texte, et `null` y veut déjà dire « aucun seuil ».
+  it('writes the guest threshold through as sent', async () => {
+    const { service, prisma } = await createService();
+
+    await service.update({ maxGuests: 120 });
+
+    expect(prisma.weddingSettings.update).toHaveBeenCalledWith({
+      where: { id: 'singleton' },
+      data: { maxGuests: 120 },
+    });
+  });
+
+  it('clears the guest threshold on an explicit null', async () => {
+    const { service, prisma } = await createService();
+
+    await service.update({ maxGuests: null });
+
+    expect(prisma.weddingSettings.update).toHaveBeenCalledWith({
+      where: { id: 'singleton' },
+      data: { maxGuests: null },
+    });
+  });
+
+  // Un PATCH qui ne parle pas du seuil ne doit pas l'effacer : c'est ce qui
+  // permet au basculement du plan de table de ne rien toucher d'autre.
+  it('leaves the guest threshold alone when the field is absent', async () => {
+    const { service, prisma } = await createService();
+
+    await service.update({ venueName: 'Espace Ny Akanintsika' });
+
+    expect(prisma.weddingSettings.update).toHaveBeenCalledWith({
+      where: { id: 'singleton' },
+      data: { venueName: 'Espace Ny Akanintsika' },
+    });
+  });
+
   // `null` reçu explicitement est déjà la bonne réponse : le formulaire des
   // paramètres, une fois au contrat `string | null`, l'enverra tel quel.
   it('accepts an explicit null for an optional field', async () => {

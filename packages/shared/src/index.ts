@@ -158,6 +158,12 @@ export interface AdminSettingsDto {
   parkingInfo: string | null;
   rsvpDeadline: string;
   seatingPlanActivated: boolean;
+  /**
+   * Seuil d'invités que le couple s'accorde ; `null` = aucun seuil fixé.
+   * Côté organisateur seulement : il n'est pas dans `WeddingInfoDto`, un
+   * invité n'a pas à le voir.
+   */
+  maxGuests: number | null;
 }
 
 /**

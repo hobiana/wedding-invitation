@@ -136,5 +136,6 @@ export function toAdminSettingsDto(wedding: WeddingSettings): AdminSettingsDto {
   return {
     ...toWeddingInfoDto(wedding),
     seatingPlanActivated: wedding.seatingPlanActivated,
+    maxGuests: wedding.maxGuests,
   };
 }

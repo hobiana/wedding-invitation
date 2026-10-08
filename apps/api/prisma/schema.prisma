@@ -52,4 +52,6 @@ model WeddingSettings {
   parkingInfo          String?
   rsvpDeadline         DateTime
   seatingPlanActivated Boolean  @default(false)
+  /// Seuil d'invités que le couple s'accorde ; `null` = aucun seuil.
+  maxGuests            Int?     @default(180)
 }

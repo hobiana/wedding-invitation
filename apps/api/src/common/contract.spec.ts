@@ -145,6 +145,7 @@ function settingsRow(
     parkingInfo: 'Parking gratuit',
     rsvpDeadline: new Date('2026-11-30T23:00:00.000Z'),
     seatingPlanActivated: false,
+    maxGuests: 180,
     ...overrides,
   };
 }
@@ -163,7 +164,16 @@ describe('toAdminSettingsDto', () => {
       parkingInfo: 'Parking gratuit',
       rsvpDeadline: '2026-11-30T23:00:00.000Z',
       seatingPlanActivated: false,
+      maxGuests: 180,
     });
+  });
+
+  // « Aucun seuil » est `null`, pas `undefined` : le tableau de bord doit
+  // pouvoir distinguer « pas de seuil » d'un champ oublié en route.
+  it('hands a cleared guest threshold over as null', () => {
+    const dto = toAdminSettingsDto(settingsRow({ maxGuests: null }));
+
+    expect(dto).toHaveProperty('maxGuests', null);
   });
 
   // La raison d'être du lot F : un champ jamais rempli vaut `null`, et ce
@@ -184,6 +194,12 @@ describe('toAdminSettingsDto', () => {
 });
 
 describe('toWeddingInfoDto', () => {
+  // Le seuil est un outil de l'organisateur ; un invité n'a pas à savoir
+  // combien de places le couple s'autorise.
+  it('does not hand the guest threshold to the guest page', () => {
+    expect(toWeddingInfoDto(settingsRow())).not.toHaveProperty('maxGuests');
+  });
+
   // Le même trou, vu de la page invité : un champ vide doit rester vide et
   // non devenir une ligne blanche sur l'invitation.
   it('keeps an unfilled optional field null on the guest contract', () => {

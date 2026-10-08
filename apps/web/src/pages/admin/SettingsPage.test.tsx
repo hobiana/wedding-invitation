@@ -23,6 +23,7 @@ const settings: AdminSettingsDto = {
   parkingInfo: null,
   rsvpDeadline: "2027-05-01T22:00:00.000Z",
   seatingPlanActivated: false,
+  maxGuests: 180,
 };
 
 function renderPage(overrides: Partial<AdminSettingsDto> = {}) {
@@ -214,6 +215,147 @@ describe("SettingsPage — champs facultatifs", () => {
   });
 });
 
+describe("SettingsPage — seuil maximum d'invités", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  async function saisirSeuil(valeur: string) {
+    fireEvent.change(await screen.findByLabelText(/seuil maximum d'invités/i), {
+      target: { value: valeur },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /enregistrer/i }));
+  }
+
+  it("se pré-remplit depuis les paramètres, clavier numérique sur téléphone", async () => {
+    renderPage();
+
+    const seuil = (await screen.findByLabelText(/seuil maximum d'invités/i)) as HTMLInputElement;
+    expect(seuil.value).toBe("180");
+    expect(seuil.inputMode).toBe("numeric");
+  });
+
+  it("affiche un champ vide, et non « null », quand aucun seuil n'est fixé", async () => {
+    renderPage({ maxGuests: null });
+
+    const seuil = (await screen.findByLabelText(/seuil maximum d'invités/i)) as HTMLInputElement;
+    expect(seuil.value).toBe("");
+  });
+
+  it("explique, rattaché au champ, qu'on peut le laisser vide", async () => {
+    renderPage();
+
+    const seuil = await screen.findByLabelText(/seuil maximum d'invités/i);
+    const decritPar = seuil.getAttribute("aria-describedby");
+    expect(decritPar).toBeTruthy();
+    expect(document.getElementById(decritPar!.split(" ")[0])).toHaveTextContent(
+      /laissez vide pour ne fixer aucun seuil/i,
+    );
+  });
+
+  // Un nombre, pas la chaîne tapée : `@IsInt()` refuserait "200" en 400.
+  it("envoie la valeur saisie en nombre", async () => {
+    const patchSpy = vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
+    renderPage();
+
+    await saisirSeuil("200");
+
+    await waitFor(() => expect(patchSpy).toHaveBeenCalled());
+    expect(dernierCorps(patchSpy).maxGuests).toBe(200);
+  });
+
+  it("renvoie le seuil existant tel quel quand on n'y touche pas", async () => {
+    const patchSpy = vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: /enregistrer/i }));
+
+    await waitFor(() => expect(patchSpy).toHaveBeenCalled());
+    expect(dernierCorps(patchSpy).maxGuests).toBe(180);
+  });
+
+  // Vide = « aucun seuil » : `null`, comme les champs texte facultatifs.
+  // Ni `""`, ni `0` — `0` voudrait dire « personne ».
+  it("envoie null pour un champ vidé", async () => {
+    const patchSpy = vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
+    renderPage();
+
+    await saisirSeuil("  ");
+
+    await waitFor(() => expect(patchSpy).toHaveBeenCalled());
+    expect(dernierCorps(patchSpy).maxGuests).toBeNull();
+  });
+
+  it.each([
+    ["un nombre décimal", "12.5"],
+    ["zéro", "0"],
+    ["un nombre négatif", "-3"],
+    ["du texte", "deux cents"],
+  ])("refuse %s, en français, sans appel réseau", async (_cas, valeur) => {
+    const patchSpy = vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
+    renderPage();
+
+    await saisirSeuil(valeur);
+
+    const alerte = await screen.findByRole("alert");
+    expect(alerte).toHaveTextContent(/nombre entier/i);
+    expect(screen.getByLabelText(/seuil maximum d'invités/i)).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(patchSpy).not.toHaveBeenCalled();
+  });
+
+  // L'API refuse au-delà de 10 000 par un 400 au texte anglais : on l'arrête
+  // avant, avec une phrase que l'organisateur comprend.
+  it("refuse un seuil au-delà de 10 000, en français, sans appel réseau", async () => {
+    const patchSpy = vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
+    renderPage();
+
+    await saisirSeuil("10001");
+
+    const alerte = await screen.findByRole("alert");
+    expect(alerte).toHaveTextContent(/10 000/);
+    expect(patchSpy).not.toHaveBeenCalled();
+  });
+
+  it("accepte exactement 10 000", async () => {
+    const patchSpy = vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
+    renderPage();
+
+    await saisirSeuil("10000");
+
+    await waitFor(() => expect(patchSpy).toHaveBeenCalled());
+    expect(dernierCorps(patchSpy).maxGuests).toBe(10000);
+  });
+
+  // Si le serveur refuse quand même (règle durcie, requête rejouée), son
+  // message anglais ne remonte pas à l'écran.
+  it("dit en français qu'un seuil refusé par l'API n'a pas été enregistré", async () => {
+    vi.spyOn(apiModule.api, "patch").mockRejectedValue(
+      new Error("maxGuests must not be greater than 10000"),
+    );
+    renderPage();
+
+    await saisirSeuil("500");
+
+    const alerte = await screen.findByRole("alert");
+    expect(alerte).toHaveTextContent(/n'ont pas pu être enregistrés/i);
+    expect(alerte).not.toHaveTextContent(/maxGuests|greater/);
+  });
+
+  it("efface le refus dès que la saisie est corrigée", async () => {
+    vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
+    renderPage();
+
+    await saisirSeuil("0");
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/seuil maximum d'invités/i), {
+      target: { value: "150" },
+    });
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+});
+
 describe("SettingsPage — plan de table", () => {
   afterEach(() => vi.restoreAllMocks());
 
@@ -227,6 +369,11 @@ describe("SettingsPage — plan de table", () => {
     const patchSpy = vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
     renderPage({ mapUrl: "https://maps.example/domaine" });
 
+    // Un seuil invalide en cours de saisie ne bloque pas la bascule, et ne
+    // part pas avec elle.
+    fireEvent.change(await screen.findByLabelText(/seuil maximum d'invités/i), {
+      target: { value: "0" },
+    });
     fireEvent.click(await screen.findByRole("button", { name: /^activer$/i }));
 
     await waitFor(() => expect(patchSpy).toHaveBeenCalled());
