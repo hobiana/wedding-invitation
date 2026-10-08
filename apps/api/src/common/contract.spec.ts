@@ -146,6 +146,7 @@ function settingsRow(
     rsvpDeadline: new Date('2026-11-30T23:00:00.000Z'),
     seatingPlanActivated: false,
     maxGuests: 180,
+    contactPhones: ['+261 34 64 314 02', '+261 34 29 682 30'],
     ...overrides,
   };
 }
@@ -163,6 +164,7 @@ describe('toAdminSettingsDto', () => {
       dressCode: 'Tenue de ville',
       parkingInfo: 'Parking gratuit',
       rsvpDeadline: '2026-11-30T23:00:00.000Z',
+      contactPhones: ['+261 34 64 314 02', '+261 34 29 682 30'],
       seatingPlanActivated: false,
       maxGuests: 180,
     });
@@ -215,6 +217,18 @@ describe('toWeddingInfoDto', () => {
       dressCode: null,
       parkingInfo: null,
       rsvpDeadline: '2026-11-30T23:00:00.000Z',
+      contactPhones: ['+261 34 64 314 02', '+261 34 29 682 30'],
     });
+  });
+
+  // Contrairement au seuil, les numéros sont faits pour l'invité : la page
+  // dit « appelez-nous en cas de changement ». Ils partent tels que saisis,
+  // dans l'ordre choisi par l'organisateur.
+  it('hands the contact phones to the guest page, as typed and in order', () => {
+    const dto = toWeddingInfoDto(
+      settingsRow({ contactPhones: ['034 29 682 30', '+261 34 64 314 02'] }),
+    );
+
+    expect(dto.contactPhones).toEqual(['034 29 682 30', '+261 34 64 314 02']);
   });
 });

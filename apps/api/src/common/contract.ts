@@ -112,6 +112,8 @@ export function toWeddingInfoDto(wedding: WeddingSettings): WeddingInfoDto {
     dressCode: wedding.dressCode,
     parkingInfo: wedding.parkingInfo,
     rsvpDeadline: wedding.rsvpDeadline.toISOString(),
+    // Publics à dessein : la page invité les affiche (« appelez-nous »).
+    contactPhones: wedding.contactPhones,
   };
 }
 

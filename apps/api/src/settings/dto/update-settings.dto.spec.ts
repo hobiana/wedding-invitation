@@ -61,6 +61,86 @@ describe('UpdateSettingsDto', () => {
     });
   });
 
+  // Les numéros des mariés, publiés sur la page invité. Une liste jamais
+  // vide : l'invitation dit « appelez-nous en cas de changement », elle doit
+  // toujours avoir quelqu'un à appeler. Le format reste large (chaque pays
+  // écrit ses numéros à sa façon) mais refuse ce qui n'est pas un numéro —
+  // la chaîne finit dans un lien `tel:` sur une page publique.
+  describe('contactPhones', () => {
+    it('accepts one to five well-formed numbers, as typed', async () => {
+      const phones = [
+        '+261 34 64 314 02',
+        '034 29 682 30',
+        '+33 (0)6 12-34-56-78',
+        '06.12.34.56.79',
+        '+1 555 0100 123',
+      ];
+      await expect(
+        pipe.transform({ contactPhones: phones }, body),
+      ).resolves.toEqual({ contactPhones: phones });
+    });
+
+    it('trims each number and collapses inner runs of spaces', async () => {
+      await expect(
+        pipe.transform({ contactPhones: ['  +261  34 64   314 02 '] }, body),
+      ).resolves.toEqual({ contactPhones: ['+261 34 64 314 02'] });
+    });
+
+    // Absent = ne pas toucher : c'est ce qui laisse basculer le plan de table
+    // sans renvoyer les numéros.
+    it('leaves the field out when it is not sent', async () => {
+      await expect(
+        pipe.transform({ seatingPlanActivated: true }, body),
+      ).resolves.toEqual({ seatingPlanActivated: true });
+    });
+
+    // Contrairement aux champs texte facultatifs, `null` n'a pas de sens
+    // ici : le contrat promet au moins un numéro.
+    it.each([
+      ['null', null],
+      ['an empty list', []],
+      [
+        'six numbers',
+        Array.from({ length: 6 }, (_, i) => `+261 34 00 000 0${i}`),
+      ],
+      ['a bare string', '+261 34 64 314 02'],
+    ])('refuses %s', async (_label, value) => {
+      await expect(
+        pipe.transform({ contactPhones: value }, body),
+      ).rejects.toThrow();
+    });
+
+    it.each([
+      ['an empty string', ''],
+      ['a blank string', '   '],
+      ['letters', 'abc'],
+      ['a script URL', 'javascript:alert(1)'],
+      ['markup', '<script>'],
+      ['a country code alone', '+261'],
+      ['a plus sign in the middle', '034 + 29 682 30'],
+      [
+        'a number longer than 30 characters',
+        '+261 34 64 314 02 34 64 314 02 99',
+      ],
+      ['a non-string', 261346431402],
+    ])('refuses %s among the numbers', async (_label, value) => {
+      await expect(
+        pipe.transform({ contactPhones: ['+261 34 64 314 02', value] }, body),
+      ).rejects.toThrow();
+    });
+
+    // Le doublon est jugé après normalisation : deux saisies qui ne diffèrent
+    // que par les espaces sont le même numéro affiché deux fois.
+    it('refuses the same number twice, even spaced differently', async () => {
+      await expect(
+        pipe.transform(
+          { contactPhones: ['+261 34 64 314 02', ' +261  34 64 314 02'] },
+          body,
+        ),
+      ).rejects.toThrow();
+    });
+  });
+
   // Colonnes non nullables : un lieu vidé par mégarde s'afficherait comme un
   // blanc sur l'invitation. Le correctif est un refus, pas un null.
   it.each(['venueName', 'address'])(

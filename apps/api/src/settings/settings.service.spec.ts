@@ -123,6 +123,19 @@ describe('SettingsService.update', () => {
     });
   });
 
+  // Les numéros arrivent déjà normalisés par le DTO ; le service les écrit
+  // tels quels, en remplaçant la liste entière (pas de fusion).
+  it('writes the contact phones through as sent', async () => {
+    const { service, prisma } = await createService();
+
+    await service.update({ contactPhones: ['+261 34 64 314 02'] });
+
+    expect(prisma.weddingSettings.update).toHaveBeenCalledWith({
+      where: { id: 'singleton' },
+      data: { contactPhones: ['+261 34 64 314 02'] },
+    });
+  });
+
   // Un PATCH qui ne parle pas du seuil ne doit pas l'effacer : c'est ce qui
   // permet au basculement du plan de table de ne rien toucher d'autre.
   it('leaves the guest threshold alone when the field is absent', async () => {

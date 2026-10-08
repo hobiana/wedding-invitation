@@ -33,6 +33,13 @@ export interface WeddingInfoDto {
   dressCode: string | null;
   parkingInfo: string | null;
   rsvpDeadline: string;
+  /**
+   * Les numéros où joindre les mariés, tels que l'organisateur les a saisis
+   * (« +261 34 64 314 02 »). Jamais vide : au moins un numéro est exigé. Le
+   * lien `tel:` s'obtient en retirant les espaces. Publics, la page invité
+   * les affiche.
+   */
+  contactPhones: string[];
 }
 
 export interface SeatingNeighborDto {
@@ -157,6 +164,13 @@ export interface AdminSettingsDto {
   dressCode: string | null;
   parkingInfo: string | null;
   rsvpDeadline: string;
+  /**
+   * Les numéros où joindre les mariés, tels que l'organisateur les a saisis
+   * (« +261 34 64 314 02 »). Jamais vide : au moins un numéro est exigé. Le
+   * lien `tel:` s'obtient en retirant les espaces. Publics, la page invité
+   * les affiche.
+   */
+  contactPhones: string[];
   seatingPlanActivated: boolean;
   /**
    * Seuil d'invités que le couple s'accorde ; `null` = aucun seuil fixé.

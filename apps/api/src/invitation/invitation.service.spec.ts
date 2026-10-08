@@ -39,6 +39,8 @@ function weddingRow(overrides: Record<string, unknown> = {}) {
     parkingInfo: null,
     rsvpDeadline: new Date('2027-05-01T00:00:00.000Z'),
     seatingPlanActivated: false,
+    maxGuests: 180,
+    contactPhones: ['+261 34 64 314 02', '+261 34 29 682 30'],
     ...overrides,
   };
 }
@@ -202,6 +204,7 @@ describe('InvitationService.getInvitation', () => {
         dressCode: null,
         parkingInfo: null,
         rsvpDeadline: '2027-05-01T00:00:00.000Z',
+        contactPhones: ['+261 34 64 314 02', '+261 34 29 682 30'],
       },
       seatingPlan: null,
     });
@@ -229,6 +232,7 @@ describe('InvitationService.getInvitation', () => {
     ]);
     expect(Object.keys(result.wedding).sort()).toEqual([
       'address',
+      'contactPhones',
       'dressCode',
       'mapUrl',
       'parkingInfo',

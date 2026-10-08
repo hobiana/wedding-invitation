@@ -54,4 +54,7 @@ model WeddingSettings {
   seatingPlanActivated Boolean  @default(false)
   /// Seuil d'invités que le couple s'accorde ; `null` = aucun seuil.
   maxGuests            Int?     @default(180)
+  /// Numéros des mariés, tels que saisis ; publics (page invité). Jamais vide :
+  /// l'API exige au moins un numéro. Le défaut amorce la ligne existante.
+  contactPhones        String[] @default(["+261 34 64 314 02", "+261 34 29 682 30"])
 }

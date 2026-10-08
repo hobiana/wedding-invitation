@@ -35,6 +35,7 @@ async function main() {
       rsvpDeadline: new Date("2026-12-01T20:59:59Z"), // fin du 1er décembre à Antananarivo
       seatingPlanActivated: false,
       maxGuests: 180,
+      contactPhones: ["+261 34 64 314 02", "+261 34 29 682 30"],
     },
   });
   console.log("Seeded default WeddingSettings");
