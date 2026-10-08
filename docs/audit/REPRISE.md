@@ -100,9 +100,9 @@ L'anneau de focus (fenêtre non focalisée sous Playwright), un vrai téléphone
 5. `.agents/` et `skills-lock.json` (installés par un skill) sont dans `.gitignore` « pour l'instant » : à décider.
 6. `InvitationPage.tsx` lit `confirmedCount ?? allocatedSeats` (nombre de personnes d'un foyer, pas occupation d'une table) ; `LoginPage.tsx:51` garde un `text-red-600` en dur ; la liste « à relancer » n'est pas tronquée.
 
-### Mise en ligne — l'urgence qui n'a pas bougé
+### Mise en ligne
 
-**La base Postgres gratuite de Render (`hobiana-lova-db`, Frankfurt) expire le 2026-10-15.** Render supprime les bases gratuites au bout de 30 jours : sans passage en plan payant avant cette date, tout son contenu est perdu. **Aucun service n'est déployé** (ni l'API ni le front) ; le Blueprint déclare la base et l'API, mais n'a pas été appliqué. Restent : le front sur Vercel et les sept choses côté commanditaire du plan `2026-09-11-plan-de-mise-en-ligne.md`. L'organisateur de test local `admin@admin.com` / `admin` n'existe que dans la base de développement et **ne doit jamais exister en ligne** : créer l'admin de production par `ADMIN_SEED_EMAIL` et `ADMIN_SEED_PASSWORD`.
+**La base Postgres gratuite de Render (`hobiana-lova-db`, Frankfurt) expire le 2026-10-15** (Render supprime les bases gratuites au bout de 30 jours). **Ce n'est pas une urgence** : elle ne contient que des données de test, la liste définitive des invités n'est pas encore saisie (arbitré par le commanditaire le 2026-10-08). Elle le deviendra le jour où de vrais foyers y seront saisis : passer alors en plan payant avant l'échéance, ou recréer la base au moment de la vraie mise en ligne. **Aucun service n'est déployé** (ni l'API ni le front) ; le Blueprint déclare la base et l'API, mais n'a pas été appliqué. Restent : le front sur Vercel et les sept choses côté commanditaire du plan `2026-09-11-plan-de-mise-en-ligne.md`. L'organisateur de test local `admin@admin.com` / `admin` n'existe que dans la base de développement et **ne doit jamais exister en ligne** : créer l'admin de production par `ADMIN_SEED_EMAIL` et `ADMIN_SEED_PASSWORD`.
 
 **Le mariage est dans 86 jours, les réponses sont attendues dans 54.**
 
