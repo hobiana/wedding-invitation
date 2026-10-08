@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { AdminLayout } from "./AdminLayout";
 import { AuthProvider } from "@/auth/AuthContext";
@@ -42,6 +43,7 @@ function renderLayout({ bureau = true }: { bureau?: boolean } = {}) {
 }
 
 describe("AdminLayout", () => {
+  beforeEach(() => window.localStorage.clear());
   afterEach(() => vi.restoreAllMocks());
 
   // Before this layout existed, the four admin pages were only reachable by
@@ -115,5 +117,117 @@ describe("AdminLayout", () => {
 
     await waitFor(() => expect(logoutSpy).toHaveBeenCalledWith("/auth/logout"));
     expect(await screen.findByText("Page de connexion")).toBeInTheDocument();
+  });
+
+  // --- Téléphone : la barre du bas (demande du commanditaire, 2026-10-08) ---
+
+  // L'onglet actif s'annonce, et pas seulement par son aplat bordeaux.
+  it("announces the current tab on a phone", async () => {
+    renderLayout({ bureau: false });
+    const actif = await screen.findByRole("link", { name: "Foyers" });
+    expect(actif).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Tableau de bord" })).not.toHaveAttribute("aria-current");
+  });
+
+  // « Tableau de bord » passait sur deux lignes : la barre prenait deux hauteurs
+  // selon l'onglet. jsdom ne mesure rien ; Chrome a vérifié à 360 et 390 px.
+  it("keeps every tab label on a single line", async () => {
+    renderLayout({ bureau: false });
+    await screen.findByRole("link", { name: "Foyers" });
+    for (const label of ["Tableau de bord", "Foyers", "Plan de table", "Paramètres"]) {
+      expect(screen.getByText(label)).toHaveClass("whitespace-nowrap");
+    }
+  });
+
+  // L'aplat actif est collé aux bords de la barre : ni marge autour de la
+  // grille, ni rayon sur l'onglet (c'était un bouton arrondi flottant).
+  it("draws the active tab as a full-height flat block, edge to edge", async () => {
+    renderLayout({ bureau: false });
+    const actif = await screen.findByRole("link", { name: "Foyers" });
+    const barre = actif.closest("nav")!;
+    expect(barre).toHaveClass("grid-cols-4");
+    expect(barre.className).not.toMatch(/\b(p|px|py|gap)-\d/);
+    expect(actif.className).not.toMatch(/\brounded/);
+    expect(actif).toHaveClass("bg-bordeaux-700", "min-h-14");
+  });
+
+  // --- Bureau : le rail ---
+
+  it("titles the desktop rail « Mariage » in the display face", async () => {
+    renderLayout({ bureau: true });
+    const titre = await screen.findByText("Mariage");
+    expect(titre).toHaveClass("font-display");
+    expect(screen.queryByText("Nos invités")).toBeNull();
+  });
+
+  // Le 2 px de `rounded-control` lisait carré ; actif et survol arrondis.
+  it("rounds both the active and the hovered rail item", async () => {
+    renderLayout({ bureau: true });
+    const actif = await screen.findByRole("link", { name: "Foyers" });
+    const autre = screen.getByRole("link", { name: "Paramètres" });
+    expect(actif).toHaveClass("rounded-button", "bg-bordeaux-700");
+    expect(autre).toHaveClass("rounded-button", "hover:bg-cream");
+    expect(actif.className).not.toMatch(/rounded-control/);
+  });
+
+  it("collapses the rail to icons, each keeping a name and a tooltip", async () => {
+    const user = userEvent.setup();
+    renderLayout({ bureau: true });
+    const bouton = await screen.findByRole("button", { name: "Replier le menu" });
+    expect(bouton).toHaveAttribute("aria-expanded", "true");
+
+    await user.click(bouton);
+
+    const deplier = screen.getByRole("button", { name: "Déplier le menu" });
+    expect(deplier).toHaveAttribute("aria-expanded", "false");
+    for (const label of ["Tableau de bord", "Foyers", "Plan de table", "Paramètres"]) {
+      const lien = screen.getByRole("link", { name: label });
+      expect(lien).toHaveAttribute("title", label);
+    }
+    // L'actif reste identifiable, autrement que par la couleur.
+    expect(screen.getByRole("link", { name: "Foyers" })).toHaveAttribute("aria-current", "page");
+    expect(screen.queryByText("Mariage")).toBeNull();
+    expect(screen.getByText("H & L")).toBeInTheDocument();
+    expect(bouton.closest("aside")).toHaveClass("w-16");
+  });
+
+  it("keeps the account usable when the rail is collapsed", async () => {
+    const user = userEvent.setup();
+    const logoutSpy = vi.spyOn(apiModule.api, "post").mockResolvedValue({ success: true });
+    renderLayout({ bureau: true });
+    await user.click(await screen.findByRole("button", { name: "Replier le menu" }));
+
+    // L'adresse reste lisible par un lecteur d'écran et en infobulle.
+    expect(await screen.findByTitle("admin@example.com")).toBeInTheDocument();
+    const sortir = screen.getByRole("button", { name: "Se déconnecter" });
+    expect(sortir).toHaveAttribute("title", "Se déconnecter");
+    await user.click(sortir);
+    await waitFor(() => expect(logoutSpy).toHaveBeenCalledWith("/auth/logout"));
+  });
+
+  it("remembers the collapsed rail across visits", async () => {
+    const user = userEvent.setup();
+    const premier = renderLayout({ bureau: true });
+    await user.click(await screen.findByRole("button", { name: "Replier le menu" }));
+    expect(window.localStorage.getItem("admin.rail.replie")).toBe("1");
+    premier.unmount();
+
+    renderLayout({ bureau: true });
+    expect(await screen.findByRole("button", { name: "Déplier le menu" })).toBeInTheDocument();
+  });
+
+  // Navigation privée stricte : l'accès au stockage lève. Le rail s'ouvre
+  // déplié et se replie quand même, pour la visite en cours.
+  it("works without storage", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("SecurityError");
+    });
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("SecurityError");
+    });
+    renderLayout({ bureau: true });
+    await user.click(await screen.findByRole("button", { name: "Replier le menu" }));
+    expect(screen.getByRole("button", { name: "Déplier le menu" })).toBeInTheDocument();
   });
 });
