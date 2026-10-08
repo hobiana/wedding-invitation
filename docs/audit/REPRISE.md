@@ -1,11 +1,11 @@
 # Où on en est — reprise de session
 
-**Dernière mise à jour :** 2026-10-05, par l'architecte.
+**Dernière mise à jour :** 2026-10-08, par l'architecte.
 À lire en premier si tu reprends ce projet sans le contexte de la conversation précédente.
 
 ## L'état en une phrase
 
-**Le mariage est dans 89 jours** (2 janvier 2027), les réponses sont attendues dans 57 (1er décembre 2026). C'est le fait qui commande tout le reste : l'application ne tourne encore que sur la machine du commanditaire, et une invitation sur `localhost` n'envoie rien à personne. **La mise en ligne est passée devant le plan de table**, qui ne sert qu'en décembre.
+**Le mariage est dans 86 jours** (2 janvier 2027), les réponses sont attendues dans 54 (1er décembre 2026). C'est le fait qui commande tout le reste : l'application ne tourne encore que sur la machine du commanditaire, et une invitation sur `localhost` n'envoie rien à personne. **La mise en ligne est passée devant le plan de table**, qui ne sert qu'en décembre.
 
 L'audit est livré, le **lot 0 est terminé**, le **contrat partagé est désormais vérifié à la compilation** (`6582760`), et le **lot 3 est repris sur le design que le commanditaire a lui-même produit** (`images/html/`). Ce design remplace le découpage d'origine des tâches 1 à 11 : voir « Le nouveau découpage » plus bas.
 
@@ -43,7 +43,70 @@ Arbitré le 2026-09-10, à partir du design fourni dans `images/html/` :
 9. **L'ornement malgache est retiré.** Le design ornemente à l'aquarelle de roses ; on ne garde que ça. `HemMotif.tsx` — le motif de l'ourlet de leurs tenues — et le jeton `--rule-lamba` sortent. C'est un renversement assumé de la piste ouverte dans la direction artistique du 2026-08-23, qui écartait justement les roses du commerce.
 10. **Le carrousel montre les trois vraies photos** de `images/old images - fiancailles/` : `DSC_2817`, `DSC_3536`, `DSC_3541`. Les légendes du design décrivaient les images générées et sont à réécrire d'après ce qu'on voit.
 
-## Point de reprise — 2026-10-05, lots C à F tous commités
+## Point de reprise — 2026-10-08, l'admin est refait à l'image des maquettes
+
+**Poussé par le commanditaire jusqu'à `b58ac02`** (vérifié sur `origin/main`). **Deux commits locaux, non poussés** : `ccf9752` (primitives) et `5e7c1ea` (page Foyers). Le dépôt local est le seul exemplaire de ces deux-là.
+
+**Suites au dernier point vérifié par l'architecte :** **761 web**, **160 api**, **30 e2e** (Postgres lancé), les deux builds à exit 0, `lint` web à 3 avertissements (ceux d'avant : `field.tsx`, `AuthContext.tsx`, `DashboardPage.tsx`).
+
+### Ce qui a été livré depuis le 2026-10-05
+
+| Commit | Ce qu'il porte |
+|---|---|
+| `008186f` | **Correctif d'un crash au démarrage de l'API**, voir « Pièges » |
+| `8edfd79` | Plan de table : le focus suit le foyer après un placement ; noms entiers |
+| `08c7b33` | Rail bureau épinglé à la hauteur de l'écran : « Se déconnecter » toujours visible |
+| `d8d4b65` | **Foyers paginés, recherchés et triés côté serveur** (`Page<T>`, `limit` défaut 100 / plafond 500, `q`, `status`, `sort`, `order`) |
+| `38e0200` | Colonne Foyer extensible (`grow`) |
+| `7c724ea` | Primitive **toast** sur Radix Toast |
+| `7d64448` | **Plan de table bureau refait** à l'image des maquettes, avec toasts |
+| `a1c790f` | Téléphone : plus de barre du haut ; adresse connectée et déconnexion dans Paramètres, section « Compte » |
+| `b58ac02` | **Plan de table téléphone refait** (onglets, feuille du bas, tables repliables) ; `TableBoard` et `HouseholdChip` supprimés |
+| `ccf9752` | Primitives : `Menu` « … », `Switch`, `FilterPills`, `BottomSheet`, `PageHeader` ; boutons arrondis (`--radius-button`) |
+| `5e7c1ea` | **Page Foyers refaite** (bureau + téléphone) |
+
+### Décisions du commanditaire prises depuis le 10-05 — ne pas les rouvrir
+
+1. **Pagination des listes GET côté serveur**, 100 par défaut, plafond 500 ; l'écran Foyers choisit 10 / 25 / 50 / 100 (25 par défaut, retenu dans `localStorage`). Le tableau de bord et le plan de table demandent `limit=500` et **affichent un avertissement si `total > items.length`** : aucune troncature silencieuse. Seuls les foyers sont paginés ; les tables restent un petit tableau.
+2. **Tri des foyers** : par nom (le mot « Famille » en tête est ignoré), places, statut (En attente → Confirmé → Décliné), date d'ajout. L'écran démarre sur nom croissant. Le tri vit sur un contrôle « Trier par » + bouton de sens, pas sur les en-têtes de colonnes.
+3. **Plan de table** : sur bureau on déplace un foyer **en le glissant**, ou en le retirant puis en le plaçant (pas de bouton « Déplacer ») ; sur téléphone « Déplacer » existe. **Les foyers déclinés sont masqués de « À placer »** (ils restent visibles s'ils sont déjà assis). La création d'une table est un brouillon, la table n'existe qu'à « Terminé ».
+4. **Toasts** pour placer, retirer, créer, modifier, supprimer une table ; les refus du serveur sont affichés en français, jamais le texte de l'API.
+5. **Rail de navigation inchangé** (icônes, sans titre « Nos invités »). Le rail et les autres pages ne reçoivent que l'arrondi des boutons.
+6. **Rayons** : trois jetons nouveaux `--radius-button` 10 px, `--radius-field` 10 px, `--radius-card` 14 px ; `--radius-control` (2 px) et `--radius-surface` (4 px) servent encore aux pages non refaites. `cn()` connaît ces rayons : **un rayon passé par `className` l'emporte sur celui du composant**.
+7. **Foyers, téléphone** : barre d'outils (recherche, pastilles, bouton « Trier » qui ouvre une feuille, interrupteur « Afficher les membres » et « Par page »), cartes qui se déplient sur place. Prénoms seuls sur la carte, noms complets sur bureau.
+
+### Pièges appris — à ne pas redécouvrir
+
+- **`packages/shared` ne peut donner à l'API que des types.** Un import de valeur (`seatsFor`) passait `test`, `test:e2e` et `build`, puis faisait planter `node dist/main` (`SyntaxError: Unexpected token 'export'`). Seul **un vrai démarrage de l'API** le montre. `seatsFor` existe donc deux fois (API et shared), gardées d'accord par `seating.parity.spec.ts`. Inscrit dans `CLAUDE.md`.
+- **`/auth/login` est limité à 5 par minute.** Un script de test qui se connecte à chaque contexte s'expose à un 429 : **une seule connexion**, puis `storageState`.
+- **Un sélecteur `[aria-expanded]` attrape aussi le bouton « … »** (le menu Radix porte `aria-expanded`). Pour le chevron de dépli : `button[aria-label^="Détail de"]`. Deux « défauts » imaginaires en sont venus.
+- **jsdom n'a pas la capture du pointeur** que Radix appelle : `setupTests.ts` la simule. Sans elle, un `userEvent.click` lève une erreur non gérée après des tests verts.
+- **Un menu Radix qui ouvre un dialogue** : le focus est rendu au « … » *avant* d'exécuter l'action (`Menu`), sinon le dialogue mémorise un élément qui disparaît. Après une suppression, la ligne n'existe plus : le repère est la région « Liste des foyers » (`tabIndex={-1}`).
+- **Un fichier qui exporte un composant et un hook** produit l'avertissement lint `only-export-components` (`useToast` vit donc dans `use-toast.ts`).
+- **Docker Desktop doit tourner** pour les e2e (3 tests d'authentification échouent sans base). Les serveurs de dev (`api start`, `web dev`) s'arrêtent avec la session : les relancer.
+- **Les agents s'arrêtent sur une limite d'API** (erreur 429, « session limit ») : ce qu'ils ont fini est sur le disque, mais pas commité. Lire `git status` avant de relancer, et ne pas refaire ce qui est fait.
+- **Les captures « pleine page » montrent la barre du bas au milieu de la page** : c'est un artefact de capture (la barre est fixe), pas un défaut.
+
+### Ce qui n'a pas été vu dans un vrai navigateur
+
+L'anneau de focus (fenêtre non focalisée sous Playwright), un vrai téléphone (pouce, barre d'adresse mobile, clavier à l'écran), le contraste des bordures des boutons contour, et le glisser-déposer au toucher (il n'existe qu'au bureau). Tout le reste a été joué dans Chrome avec Playwright, contre la vraie API.
+
+### Questions ouvertes
+
+1. **Plan de table, édition d'une table** : le message « Au moins N places : déjà occupées » doit-il être **permanent** sous la capacité, comme sur la maquette 6, ou n'apparaître que sous le minimum comme aujourd'hui ?
+2. **Barre d'outils des Foyers à 1440 px** : l'interrupteur et le tri passent sur une seconde ligne ; la maquette (2000 px) tient sur une ligne. Et à 375 px « Afficher les membres » passe sur deux lignes.
+3. **Plan de table** : « Placer », « × » et « Modifier la table » gardent un rayon de 2 à 4 px (ce ne sont pas des `Button`). À arrondir ?
+4. **Maquettes à fournir par le commanditaire** : tableau de bord et paramètres. Ils n'ont reçu que l'arrondi des boutons.
+5. `.agents/` et `skills-lock.json` (installés par un skill) sont dans `.gitignore` « pour l'instant » : à décider.
+6. `InvitationPage.tsx` lit `confirmedCount ?? allocatedSeats` (nombre de personnes d'un foyer, pas occupation d'une table) ; `LoginPage.tsx:51` garde un `text-red-600` en dur ; la liste « à relancer » n'est pas tronquée.
+
+### Mise en ligne — l'urgence qui n'a pas bougé
+
+**La base Postgres gratuite de Render (`hobiana-lova-db`, Frankfurt) expire le 2026-10-15.** Render supprime les bases gratuites au bout de 30 jours : sans passage en plan payant avant cette date, tout son contenu est perdu. **Aucun service n'est déployé** (ni l'API ni le front) ; le Blueprint déclare la base et l'API, mais n'a pas été appliqué. Restent : le front sur Vercel et les sept choses côté commanditaire du plan `2026-09-11-plan-de-mise-en-ligne.md`. L'organisateur de test local `admin@admin.com` / `admin` n'existe que dans la base de développement et **ne doit jamais exister en ligne** : créer l'admin de production par `ADMIN_SEED_EMAIL` et `ADMIN_SEED_PASSWORD`.
+
+**Le mariage est dans 86 jours, les réponses sont attendues dans 54.**
+
+## Point de reprise — 2026-10-05, lots C à F tous commités (historique)
 
 **Les lots C, D, E et F sont faits et commités sur `main`** (local, non poussé). Reste la dette annoncée le 13 septembre : **les regarder d'un coup, à l'écran et au téléphone** — aucun n'a été vu dans un vrai navigateur.
 
