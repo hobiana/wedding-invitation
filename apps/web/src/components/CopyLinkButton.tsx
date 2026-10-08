@@ -74,7 +74,7 @@ export function CopyLinkButton({ linkId, householdName, className, buttonClassNa
             value={url}
             aria-label={`Lien de ${householdName}, à copier à la main`}
             aria-describedby={explicationId}
-            className="w-full rounded-control border border-rule-strong bg-ivory px-2 py-1 text-xs text-ink"
+            className="w-full rounded-control border border-rule-strong bg-page px-2 py-1 text-xs text-ink"
           />
         </div>
       )}

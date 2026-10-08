@@ -18,7 +18,7 @@
  * on focus and shifts the form under the guest's thumb.
  */
 export const controlClassName = [
-  "w-full rounded-control border border-rule-strong bg-ivory",
+  "w-full rounded-control border border-rule-strong bg-page",
   "px-3 py-2.5 text-base text-ink",
   "placeholder:text-ink-muted",
   "transition-colors duration-(--duration-micro) ease-(--ease-in)",
