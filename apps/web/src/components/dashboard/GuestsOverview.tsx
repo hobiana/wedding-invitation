@@ -129,7 +129,7 @@ export function GuestsOverview({
       </div>
 
       <div data-barre aria-hidden="true" className={cn("relative mt-4 md:mt-5", repere !== null && "pb-7")}>
-        <div className="flex h-3 md:h-3.5">
+        <div data-rail className="flex h-3 rounded-full bg-cream ring-1 ring-rule ring-inset md:h-3.5">
           {segments.map((s, i) => (
             <span
               key={s.cle}

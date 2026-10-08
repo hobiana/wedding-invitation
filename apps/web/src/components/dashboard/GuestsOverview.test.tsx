@@ -78,6 +78,15 @@ describe("GuestsOverview", () => {
     expect(largeurs.map((l) => Number.parseFloat(l).toFixed(1))).toEqual(["48.3", "17.5", "27.5"]);
   });
 
+  // Les segments ne couvrent que les places prévues : sans rail, la barre
+  // s'arrête loin du repère du seuil et l'espace entre les deux paraît vide.
+  it("draws a track under the segments that runs the whole way to the threshold", () => {
+    const { container } = rendre({ seuil: 120 });
+    const rail = container.querySelector("[data-rail]")!;
+    expect(rail).toHaveClass("bg-cream");
+    expect(rail.querySelectorAll("[data-segment]")).toHaveLength(3);
+  });
+
   describe("le seuil", () => {
     it("says how many seats remain below the threshold, and marks it with a line and words", () => {
       const { container } = rendre({ seuil: 120 });
