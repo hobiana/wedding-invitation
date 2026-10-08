@@ -31,9 +31,14 @@ describe("Button", () => {
     expect(screen.getByRole("button").className).not.toMatch(/(red|rose|orange)-\d{2,3}/);
   });
 
-  it("uses the control radius", () => {
+  // Les maquettes de la page Foyers (2026-10) arrondissent les boutons à ~10 px.
+  // Le jeton est propre aux boutons : champs, cartes et dialogues gardent
+  // `rounded-control` / `rounded-surface` jusqu'à leurs propres maquettes.
+  it("uses the button radius, not the control radius of the fields", () => {
     render(<Button>Enregistrer</Button>);
-    expect(screen.getByRole("button").className).toContain("rounded-control");
+    const classes = screen.getByRole("button").className;
+    expect(classes).toContain("rounded-button");
+    expect(classes).not.toContain("rounded-control");
   });
 
   it("still renders as a child element when asked", () => {

@@ -1,7 +1,5 @@
-import * as RadixDialog from "@radix-ui/react-dialog";
-import { X } from "lucide-react";
 import { seatsFor, type TableDto } from "@invitation-app/shared";
-import { useFocusDeRetour } from "@/components/ui/use-focus-de-retour";
+import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { places, placesLibres } from "@/lib/accord";
 import { choixDeTable } from "@/lib/plan-de-table";
 import { cn } from "@/lib/utils";
@@ -32,60 +30,25 @@ function libelle(choix: ReturnType<typeof choixDeTable>): string {
 /**
  * La feuille du bas du téléphone : « où placer ce foyer ? ».
  *
- * Écrite sur `@radix-ui/react-dialog` plutôt que sur notre `Dialog` : la mise
- * en page de la maquette (étiquette au-dessus du titre, bouton rond) n'est pas
- * la sienne. Ce qu'il apporte est repris tel quel — un seul piège de focus,
- * Échap et le fond qui ferment, le défilement verrouillé, et `useFocusDeRetour`
- * pour rendre le focus au bouton qui l'a ouverte (nos feuilles n'ont pas de
- * `<Trigger>`, cf. le crochet).
- *
- * Elle apparaît, sans glisser depuis le bas : l'admin n'anime rien.
+ * Le cadre — étiquette, titre, fermeture, piège de focus, Échap et fond qui
+ * ferment, focus rendu au bouton d'ouverture — est `ui/BottomSheet`, partagé
+ * avec la feuille « Trier » des Foyers. Ici ne vit que la liste des tables.
  *
  * Une table trop petite ou complète reste dans la liste, estompée **et dite** :
  * `aria-disabled` plutôt que `disabled`, pour qu'un lecteur d'écran la
  * rencontre et entende pourquoi. Ce n'est qu'un confort : le serveur tranche.
  */
 export function FeuilleChoixDeTable({ enJeu, tables, onChoisir, onFermer }: FeuilleChoixDeTableProps) {
-  const ouverte = enJeu !== null;
-  const rendreLeFocus = useFocusDeRetour(ouverte);
-
   return (
-    <RadixDialog.Root open={ouverte} onOpenChange={(o) => !o && onFermer()}>
-      {enJeu && (
-        <RadixDialog.Portal>
-          <RadixDialog.Overlay data-feuille-fond="" className="fixed inset-0 z-40 bg-ink/40" />
-          <RadixDialog.Content
-            onCloseAutoFocus={rendreLeFocus}
-            className="fixed inset-x-0 bottom-0 z-50 max-h-[85dvh] overflow-y-auto rounded-t-photo bg-page px-5 pb-6 pt-3 shadow-card"
-          >
-            <div aria-hidden="true" className="mx-auto mb-4 h-1 w-10 rounded-full bg-rule" />
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                {/* En minuscules dans le texte, en capitales par le style. Or
-                    foncé : l'or ornemental ne porte pas de texte. */}
-                <p className="text-xs uppercase tracking-[0.2em] text-gold-ink">
-                  {enJeu.depuis ? "Déplacer" : "Placer"}
-                </p>
-                <RadixDialog.Title className="mt-1 break-words font-display text-3xl leading-tight text-ink">
-                  {enJeu.foyer.displayName}
-                </RadixDialog.Title>
-                <RadixDialog.Description className="mt-1 text-sm text-ink-muted">
-                  {places(seatsFor(enJeu.foyer))} à {enJeu.depuis ? "déplacer" : "placer"}
-                </RadixDialog.Description>
-              </div>
-              <RadixDialog.Close
-                aria-label="Fermer"
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-cream text-ink transition-colors duration-(--duration-micro) ease-(--ease-in) hover:bg-sand"
-              >
-                <X aria-hidden="true" className="h-4 w-4" />
-              </RadixDialog.Close>
-            </div>
-
-            <ListeDesTables enJeu={enJeu} tables={tables} onChoisir={onChoisir} />
-          </RadixDialog.Content>
-        </RadixDialog.Portal>
-      )}
-    </RadixDialog.Root>
+    <BottomSheet
+      open={enJeu !== null}
+      onOpenChange={(o) => !o && onFermer()}
+      eyebrow={enJeu ? (enJeu.depuis ? "Déplacer" : "Placer") : undefined}
+      title={enJeu?.foyer.displayName ?? ""}
+      description={enJeu ? `${places(seatsFor(enJeu.foyer))} à ${enJeu.depuis ? "déplacer" : "placer"}` : undefined}
+    >
+      {enJeu && <ListeDesTables enJeu={enJeu} tables={tables} onChoisir={onChoisir} />}
+    </BottomSheet>
   );
 }
 

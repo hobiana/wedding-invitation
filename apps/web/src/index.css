@@ -336,6 +336,20 @@
   --radius-surface: 4px;
   --radius-photo: 12px;
 
+  /* Rayons de la refonte Foyers (maquettes du 2026-10, mesurés à l'œil :
+     bouton et champ ≈ 10 px, carte ≈ 14 px). Jetons NOUVEAUX et non une
+     retouche des trois ci-dessus : `control` et `surface` servent encore aux
+     champs, cartes et dialogues des autres pages, que le commanditaire
+     redessinera avec ses propres maquettes.
+     - `button` : seul `ui/button.tsx` le porte, donc tous les boutons admin ;
+     - `field`  : champs de saisie des nouveaux composants Foyers ;
+     - `card`   : cartes et panneaux des nouveaux composants Foyers.
+     Une pastille, un bouton rond (« … », chevron, fermeture) : `rounded-full`,
+     pas de jeton. */
+  --radius-button: 10px;
+  --radius-field: 10px;
+  --radius-card: 14px;
+
   /* Mouvement */
   --ease-in: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-out: cubic-bezier(0.4, 0, 1, 1);
