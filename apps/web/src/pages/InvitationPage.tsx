@@ -205,7 +205,7 @@ export function InvitationPage() {
             {!rsvpClosed && (
               <p className="mt-1.5 font-sans text-[0.8125rem] leading-[1.7] text-ink-muted">
                 Merci de nous répondre avant le{" "}
-                <strong className="font-bold text-[0.9rem]">
+                <strong className="whitespace-nowrap rounded-button bg-bordeaux-700 px-2.5 py-0.5 text-[0.9rem] font-bold text-on-bordeaux">
                   {formatRsvpDeadline(wedding.rsvpDeadline)}
                 </strong>
                 .

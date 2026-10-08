@@ -45,7 +45,7 @@ interface RsvpFormProps {
  * la même fonction, ne peuvent plus diverger — l'équilibre est structurel.
  */
 const CHOICE_BASE = [
-  "flex flex-1 cursor-pointer items-center justify-center border px-5 py-3.5 text-center",
+  "flex flex-1 cursor-pointer items-center justify-center rounded-button border px-5 py-3.5 text-center",
   "font-sans text-[0.8125rem]",
   "transition-colors duration-(--duration-transition) ease-(--ease-in)",
   // Le focus vit sur la puce : le bouton radio lui-même est masqué, et un
@@ -185,7 +185,7 @@ export function RsvpForm({
     <form onSubmit={handleSubmit} className="space-y-8 text-left">
       {/* L'en-tête du design : la seule information de la page propre à ce
           lien. C'est elle qui fait lire l'écran comme du courrier. */}
-      <div className="flex items-center justify-between gap-3 border border-dashed border-gold/50 bg-ivory px-4 py-4">
+      <div className="flex items-center justify-between gap-3 rounded-card border border-dashed border-gold/50 bg-ivory px-4 py-4">
         <div>
           <p className={eyebrowClassName}>Invité(e)</p>
           <p className="mt-1 text-[1.3125rem]">{householdName}</p>
@@ -284,7 +284,7 @@ export function RsvpForm({
           placeholder="Facultatif"
           // Même liseré que les puces, et pour la même raison mesurée : un
           // champ de saisie est un élément qu'on doit voir avant d'y écrire.
-          className="rounded-none border-bordeaux-500/60 bg-ivory px-4 py-3.5 text-[0.875rem]"
+          className="rounded-field border-bordeaux-500/60 bg-ivory px-4 py-3.5 text-[0.875rem]"
         />
       </Field>
 

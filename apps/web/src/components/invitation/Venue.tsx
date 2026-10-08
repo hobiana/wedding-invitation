@@ -78,7 +78,7 @@ export function Venue({
           // Un contour fin plutôt qu'un aplat pleine largeur : la carte
           // au-dessus porte déjà le poids visuel de la section, et deux blocs
           // pleins l'un sur l'autre feraient panneau publicitaire.
-          className="mt-5 inline-flex items-center gap-2 border border-gold px-6 py-3 font-sans text-[0.6875rem] uppercase tracking-[0.24em] text-bordeaux-700 transition-colors duration-(--duration-micro) ease-(--ease-in) hover:border-bordeaux-700 hover:bg-bordeaux-700 hover:text-on-bordeaux"
+          className="mt-5 inline-flex items-center gap-2 rounded-button border border-gold px-6 py-3 font-sans text-[0.6875rem] uppercase tracking-[0.24em] text-bordeaux-700 transition-colors duration-(--duration-micro) ease-(--ease-in) hover:border-bordeaux-700 hover:bg-bordeaux-700 hover:text-on-bordeaux"
         >
           Itinéraire vers la réception
           <span aria-hidden="true">→</span>

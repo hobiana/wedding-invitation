@@ -75,7 +75,7 @@ export function Countdown({ weddingDate }: { weddingDate: string }) {
 
       <div data-testid="cadran" aria-hidden="true" className="mt-6 grid grid-cols-4 gap-2">
         {cases.map((c) => (
-          <div key={c.libelle} className="border border-gold/30 bg-page px-1 py-4">
+          <div key={c.libelle} className="rounded-card border border-gold/30 bg-page px-1 py-4">
             <p className="font-display text-[2.875rem] font-light leading-[0.9] text-bordeaux-700 tabular-nums">
               {c.valeur}
             </p>

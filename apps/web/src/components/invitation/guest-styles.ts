@@ -35,14 +35,14 @@ export const eyebrowClassName =
  * L'action principale de la page, dans la forme du design du commanditaire :
  * une barre pleine largeur en aplat bordeaux, capitales très espacées.
  *
- * Pas d'angles arrondis et pas de gras : à cette taille de capitale, c'est
+ * Angles arrondis (--radius-button, décision du commanditaire du 2026-10-08), pas de gras : à cette taille de capitale, c'est
  * l'interlettrage qui porte l'autorité, et un arrondi ferait bouton
  * d'application au milieu d'une page de papier.
  *
  * 56 px de haut, au-dessus du plancher de 44 px des cibles tactiles.
  */
 export const guestButtonClassName = [
-  "inline-flex min-h-14 w-full items-center justify-center",
+  "inline-flex min-h-14 w-full items-center justify-center rounded-button",
   "bg-bordeaux-700 px-6 py-4 font-sans text-[0.75rem] uppercase tracking-[0.3em] text-on-bordeaux",
   "transition-colors duration-(--duration-micro) ease-(--ease-in)",
   "hover:bg-bordeaux-500",
