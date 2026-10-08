@@ -125,3 +125,36 @@ describe("Pagination", () => {
     expect(suivant()).toHaveAttribute("aria-disabled", "true");
   });
 });
+
+// Le téléphone : « ‹ 1–10 sur 40 › ». La taille de page est dans la barre
+// d'outils, pas ici ; les deux flèches restent des boutons nommés.
+describe("Pagination compacte", () => {
+  it("shows the range between two arrows, without the page size", () => {
+    renderPagination({ variant: "compact", offset: 0, limit: 10, total: 40 });
+    expect(screen.getByRole("navigation", { name: "Pages des foyers" })).toBeInTheDocument();
+    expect(screen.getByText("1–10 sur 40")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Par page")).toBeNull();
+  });
+
+  it("names its arrows for screen readers, without visible words", () => {
+    renderPagination({ variant: "compact", offset: 10, limit: 10, total: 40 });
+    expect(precedent()).not.toHaveTextContent("Précédent");
+    expect(suivant()).not.toHaveTextContent("Suivant");
+  });
+
+  it("offers 40 px targets to the thumb", () => {
+    renderPagination({ variant: "compact" });
+    expect(precedent()).toHaveClass("h-10", "w-10");
+    expect(suivant()).toHaveClass("h-10", "w-10");
+  });
+
+  it("pages and stops at the ends like the full one", async () => {
+    const utilisateur = userEvent.setup();
+    const { onOffsetChange } = renderPagination({ variant: "compact", offset: 0, limit: 10, total: 40 });
+    expect(precedent()).toHaveAttribute("aria-disabled", "true");
+    await utilisateur.click(precedent());
+    expect(onOffsetChange).not.toHaveBeenCalled();
+    await utilisateur.click(suivant());
+    expect(onOffsetChange).toHaveBeenLastCalledWith(10);
+  });
+});

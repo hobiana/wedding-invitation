@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { invitationUrl } from "@/lib/invitation-url";
+import { cn } from "@/lib/utils";
 
 /**
  * Le chemin réel vers WhatsApp, sur téléphone : un appui au lieu de trois.
@@ -13,9 +14,13 @@ import { invitationUrl } from "@/lib/invitation-url";
 export interface ShareLinkButtonProps {
   linkId: string;
   householdName: string;
+  /** Classes du conteneur. */
+  className?: string;
+  /** Classes du bouton (hauteur de 40 px sur téléphone…). */
+  buttonClassName?: string;
 }
 
-export function ShareLinkButton({ linkId, householdName }: ShareLinkButtonProps) {
+export function ShareLinkButton({ linkId, householdName, className, buttonClassName }: ShareLinkButtonProps) {
   const [echec, setEchec] = useState(false);
 
   if (typeof navigator.share !== "function") return null;
@@ -42,8 +47,8 @@ export function ShareLinkButton({ linkId, householdName }: ShareLinkButtonProps)
   }
 
   return (
-    <div className="space-y-1">
-      <Button variant="outline" size="sm" onClick={partager}>
+    <div className={cn("space-y-1", className)}>
+      <Button variant="outline" size="sm" className={buttonClassName} onClick={partager}>
         <Share2 aria-hidden="true" className="mr-1.5 h-4 w-4" />
         <span aria-hidden="true">Partager</span>
         <span className="sr-only">Partager le lien de {householdName}</span>

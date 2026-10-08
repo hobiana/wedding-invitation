@@ -60,4 +60,16 @@ describe("ShareLinkButton", () => {
     ).toBeInTheDocument();
     restore();
   });
+
+  it("takes its height from the caller", () => {
+    const restore = stubPartage(vi.fn().mockResolvedValue(undefined));
+    const { container } = render(
+      <ShareLinkButton linkId="aZ3k9Lm2" householdName="Rakotomavo" className="shrink-0" buttonClassName="h-10" />,
+    );
+    expect(container.firstChild).toHaveClass("shrink-0");
+    const bouton = screen.getByRole("button", { name: /Partager le lien de Rakotomavo/ });
+    expect(bouton).toHaveClass("h-10");
+    expect(bouton).not.toHaveClass("h-8");
+    restore();
+  });
 });

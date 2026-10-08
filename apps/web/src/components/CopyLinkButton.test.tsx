@@ -46,4 +46,21 @@ describe("CopyLinkButton", () => {
     // label du champ.
     expect(champ).toHaveAttribute("aria-describedby", explication.id);
   });
+
+  // La carte du téléphone le veut large et haut de 40 px ; le tableau de
+  // bord le garde compact. Les deux viennent de l'appelant.
+  it("takes its width and height from the caller", () => {
+    const { container } = render(
+      <CopyLinkButton
+        linkId="aZ3k9Lm2"
+        householdName="Rakotomavo"
+        className="flex-1"
+        buttonClassName="h-10 w-full"
+      />,
+    );
+    expect(container.firstChild).toHaveClass("flex-1");
+    const bouton = screen.getByRole("button", { name: /Copier le lien de Rakotomavo/ });
+    expect(bouton).toHaveClass("h-10", "w-full");
+    expect(bouton).not.toHaveClass("h-8");
+  });
 });

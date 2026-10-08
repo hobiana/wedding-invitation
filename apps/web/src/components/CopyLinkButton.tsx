@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { copyToClipboard } from "@/lib/clipboard";
+import { cn } from "@/lib/utils";
 import { invitationUrl } from "@/lib/invitation-url";
 
 /**
@@ -21,9 +22,13 @@ import { invitationUrl } from "@/lib/invitation-url";
 export interface CopyLinkButtonProps {
   linkId: string;
   householdName: string;
+  /** Classes du conteneur (sa place dans une rangée : `flex-1`…). */
+  className?: string;
+  /** Classes du bouton (hauteur de 40 px sur téléphone, `w-full`…). */
+  buttonClassName?: string;
 }
 
-export function CopyLinkButton({ linkId, householdName }: CopyLinkButtonProps) {
+export function CopyLinkButton({ linkId, householdName, className, buttonClassName }: CopyLinkButtonProps) {
   const [etat, setEtat] = useState<"repos" | "copie" | "manuel">("repos");
   const champRef = useRef<HTMLInputElement>(null);
   const url = invitationUrl(linkId);
@@ -44,8 +49,8 @@ export function CopyLinkButton({ linkId, householdName }: CopyLinkButtonProps) {
   }
 
   return (
-    <div className="space-y-2">
-      <Button variant="outline" size="sm" onClick={copier}>
+    <div className={cn("space-y-2", className)}>
+      <Button variant="outline" size="sm" className={buttonClassName} onClick={copier}>
         {etat === "copie" ? (
           <Check aria-hidden="true" className="mr-1.5 h-4 w-4" />
         ) : (

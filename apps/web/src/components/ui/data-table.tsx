@@ -41,6 +41,14 @@ export interface DataTableProps<T> {
    */
   expanded?: ReadonlySet<string>;
   onToggleExpanded?: (cle: string) => void;
+  /**
+   * La carte du téléphone, dessinée par l'appelant quand la carte générique
+   * (une étiquette devant chaque valeur) ne lui convient pas — Foyers a son
+   * nom, son statut et ses boutons. La table lui passe l'état de dépli de la
+   * ligne et le geste qui le bascule ; elle ne sait rien de ce qu'il y a dedans.
+   * Sans effet sur bureau, où la table reste une table.
+   */
+  renderCard?: (ligne: T, depli: { ouvert: boolean; basculer: () => void }) => ReactNode;
 }
 
 export function DataTable<T>({
@@ -52,6 +60,7 @@ export function DataTable<T>({
   detailLabel,
   expanded,
   onToggleExpanded,
+  renderCard,
 }: DataTableProps<T>) {
   const bureau = useMediaQuery("(min-width: 768px)");
   const [ouvertsInternes, setOuverts] = useState<ReadonlySet<string>>(() => new Set());
@@ -79,16 +88,32 @@ export function DataTable<T>({
         onClick={() => basculer(cle)}
         aria-expanded={ouvert}
         aria-label={detailLabel?.(ligne) ?? "Détail"}
-        className="rounded-control p-2 text-ink-muted transition-colors duration-(--duration-micro) ease-(--ease-in) hover:bg-cream hover:text-ink"
+        // La cible fait 40 px ; le rond visible, 32 — celui de la maquette.
+        className="group inline-flex h-10 w-10 items-center justify-center rounded-full"
       >
-        <ChevronDown
-          aria-hidden="true"
+        <span
           className={cn(
-            "h-4 w-4 transition-transform duration-(--duration-micro) ease-(--ease-in)",
-            ouvert && "rotate-180",
+            "inline-flex h-8 w-8 items-center justify-center rounded-full border transition-colors duration-(--duration-micro) ease-(--ease-in)",
+            ouvert
+              ? "border-bordeaux-700 bg-bordeaux-700 text-on-bordeaux"
+              : "border-rule text-ink group-hover:bg-cream",
           )}
-        />
+        >
+          {/* La flèche se retourne, sans tourner : l'admin n'anime rien. */}
+          <ChevronDown aria-hidden="true" className={cn("h-4 w-4", ouvert && "rotate-180")} />
+        </span>
       </button>
+    );
+  }
+
+  if (!bureau && renderCard) {
+    return (
+      <ul aria-label={caption} className="space-y-3">
+        {rows.map((ligne) => {
+          const cle = rowKey(ligne);
+          return <li key={cle}>{renderCard(ligne, { ouvert: ouverts.has(cle), basculer: () => basculer(cle) })}</li>;
+        })}
+      </ul>
     );
   }
 
@@ -136,7 +161,12 @@ export function DataTable<T>({
       <thead>
         <tr className="border-b border-rule text-left">
           {columns.map((colonne) => (
-            <th key={colonne.id} scope="col" className={cn("py-2 font-medium text-ink-label", largeur(colonne))}>
+            <th
+              key={colonne.id}
+              scope="col"
+              // Or foncé : l'or ornemental ne porte pas de texte.
+              className={cn("pb-3 text-xs font-medium uppercase tracking-[0.15em] text-gold-ink", largeur(colonne))}
+            >
               {colonne.header}
             </th>
           ))}
@@ -148,17 +178,19 @@ export function DataTable<T>({
           const cle = rowKey(ligne);
           return (
             <Fragment key={cle}>
-              <tr className="border-b border-rule align-top">
+              <tr className={cn("align-middle", !(detail && ouverts.has(cle)) && "border-b border-rule")}>
                 {columns.map((colonne) => (
-                  <td key={colonne.id} className={cn("py-2 text-ink", largeur(colonne))}>
+                  <td key={colonne.id} className={cn("py-3 text-ink", largeur(colonne))}>
                     {colonne.cell(ligne)}
                   </td>
                 ))}
-                {detail && <td className="py-1">{boutonDeDepli(ligne, cle)}</td>}
+                {detail && <td className="py-2 text-right">{boutonDeDepli(ligne, cle)}</td>}
               </tr>
               {detail && ouverts.has(cle) && (
-                <tr className="border-b border-rule bg-cream/40">
-                  <td colSpan={columns.length + 1} className="px-2 py-3">
+                // Le panneau (crème, arrondi) est dessiné par `detail` ; la ligne
+                // ne fait que lui laisser la largeur et un peu d'air.
+                <tr className="border-b border-rule">
+                  <td colSpan={columns.length + 1} className="pb-4">
                     {detail(ligne)}
                   </td>
                 </tr>

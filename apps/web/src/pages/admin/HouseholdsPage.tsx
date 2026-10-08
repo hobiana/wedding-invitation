@@ -1,29 +1,31 @@
 import { useEffect, useRef, useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDownWideNarrow, ArrowUpNarrowWide } from "lucide-react";
+import { Plus } from "lucide-react";
 import type {
   CreateHouseholdDto,
   HouseholdAdminDto,
   HouseholdSortKey,
-  RsvpStatus,
   SortOrder,
   UpdateHouseholdDto,
 } from "@invitation-app/shared";
 import { api, listHouseholds } from "@/lib/api";
+import { useMediaQuery } from "@/lib/useMediaQuery";
+import { membresRetenus, places, retenirMembres, sousTitreFoyers } from "@/lib/foyers";
 import { Button } from "@/components/ui/button";
 import { Pagination } from "@/components/ui/pagination";
 import { PAGE_SIZES } from "@/components/ui/page-sizes";
+import { PageHeader } from "@/components/ui/page-header";
 import { AlertDialog } from "@/components/ui/alert-dialog";
-import { StatusBadge } from "@/components/StatusBadge";
-import { HouseholdFormDialog } from "@/components/HouseholdFormDialog";
-import { CopyLinkButton } from "@/components/CopyLinkButton";
-import { HouseholdDetail } from "@/components/HouseholdDetail";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { StatusBadge } from "@/components/StatusBadge";
+import { HouseholdFormDialog } from "@/components/HouseholdFormDialog";
+import { HouseholdDetail } from "@/components/HouseholdDetail";
+import { HouseholdActionsCell, HouseholdNameCell } from "@/components/HouseholdRow";
+import { HouseholdMobileCard } from "@/components/HouseholdMobileCard";
+import { HouseholdToolbar, type StatutFiltre } from "@/components/HouseholdToolbar";
+
 const TAILLE_PAR_DEFAUT = 25;
 const CLE_TAILLE = "foyers.parPage";
 /** Le temps d'une pause de frappe : une requête par mot, pas une par lettre. */
@@ -51,13 +53,6 @@ function retenirTaille(taille: number) {
   }
 }
 
-const TRIS: { valeur: HouseholdSortKey; libelle: string }[] = [
-  { valeur: "name", libelle: "Nom du foyer" },
-  { valeur: "seats", libelle: "Places" },
-  { valeur: "status", libelle: "Statut" },
-  { valeur: "createdAt", libelle: "Date d'ajout" },
-];
-
 /**
  * Les échecs, en français et écrits ici : l'API répond en anglais, et
  * recopier `err.message` l'afficherait tel quel. `api.ts` ne transmet pas le
@@ -71,18 +66,47 @@ const ECHECS = {
   suppression: (foyer: string) => `Le foyer ${foyer} n'a pas pu être supprimé. Réessayez dans un instant.`,
 };
 
+/**
+ * Ce que la suppression détruit, dit en toutes lettres. Un foyer qui a répondu
+ * emporte sa réponse, et sa réponse ne se redemande pas : c'est la phrase qui
+ * distingue ce garde-fou d'un « Êtes-vous sûr ? ».
+ */
+function descriptionDeSuppression(foyer: HouseholdAdminDto): string {
+  if (foyer.status === "CONFIRMED" && foyer.confirmedCount !== null) {
+    // « a confirmé 1 personnes » serait une faute dans une interface qui est
+    // en français sans exception.
+    const personnes = foyer.confirmedCount > 1 ? "personnes" : "personne";
+    return `Ce foyer a confirmé ${foyer.confirmedCount} ${personnes}. Supprimer efface sa réponse, et son lien cessera de fonctionner.`;
+  }
+  if (foyer.status === "DECLINED") {
+    return `Ce foyer a décliné l'invitation. Supprimer efface sa réponse, et son lien cessera de fonctionner.`;
+  }
+  return "Ce foyer n'a pas encore répondu. Son lien d'invitation cessera de fonctionner.";
+}
+
+/**
+ * Les foyers invités (maquettes 10 à 17). Bureau : une table, un panneau crème
+ * sous chaque ligne dépliée, un pied de pagination. Téléphone (< 768 px) : un
+ * en-tête collé, des cartes qui se déplient sur place, une pagination compacte.
+ * **Un seul des deux rendus existe dans le DOM** (`useMediaQuery`), jamais deux
+ * rendus dont l'un serait caché par CSS.
+ *
+ * La recherche, le filtre, le tri et la pagination partent au serveur.
+ */
 export function HouseholdsPage() {
   const queryClient = useQueryClient();
+  const bureau = useMediaQuery("(min-width: 768px)");
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<HouseholdAdminDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [recherche, setRecherche] = useState("");
   const [rechercheEnvoyee, setRechercheEnvoyee] = useState("");
-  const [statut, setStatut] = useState<RsvpStatus | "ALL">("ALL");
+  const [statut, setStatut] = useState<StatutFiltre>("ALL");
   const [tri, setTri] = useState<HouseholdSortKey>("name");
   const [sens, setSens] = useState<SortOrder>("asc");
   const [limit, setLimit] = useState(tailleRetenue);
   const [offset, setOffset] = useState(0);
+  const [membres, setMembres] = useState(membresRetenus);
   // Indexé par id de foyer, jamais remis à zéro au changement de page : un
   // foyer déplié l'est encore quand on y revient (décision du commanditaire).
   const [ouverts, setOuverts] = useState<ReadonlySet<string>>(() => new Set());
@@ -135,6 +159,31 @@ export function HouseholdsPage() {
     if (pageVidee && page) setOffset(Math.max(0, Math.floor((page.total - 1) / limit) * limit));
   }, [pageVidee, page, limit]);
 
+  /**
+   * Le repère du focus quand l'élément qui le portait disparaît. Après une
+   * suppression confirmée, l'`AlertDialog` rend le focus au « … » de la ligne
+   * — qui disparaît à l'arrivée de la liste rechargée ; Chrome laisse alors le
+   * focus sur `<body>`, et l'organisateur au clavier repartirait du haut de la
+   * page. Même cas après une modification qui fait sortir le foyer de la page
+   * (renommé, il change de place dans le tri).
+   *
+   * Le repère est la région « Liste des foyers » : elle existe dans tous les
+   * états (lignes, liste vide, page reculée), et la tabulation suivante repart
+   * dans les lignes, là où l'organisateur travaillait.
+   *
+   * La vérification se fait à la **première liste rechargée** après la
+   * mutation, et une seule fois : c'est ce rendu-là qui retire la ligne. Si le
+   * focus est encore sur un élément présent, on n'y touche pas.
+   */
+  const listeRef = useRef<HTMLElement>(null);
+  const focusARattraper = useRef(false);
+  useEffect(() => {
+    if (!focusARattraper.current || isPlaceholderData) return;
+    focusARattraper.current = false;
+    const actif = document.activeElement;
+    if (!actif || actif === document.body || !actif.isConnected) listeRef.current?.focus();
+  }, [page, isPlaceholderData]);
+
   function basculer(id: string) {
     setOuverts((precedent) => {
       const suivant = new Set(precedent);
@@ -169,6 +218,7 @@ export function HouseholdsPage() {
       api.patch(`/admin/households/${id}`, dto),
     onSuccess: () => {
       setError(null);
+      focusARattraper.current = true;
       rafraichirFoyers();
       // The seating board reads seats from the household list.
       queryClient.invalidateQueries({ queryKey: ["tables"] });
@@ -181,6 +231,7 @@ export function HouseholdsPage() {
     mutationFn: (foyer: HouseholdAdminDto) => api.delete(`/admin/households/${foyer.id}`),
     onSuccess: () => {
       setError(null);
+      focusARattraper.current = true;
       rafraichirFoyers();
       queryClient.invalidateQueries({ queryKey: ["tables"] });
     },
@@ -189,7 +240,7 @@ export function HouseholdsPage() {
 
   // Tout changement de critère ramène à la première page : la page 3 d'un
   // autre tri n'a aucun rapport avec celle qu'on regardait.
-  function changerStatut(valeur: RsvpStatus | "ALL") {
+  function changerStatut(valeur: StatutFiltre) {
     setStatut(valeur);
     setOffset(0);
   }
@@ -206,180 +257,155 @@ export function HouseholdsPage() {
     setOffset(0);
     retenirTaille(valeur);
   }
+  function changerMembres(actif: boolean) {
+    setMembres(actif);
+    retenirMembres(actif);
+  }
 
   const filtreActif = Boolean(rechercheEnvoyee) || statut !== "ALL";
   const foyers = page?.items ?? [];
-
-  /**
-   * Ce que la suppression détruit, dit en toutes lettres. Un foyer qui a répondu
-   * emporte sa réponse, et sa réponse ne se redemande pas : c'est la phrase qui
-   * distingue ce garde-fou d'un « Êtes-vous sûr ? ».
-   */
-  function descriptionDeSuppression(foyer: HouseholdAdminDto): string {
-    const lien = "Son lien d'invitation cessera de fonctionner.";
-    if (foyer.status === "CONFIRMED" && foyer.confirmedCount !== null) {
-      // Un foyer d'une personne est le cas courant après le couple, et
-      // « a confirmé 1 personnes » est une faute dans une interface qui est
-      // en français sans exception.
-      const personnes = foyer.confirmedCount > 1 ? "personnes" : "personne";
-      return `Ce foyer a confirmé ${foyer.confirmedCount} ${personnes}. Supprimer efface sa réponse, et son lien cessera de fonctionner.`;
-    }
-    if (foyer.status === "DECLINED") {
-      return `Ce foyer a décliné l'invitation. Supprimer efface sa réponse, et son lien cessera de fonctionner.`;
-    }
-    return `Ce foyer n'a pas encore répondu. ${lien}`;
-  }
 
   const colonnes: Column<HouseholdAdminDto>[] = [
     {
       id: "nom",
       header: "Foyer",
       grow: true,
-      cell: (h) => <span className="font-medium">{h.displayName}</span>,
+      cell: (h) => <HouseholdNameCell household={h} showMembers={membres} />,
     },
     // `confirmedCount` reste `null` tant que le foyer n'a pas répondu : « — »
     // porte cette distinction, jamais « 0 » qui dirait « personne ne vient ».
-    { id: "places", header: "Places", cell: (h) => `${h.confirmedCount ?? "—"} / ${h.allocatedSeats}` },
-    { id: "statut", header: "Statut", cell: (h) => <StatusBadge status={h.status} /> },
+    { id: "places", header: "Places", cell: (h) => <span className="tabular-nums">{places(h)}</span> },
+    {
+      id: "statut",
+      header: "Statut",
+      cell: (h) => <StatusBadge status={h.status} className="rounded-full px-2.5 py-1" />,
+    },
     {
       id: "actions",
       header: "Actions",
-      cell: (h) => (
-        <div className="flex flex-wrap gap-2 lg:flex-nowrap">
-          <CopyLinkButton linkId={h.id} householdName={h.displayName} />
-          <Button variant="outline" size="sm" onClick={() => setEditing(h)}>
-            Modifier
-          </Button>
-          <Button variant="destructive" size="sm" onClick={() => setASupprimer(h)}>
-            Supprimer
-          </Button>
-        </div>
-      ),
+      cell: (h) => <HouseholdActionsCell household={h} onEdit={setEditing} onDelete={setASupprimer} />,
     },
   ];
 
+  // Sur téléphone, « + Ajouter » ; le nom accessible reste complet et contient
+  // le libellé visible (WCAG 2.5.3).
+  const ajouter = bureau ? (
+    <Button onClick={() => setDialogOpen(true)}>Ajouter un foyer</Button>
+  ) : (
+    <Button aria-label="Ajouter un foyer" onClick={() => setDialogOpen(true)}>
+      <Plus aria-hidden="true" className="mr-1.5 h-4 w-4" />
+      Ajouter
+    </Button>
+  );
+
   return (
-    <div className="space-y-6 p-6 md:p-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-display text-2xl text-ink">Foyers invités</h1>
-        <Button onClick={() => setDialogOpen(true)}>Ajouter un foyer</Button>
-      </div>
+    <div className="space-y-4 px-4 pb-6 md:space-y-6 md:p-8">
+      <PageHeader
+        title="Foyers invités"
+        subtitle={page ? sousTitreFoyers(page.total, filtreActif) : undefined}
+        action={ajouter}
+        sticky
+        // Collé, l'en-tête doit toucher les deux bords : il compense le `px-4`
+        // de la page, sinon les cartes défilent visibles sur les côtés.
+        className="-mx-4 px-4 md:mx-0 md:px-0"
+      />
 
       {error && (
         <p
           role="alert"
-          className="rounded-surface border border-bordeaux-700 bg-bordeaux-50 px-4 py-3 text-sm text-bordeaux-700"
+          className="rounded-card border border-bordeaux-700 bg-bordeaux-50 px-4 py-3 text-sm text-bordeaux-700"
         >
           {error}
         </p>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_12rem_12rem_auto]">
-        <Field label="Rechercher un foyer">
-          <Input
-            type="search"
-            value={recherche}
-            onChange={(e) => setRecherche(e.target.value)}
-            placeholder="Nom du foyer ou d'un invité"
-          />
-        </Field>
-        <Field label="Statut">
-          <Select value={statut} onChange={(e) => changerStatut(e.target.value as RsvpStatus | "ALL")}>
-            <option value="ALL">Tous</option>
-            <option value="PENDING">En attente</option>
-            <option value="CONFIRMED">Confirmés</option>
-            <option value="DECLINED">Déclinés</option>
-          </Select>
-        </Field>
-        {/* Un seul contrôle de tri pour la table et pour les cartes du
-            téléphone, qui n'ont pas d'en-têtes de colonnes où cliquer. */}
-        <Field label="Trier par">
-          <Select value={tri} onChange={(e) => changerTri(e.target.value as HouseholdSortKey)}>
-            {TRIS.map(({ valeur, libelle }) => (
-              <option key={valeur} value={valeur}>
-                {libelle}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <div className="flex items-end">
-          {/* Le sens se lit en toutes lettres, pas à la seule flèche. Le nom
-              accessible contient le libellé visible (WCAG 2.5.3). */}
-          <Button
-            type="button"
-            variant="outline"
-            className="h-11 w-full sm:w-auto"
-            aria-label={`Sens du tri : ${sens === "asc" ? "Croissant" : "Décroissant"}`}
-            onClick={inverserSens}
-          >
-            {sens === "asc" ? (
-              <ArrowUpNarrowWide aria-hidden="true" className="mr-2 h-4 w-4" />
-            ) : (
-              <ArrowDownWideNarrow aria-hidden="true" className="mr-2 h-4 w-4" />
-            )}
-            {sens === "asc" ? "Croissant" : "Décroissant"}
-          </Button>
-        </div>
-      </div>
+      <HouseholdToolbar
+        variant={bureau ? "desktop" : "mobile"}
+        recherche={recherche}
+        onRechercheChange={setRecherche}
+        statut={statut}
+        onStatutChange={changerStatut}
+        tri={tri}
+        onTriChange={changerTri}
+        sens={sens}
+        onSensToggle={inverserSens}
+        membres={membres}
+        onMembresChange={changerMembres}
+        limit={limit}
+        onLimitChange={changerTaille}
+      />
 
       {isError && (
         <p
           role="alert"
-          className="rounded-surface border border-bordeaux-700 bg-bordeaux-50 px-4 py-3 text-sm text-bordeaux-700"
+          className="rounded-card border border-bordeaux-700 bg-bordeaux-50 px-4 py-3 text-sm text-bordeaux-700"
         >
           La liste des foyers n'a pas pu être chargée. Vérifiez votre connexion, puis rechargez la page.
         </p>
       )}
 
-      {isPending ? (
-        <div className="space-y-2">
-          <p role="status" className="sr-only">
-            Chargement des foyers…
-          </p>
-          {Array.from({ length: 5 }, (_, index) => (
-            <Skeleton key={index} className="h-12 w-full" />
-          ))}
-        </div>
-      ) : !page ? null : page.total === 0 ? (
-        // Le serveur ne dit plus combien de foyers existent hors filtre : c'est
-        // le filtre actif qui distingue « la recherche ne donne rien » de
-        // « aucun foyer saisi ».
-        <EmptyState
-          title={filtreActif ? "Aucun foyer ne correspond" : "Aucun foyer"}
-          description={
-            filtreActif
-              ? "Essayez un autre nom, ou remettez le statut sur « Tous »."
-              : "Ajoutez le premier foyer pour commencer à distribuer les invitations."
-          }
-          action={!filtreActif && <Button onClick={() => setDialogOpen(true)}>Ajouter un foyer</Button>}
-        />
-      ) : (
-        <div className="space-y-4" aria-busy={isPlaceholderData || undefined}>
-          {isPlaceholderData && (
+      <section ref={listeRef} tabIndex={-1} aria-label="Liste des foyers" className="rounded-card">
+        {isPending ? (
+          <div className="space-y-2">
             <p role="status" className="sr-only">
-              Chargement de la page…
+              Chargement des foyers…
             </p>
-          )}
-          <DataTable
-            caption="Foyers invités"
-            columns={colonnes}
-            rows={foyers}
-            rowKey={(h) => h.id}
-            detail={(h) => <HouseholdDetail household={h} />}
-            detailLabel={(h) => `Détail de ${h.displayName}`}
-            expanded={ouverts}
-            onToggleExpanded={basculer}
+            {Array.from({ length: 5 }, (_, index) => (
+              <Skeleton key={index} className={bureau ? "h-12 w-full" : "h-36 w-full rounded-card"} />
+            ))}
+          </div>
+        ) : !page ? null : page.total === 0 ? (
+          // Le serveur ne dit plus combien de foyers existent hors filtre : c'est
+          // le filtre actif qui distingue « la recherche ne donne rien » de
+          // « aucun foyer saisi ».
+          <EmptyState
+            title={filtreActif ? "Aucun foyer ne correspond" : "Aucun foyer"}
+            description={
+              filtreActif
+                ? "Essayez un autre nom, ou remettez le statut sur « Tous »."
+                : "Ajoutez le premier foyer pour commencer à distribuer les invitations."
+            }
+            action={!filtreActif && <Button onClick={() => setDialogOpen(true)}>Ajouter un foyer</Button>}
           />
-          <Pagination
-            label="Pages des foyers"
-            total={page.total}
-            offset={offset}
-            limit={limit}
-            onOffsetChange={setOffset}
-            onLimitChange={changerTaille}
-          />
-        </div>
-      )}
+        ) : (
+          <div className="space-y-4" aria-busy={isPlaceholderData || undefined}>
+            {isPlaceholderData && (
+              <p role="status" className="sr-only">
+                Chargement de la page…
+              </p>
+            )}
+            <DataTable
+              caption="Foyers invités"
+              columns={colonnes}
+              rows={foyers}
+              rowKey={(h) => h.id}
+              detail={(h) => <HouseholdDetail household={h} />}
+              detailLabel={(h) => `Détail de ${h.displayName}`}
+              expanded={ouverts}
+              onToggleExpanded={basculer}
+              renderCard={(h, { ouvert, basculer: basculerCarte }) => (
+                <HouseholdMobileCard
+                  household={h}
+                  showMembers={membres}
+                  expanded={ouvert}
+                  onToggle={basculerCarte}
+                  onEdit={setEditing}
+                  onDelete={setASupprimer}
+                />
+              )}
+            />
+            <Pagination
+              label="Pages des foyers"
+              variant={bureau ? "full" : "compact"}
+              total={page.total}
+              offset={offset}
+              limit={limit}
+              onOffsetChange={setOffset}
+              onLimitChange={bureau ? changerTaille : undefined}
+            />
+          </div>
+        )}
+      </section>
 
       {isDialogOpen && (
         <HouseholdFormDialog

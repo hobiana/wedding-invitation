@@ -168,6 +168,36 @@ describe("DataTable", () => {
     restore();
   });
 
+  // Maquette : FOYER, PLACES… en petites capitales, en or foncé — jamais l'or
+  // ornemental, qui ne porte pas de texte.
+  it("writes the headers in small dark-gold capitals", () => {
+    const restore = stubLargeur(true);
+    renderTable();
+    const entete = screen.getByRole("columnheader", { name: "Places" });
+    expect(entete).toHaveClass("uppercase", "text-gold-ink");
+    restore();
+  });
+
+  // Le chevron est un rond ; rempli de bordeaux quand la ligne est ouverte.
+  // L'état reste dit par `aria-expanded` et par la flèche retournée, pas par
+  // la seule couleur.
+  it("fills the round unfold button when the row is open", async () => {
+    const restore = stubLargeur(true);
+    const utilisateur = userEvent.setup();
+    renderTable({
+      detail: (f: Foyer) => <p>Détail de {f.nom}</p>,
+      detailLabel: (f: Foyer) => `Détail de ${f.nom}`,
+    });
+    const bouton = screen.getByRole("button", { name: "Détail de Rakotomavo" });
+    expect(bouton).toHaveClass("h-10", "w-10");
+    const rond = bouton.firstElementChild as HTMLElement;
+    expect(rond).toHaveClass("rounded-full");
+    expect(rond).not.toHaveClass("bg-bordeaux-700");
+    await utilisateur.click(bouton);
+    expect(rond).toHaveClass("bg-bordeaux-700");
+    restore();
+  });
+
   // L'écran Foyers pagine : la page tient l'état de dépli pour qu'il survive
   // au changement de page, que la table remplace ses lignes ou non.
   describe("when the caller owns the unfolded rows", () => {
@@ -214,6 +244,64 @@ describe("DataTable", () => {
       const restore = stubLargeur(false);
       renderControle(new Set(["a1"]));
       expect(screen.getByText("Détail de Rakotomavo")).toBeInTheDocument();
+      restore();
+    });
+  });
+
+  // Un écran peut dessiner ses propres cartes (Foyers : nom, statut, boutons) ;
+  // la table ne connaît pas Foyers, elle lui passe l'état de dépli.
+  describe("with a card drawn by the caller", () => {
+    function renderCartes(ouverts: ReadonlySet<string>, onToggleExpanded = vi.fn()) {
+      render(
+        <DataTable
+          caption="Foyers invités"
+          columns={COLONNES}
+          rows={FOYERS}
+          rowKey={(f) => f.id}
+          expanded={ouverts}
+          onToggleExpanded={onToggleExpanded}
+          renderCard={(f: Foyer, { ouvert, basculer }) => (
+            <button type="button" aria-expanded={ouvert} onClick={basculer}>
+              Carte {f.nom}
+            </button>
+          )}
+        />,
+      );
+      return { onToggleExpanded };
+    }
+
+    it("draws the caller's card on a phone, in a list named by the caption", () => {
+      const restore = stubLargeur(false);
+      renderCartes(new Set(["b2"]));
+      const liste = screen.getByRole("list", { name: "Foyers invités" });
+      expect(within(liste).getAllByRole("listitem")).toHaveLength(2);
+      expect(within(liste).getByRole("button", { name: "Carte Rakotomavo" })).toHaveAttribute(
+        "aria-expanded",
+        "false",
+      );
+      expect(within(liste).getByRole("button", { name: "Carte Andriamanana" })).toHaveAttribute(
+        "aria-expanded",
+        "true",
+      );
+      // La carte générique (étiquette devant chaque valeur) n'est pas rendue.
+      expect(screen.queryByText("Places")).toBeNull();
+      restore();
+    });
+
+    it("hands the card the toggle of its own row", async () => {
+      const restore = stubLargeur(false);
+      const utilisateur = userEvent.setup();
+      const { onToggleExpanded } = renderCartes(new Set());
+      await utilisateur.click(screen.getByRole("button", { name: "Carte Andriamanana" }));
+      expect(onToggleExpanded).toHaveBeenCalledWith("b2");
+      restore();
+    });
+
+    it("keeps the real table on the desktop", () => {
+      const restore = stubLargeur(true);
+      renderCartes(new Set());
+      expect(screen.getByRole("table", { name: "Foyers invités" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /^Carte/ })).toBeNull();
       restore();
     });
   });

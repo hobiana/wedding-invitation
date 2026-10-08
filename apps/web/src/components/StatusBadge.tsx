@@ -13,6 +13,11 @@ const LIBELLES: Record<RsvpStatus, string> = {
   PENDING: "En attente",
 };
 
-export function StatusBadge({ status }: { status: RsvpStatus }) {
-  return <Badge tone={TONS[status]}>{LIBELLES[status]}</Badge>;
+/** `className` : la page Foyers l'arrondit en pastille, comme ses maquettes. */
+export function StatusBadge({ status, className }: { status: RsvpStatus; className?: string }) {
+  return (
+    <Badge tone={TONS[status]} className={className}>
+      {LIBELLES[status]}
+    </Badge>
+  );
 }

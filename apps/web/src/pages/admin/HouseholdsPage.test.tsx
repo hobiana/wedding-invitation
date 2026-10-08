@@ -1,6 +1,6 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { HouseholdAdminDto, Page } from "@invitation-app/shared";
 import { HouseholdsPage } from "./HouseholdsPage";
@@ -56,6 +56,21 @@ function serveur(foyers: HouseholdAdminDto[]) {
   };
 }
 
+/** jsdom n'a pas `matchMedia` : sans lui, `useMediaQuery` répond « téléphone ». */
+const matchMediaOriginal = window.matchMedia;
+function ecran(bureau: boolean) {
+  window.matchMedia = ((query: string) => ({
+    matches: bureau,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => false,
+  })) as typeof window.matchMedia;
+}
+
 function renderPage({
   households = UN_FOYER,
   pending = false,
@@ -94,12 +109,22 @@ function derniereDemande(get: ReturnType<typeof renderPage>["get"]): URLSearchPa
   return toutes[toutes.length - 1];
 }
 
-describe("HouseholdsPage", () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-    window.localStorage.clear();
-  });
+type Utilisateur = ReturnType<typeof userEvent.setup>;
 
+/** Ouvre le « … » d'un foyer et choisit une action. Le menu l'exécute une fois refermé. */
+async function viaLeMenu(utilisateur: Utilisateur, nom: string, action: "Modifier" | "Supprimer") {
+  await utilisateur.click(screen.getByRole("button", { name: `Actions pour ${nom}` }));
+  await utilisateur.click(await screen.findByRole("menuitem", { name: action }));
+}
+
+beforeEach(() => ecran(true));
+afterEach(() => {
+  window.matchMedia = matchMediaOriginal;
+  vi.restoreAllMocks();
+  window.localStorage.clear();
+});
+
+describe("HouseholdsPage", () => {
   it("waits with skeletons rather than with an empty screen", () => {
     // Requête qui ne répond pas : l'écran doit montrer l'attente, pas du vide.
     renderPage({ pending: true });
@@ -107,8 +132,6 @@ describe("HouseholdsPage", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Chargement des foyers…");
   });
 
-  // The catering data guests submit had no admin-facing surface at all — it
-  // now lives in the row's unfolded detail, not in the list itself.
   it("shows the dietary notes and message a guest submitted", async () => {
     renderPage();
     fireEvent.click(await screen.findByRole("button", { name: /Détail de Famille Rakoto/ }));
@@ -120,6 +143,41 @@ describe("HouseholdsPage", () => {
     renderPage({ get: () => Promise.reject(new Error("Internal server error")) });
     expect(await screen.findByRole("alert")).toHaveTextContent(/La liste des foyers n'a pas pu être chargée/);
     expect(screen.queryByText(/Internal server error/)).toBeNull();
+  });
+
+  describe("header", () => {
+    it("counts the households the server holds", async () => {
+      renderPage({ households: foyersNumerotes(30) });
+      expect(await screen.findByText("30 foyers")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { level: 1, name: "Foyers invités" })).toBeInTheDocument();
+    });
+
+    it("agrees the count with a single household", async () => {
+      renderPage();
+      expect(await screen.findByText("1 foyer")).toBeInTheDocument();
+    });
+
+    it("says how many were found once a filter is on", async () => {
+      const utilisateur = userEvent.setup();
+      renderPage({
+        households: [
+          foyer({ id: "a", displayName: "Rakotomavo", status: "PENDING", confirmedCount: null }),
+          foyer({ id: "b", displayName: "Andriamanana" }),
+          foyer({ id: "c", displayName: "Rabe" }),
+        ],
+      });
+      await screen.findByText("3 foyers");
+      await utilisateur.click(screen.getByRole("button", { name: "Confirmés" }));
+      expect(await screen.findByText("2 foyers trouvés")).toBeInTheDocument();
+    });
+
+    it("opens the creation dialog from « Ajouter un foyer »", async () => {
+      const utilisateur = userEvent.setup();
+      renderPage();
+      await screen.findByText("Famille Rakoto");
+      await utilisateur.click(screen.getByRole("button", { name: "Ajouter un foyer" }));
+      expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    });
   });
 
   describe("what it asks the API", () => {
@@ -142,7 +200,7 @@ describe("HouseholdsPage", () => {
       });
 
       await screen.findByText("Rakotomavo");
-      await utilisateur.type(screen.getByLabelText("Rechercher un foyer"), "andria");
+      await utilisateur.type(screen.getByRole("searchbox", { name: "Rechercher un foyer" }), "andria");
 
       await waitFor(() => expect(derniereDemande(get).get("q")).toBe("andria"));
       // Une requête par pause, pas une par lettre.
@@ -151,12 +209,15 @@ describe("HouseholdsPage", () => {
       expect(screen.getByText("Andriamanana")).toBeInTheDocument();
     });
 
-    it("sends the status filter", async () => {
+    it("sends the status chosen with a pill, and marks that pill pressed", async () => {
       const utilisateur = userEvent.setup();
       const { get } = renderPage();
       await screen.findByText("Famille Rakoto");
-      await utilisateur.selectOptions(screen.getByLabelText("Statut"), "PENDING");
+      const enAttente = screen.getByRole("button", { name: "En attente" });
+      await utilisateur.click(enAttente);
       await waitFor(() => expect(derniereDemande(get).get("status")).toBe("PENDING"));
+      expect(enAttente).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("button", { name: "Tous" })).toHaveAttribute("aria-pressed", "false");
     });
   });
 
@@ -166,15 +227,76 @@ describe("HouseholdsPage", () => {
       renderPage({ households: [foyer({ displayName: "Rakotomavo" })] });
 
       await screen.findByText("Rakotomavo");
-      await utilisateur.type(screen.getByLabelText("Rechercher un foyer"), "zzz");
+      await utilisateur.type(screen.getByRole("searchbox", { name: "Rechercher un foyer" }), "zzz");
 
       expect(await screen.findByText("Aucun foyer ne correspond")).toBeInTheDocument();
+      expect(screen.getByText("Aucun foyer trouvé")).toBeInTheDocument();
     });
 
     it("tells an empty guest list apart from a search that finds nothing", async () => {
       renderPage({ households: [] });
       expect(await screen.findByText(/Ajoutez le premier foyer/)).toBeInTheDocument();
       expect(screen.queryByText("Aucun foyer ne correspond")).toBeNull();
+    });
+  });
+
+  describe("the table", () => {
+    // L'invariant qui a cassé trois fois : sans réponse, « — », jamais « 0 ».
+    it("writes a dash for a household that has not answered, and 0 for one that declined", async () => {
+      renderPage({
+        households: [
+          foyer({ id: "a", displayName: "Rakotomavo", status: "PENDING", confirmedCount: null, allocatedSeats: 4 }),
+          foyer({ id: "b", displayName: "Andriamanana", status: "DECLINED", confirmedCount: 0, allocatedSeats: 2 }),
+        ],
+      });
+      const enAttente = (await screen.findByText("Rakotomavo")).closest("tr") as HTMLElement;
+      expect(within(enAttente).getByText("— / 4")).toBeInTheDocument();
+      const decline = screen.getByText("Andriamanana").closest("tr") as HTMLElement;
+      expect(within(decline).getByText("0 / 2")).toBeInTheDocument();
+    });
+
+    it("titles its columns in French", async () => {
+      renderPage();
+      await screen.findByText("Famille Rakoto");
+      expect(screen.getAllByRole("columnheader").map((th) => th.textContent)).toEqual([
+        "Foyer",
+        "Places",
+        "Statut",
+        "Actions",
+        "",
+      ]);
+    });
+
+    it("offers the copy gesture on every row, named after the household", async () => {
+      renderPage({ households: [foyer({ displayName: "Rakotomavo", id: "aZ3k9Lm2" })] });
+      expect(await screen.findByRole("button", { name: /Copier le lien de Rakotomavo/ })).toBeInTheDocument();
+    });
+  });
+
+  describe("members switch", () => {
+    const AVEC_MEMBRES = [foyer({ displayName: "Famille Andriambelo", memberNames: ["Lova Andriambelo", "Haja Andriambelo"] })];
+
+    it("shows the members' full names under the household, by default", async () => {
+      renderPage({ households: AVEC_MEMBRES });
+      expect(await screen.findByText("Lova Andriambelo, Haja Andriambelo")).toBeInTheDocument();
+      expect(screen.getByRole("switch", { name: "Afficher les membres" })).toHaveAttribute("aria-checked", "true");
+    });
+
+    it("hides them when switched off, and remembers it for the next visit", async () => {
+      const utilisateur = userEvent.setup();
+      const premiere = renderPage({ households: AVEC_MEMBRES });
+      await screen.findByText("Lova Andriambelo, Haja Andriambelo");
+
+      await utilisateur.click(screen.getByRole("switch", { name: "Afficher les membres" }));
+      expect(screen.getByText("Famille Andriambelo")).toBeInTheDocument();
+      expect(screen.queryByText("Lova Andriambelo, Haja Andriambelo")).toBeNull();
+      premiere.unmount();
+      vi.restoreAllMocks();
+
+      renderPage({ households: AVEC_MEMBRES });
+      await screen.findByText("Famille Andriambelo");
+      expect(screen.getByRole("switch", { name: "Afficher les membres" })).toHaveAttribute("aria-checked", "false");
+      expect(screen.queryByText("Lova Andriambelo, Haja Andriambelo")).toBeNull();
     });
   });
 
@@ -199,6 +321,19 @@ describe("HouseholdsPage", () => {
       expect(screen.getByText("26–30 sur 30")).toBeInTheDocument();
     });
 
+    // Le bouton reste là (`aria-disabled` à la dernière page) : le focus ne
+    // retombe pas sur <body> après un changement de page.
+    it("keeps the focus on « Suivant » after paging", async () => {
+      const utilisateur = userEvent.setup();
+      renderPage({ households: foyersNumerotes(30) });
+      await screen.findByText("Foyer 01");
+      const suivant = screen.getByRole("button", { name: "Page suivante" });
+      suivant.focus();
+      await utilisateur.keyboard("{Enter}");
+      await screen.findByText("Foyer 26");
+      expect(suivant).toHaveFocus();
+    });
+
     // `keepPreviousData` : la page en cours reste à l'écran pendant que la
     // suivante arrive, au lieu de clignoter en squelettes à chaque clic.
     it("keeps the current page on screen while the next one loads", async () => {
@@ -216,7 +351,7 @@ describe("HouseholdsPage", () => {
       expect(screen.queryByTestId("skeleton")).toBeNull();
     });
 
-    async function allerPage2(utilisateur: ReturnType<typeof userEvent.setup>) {
+    async function allerPage2(utilisateur: Utilisateur) {
       await screen.findByText("Foyer 01");
       await utilisateur.click(screen.getByRole("button", { name: "Page suivante" }));
       await screen.findByText("Foyer 26");
@@ -227,7 +362,7 @@ describe("HouseholdsPage", () => {
       const { get } = renderPage({ households: foyersNumerotes(30) });
       await allerPage2(utilisateur);
 
-      await utilisateur.selectOptions(screen.getByLabelText("Statut"), "CONFIRMED");
+      await utilisateur.click(screen.getByRole("button", { name: "Confirmés" }));
 
       await waitFor(() => expect(derniereDemande(get).get("status")).toBe("CONFIRMED"));
       expect(derniereDemande(get).get("offset")).toBe("0");
@@ -239,7 +374,7 @@ describe("HouseholdsPage", () => {
       const { get } = renderPage({ households: foyersNumerotes(30) });
       await allerPage2(utilisateur);
 
-      await utilisateur.type(screen.getByLabelText("Rechercher un foyer"), "foyer");
+      await utilisateur.type(screen.getByRole("searchbox", { name: "Rechercher un foyer" }), "foyer");
 
       await waitFor(() => expect(derniereDemande(get).get("q")).toBe("foyer"));
       expect(derniereDemande(get).get("offset")).toBe("0");
@@ -289,12 +424,10 @@ describe("HouseholdsPage", () => {
         return Promise.resolve(undefined);
       });
       renderPage({ get: (chemin) => serveur(foyers)(chemin) });
-      await screen.findByText("Foyer 01");
-      await utilisateur.click(screen.getByRole("button", { name: "Page suivante" }));
-      await screen.findByText("Foyer 26");
+      await allerPage2(utilisateur);
 
-      await utilisateur.click(screen.getByRole("button", { name: "Supprimer" }));
-      await utilisateur.click(screen.getByRole("button", { name: "Supprimer le foyer" }));
+      await viaLeMenu(utilisateur, "Foyer 26", "Supprimer");
+      await utilisateur.click(await screen.findByRole("button", { name: "Supprimer le foyer" }));
 
       expect(await screen.findByText("Foyer 01")).toBeInTheDocument();
       expect(screen.getByText("1–25 sur 25")).toBeInTheDocument();
@@ -340,23 +473,12 @@ describe("HouseholdsPage", () => {
 
       await utilisateur.selectOptions(screen.getByLabelText("Par page"), "10");
       expect(await screen.findByText("1–10 sur 30")).toBeInTheDocument();
+      await utilisateur.click(screen.getByRole("switch", { name: "Afficher les membres" }));
+      expect(screen.getByRole("switch", { name: "Afficher les membres" })).toHaveAttribute("aria-checked", "false");
     });
   });
 
   describe("sorting", () => {
-    it("offers the four sort keys, in French", async () => {
-      renderPage();
-      await screen.findByText("Famille Rakoto");
-      const tri = screen.getByLabelText("Trier par") as HTMLSelectElement;
-      expect(tri).toHaveValue("name");
-      expect(Array.from(tri.options).map((o) => [o.value, o.text])).toEqual([
-        ["name", "Nom du foyer"],
-        ["seats", "Places"],
-        ["status", "Statut"],
-        ["createdAt", "Date d'ajout"],
-      ]);
-    });
-
     it("says the current order in words, and flips it", async () => {
       const utilisateur = userEvent.setup();
       const { get } = renderPage();
@@ -394,7 +516,7 @@ describe("HouseholdsPage", () => {
     renderPage({ households: foyersNumerotes(3) });
     await utilisateur.click(await screen.findByRole("button", { name: "Détail de Foyer 01" }));
 
-    const champ = screen.getByLabelText("Rechercher un foyer");
+    const champ = screen.getByRole("searchbox", { name: "Rechercher un foyer" });
     await utilisateur.type(champ, "zzz");
     await screen.findByText("Aucun foyer ne correspond");
     await utilisateur.clear(champ);
@@ -402,21 +524,16 @@ describe("HouseholdsPage", () => {
     expect(await screen.findByText("Note 01")).toBeInTheDocument();
   });
 
-  it("offers the copy gesture on every row, named after the household", async () => {
-    renderPage({ households: [foyer({ displayName: "Rakotomavo", id: "aZ3k9Lm2" })] });
-    expect(
-      await screen.findByRole("button", { name: /Copier le lien de Rakotomavo/ }),
-    ).toBeInTheDocument();
-  });
-
   // PATCH /admin/households/:id was unreachable from the UI, so admins could
   // not correct an RSVP past the guest-facing deadline as the spec requires.
-  it("edits a household through the dialog and PATCHes the change", async () => {
+  it("edits a household from the « … » menu and PATCHes the change", async () => {
+    const utilisateur = userEvent.setup();
     const patchSpy = vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
     renderPage();
+    await screen.findByText("Famille Rakoto");
 
-    fireEvent.click(await screen.findByRole("button", { name: /modifier/i }));
-    expect(screen.getByRole("heading", { name: /modifier le foyer/i })).toBeInTheDocument();
+    await viaLeMenu(utilisateur, "Famille Rakoto", "Modifier");
+    expect(await screen.findByRole("heading", { name: /modifier le foyer/i })).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText(/personnes confirmées/i), { target: { value: "4" } });
     fireEvent.click(screen.getByRole("button", { name: /enregistrer/i }));
@@ -427,25 +544,39 @@ describe("HouseholdsPage", () => {
         allocatedSeats: 4,
         memberNames: [],
         // Pas de `dietaryNotes` : l'organisateur n'y a pas touché, donc le
-        // champ ne part pas. Corriger un nombre de personnes ne doit pas
-        // réécrire la note du traiteur au passage.
+        // champ ne part pas.
         status: "CONFIRMED",
         confirmedCount: 4,
       }),
     );
   });
 
+  // Le menu rend le focus à « … » avant d'ouvrir le dialogue, qui le retient
+  // et le lui rend à la fermeture.
+  it("gives the focus back to the row's « … » when the edit dialog closes", async () => {
+    const utilisateur = userEvent.setup();
+    renderPage();
+    await screen.findByText("Famille Rakoto");
+    await viaLeMenu(utilisateur, "Famille Rakoto", "Modifier");
+    await screen.findByRole("dialog");
+    await utilisateur.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Actions pour Famille Rakoto" })).toHaveFocus());
+  });
+
   // L'API répond en anglais ; l'écran ne recopie jamais `err.message`.
   it("explains a refused edit in French, never in the API's English", async () => {
-    vi.spyOn(apiModule.api, "patch").mockRejectedValue(
-      new Error("confirmedCount cannot exceed allocatedSeats"),
-    );
+    const utilisateur = userEvent.setup();
+    vi.spyOn(apiModule.api, "patch").mockRejectedValue(new Error("confirmedCount cannot exceed allocatedSeats"));
     renderPage();
+    await screen.findByText("Famille Rakoto");
 
-    fireEvent.click(await screen.findByRole("button", { name: /modifier/i }));
-    fireEvent.click(screen.getByRole("button", { name: /enregistrer/i }));
+    await viaLeMenu(utilisateur, "Famille Rakoto", "Modifier");
+    fireEvent.click(await screen.findByRole("button", { name: /enregistrer/i }));
 
-    expect(await screen.findByText(/Les modifications du foyer Famille Rakoto n'ont pas pu être enregistrées/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Les modifications du foyer Famille Rakoto n'ont pas pu être enregistrées/),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/cannot exceed allocatedSeats/i)).toBeNull();
   });
 
@@ -456,43 +587,66 @@ describe("HouseholdsPage", () => {
     await screen.findByText("Rakotomavo");
     const avant = demandes(get).length;
 
-    await utilisateur.click(screen.getByRole("button", { name: "Supprimer" }));
-    await utilisateur.click(screen.getByRole("button", { name: "Supprimer le foyer" }));
+    await viaLeMenu(utilisateur, "Rakotomavo", "Supprimer");
+    await utilisateur.click(await screen.findByRole("button", { name: "Supprimer le foyer" }));
 
     await waitFor(() => expect(demandes(get).length).toBeGreaterThan(avant));
+  });
+
+  // La ligne et son « … » disparaissent avec le foyer : sans repère, le focus
+  // tomberait sur <body> et l'organisateur au clavier repartirait du haut.
+  it("puts the focus on the list once the deleted household is gone", async () => {
+    const utilisateur = userEvent.setup();
+    let foyers = [foyer({ id: "a", displayName: "Rakotomavo" }), foyer({ id: "b", displayName: "Andriamanana" })];
+    vi.spyOn(apiModule.api, "delete").mockImplementation(() => {
+      foyers = foyers.filter((f) => f.id !== "a");
+      return Promise.resolve(undefined);
+    });
+    renderPage({ get: (chemin) => serveur(foyers)(chemin) });
+    await screen.findByText("Rakotomavo");
+
+    await viaLeMenu(utilisateur, "Rakotomavo", "Supprimer");
+    await utilisateur.click(await screen.findByRole("button", { name: "Supprimer le foyer" }));
+
+    await waitFor(() => expect(screen.queryByText("Rakotomavo")).toBeNull());
+    await waitFor(() => expect(screen.getByRole("region", { name: "Liste des foyers" })).toHaveFocus());
+    expect(screen.getByText("Andriamanana")).toBeInTheDocument();
   });
 
   it("explains a failed deletion in French", async () => {
     const utilisateur = userEvent.setup();
     vi.spyOn(apiModule.api, "delete").mockRejectedValue(new Error("Household not found"));
     renderPage({ households: [foyer({ displayName: "Rakotomavo" })] });
+    await screen.findByText("Rakotomavo");
 
-    await utilisateur.click(await screen.findByRole("button", { name: "Supprimer" }));
-    await utilisateur.click(screen.getByRole("button", { name: "Supprimer le foyer" }));
+    await viaLeMenu(utilisateur, "Rakotomavo", "Supprimer");
+    await utilisateur.click(await screen.findByRole("button", { name: "Supprimer le foyer" }));
 
     expect(await screen.findByText(/Le foyer Rakotomavo n'a pas pu être supprimé/)).toBeInTheDocument();
     expect(screen.queryByText(/Household not found/)).toBeNull();
   });
 
   describe("deletion guard", () => {
-    // LE test de cette tâche : un clic sur « Supprimer » ne supprime pas.
+    // LE garde-fou : choisir « Supprimer » ne supprime pas.
     it("never deletes on the first click", async () => {
       const utilisateur = userEvent.setup();
       const supprimer = vi.spyOn(apiModule.api, "delete").mockResolvedValue({});
       renderPage({ households: [foyer({ displayName: "Rakotomavo" })] });
+      await screen.findByText("Rakotomavo");
 
-      await utilisateur.click(await screen.findByRole("button", { name: "Supprimer" }));
+      await viaLeMenu(utilisateur, "Rakotomavo", "Supprimer");
+      expect(await screen.findByRole("alertdialog")).toBeInTheDocument();
       expect(supprimer).not.toHaveBeenCalled();
-      expect(screen.getByRole("alertdialog")).toBeInTheDocument();
     });
 
     it("deletes only once the confirmation is pressed", async () => {
       const utilisateur = userEvent.setup();
       const supprimer = vi.spyOn(apiModule.api, "delete").mockResolvedValue({});
       renderPage({ households: [foyer({ displayName: "Rakotomavo" })] });
+      await screen.findByText("Rakotomavo");
 
-      await utilisateur.click(await screen.findByRole("button", { name: "Supprimer" }));
-      await utilisateur.click(screen.getByRole("button", { name: "Supprimer le foyer" }));
+      await viaLeMenu(utilisateur, "Rakotomavo", "Supprimer");
+      await utilisateur.click(await screen.findByRole("button", { name: "Supprimer le foyer" }));
       expect(supprimer).toHaveBeenCalledTimes(1);
     });
 
@@ -500,35 +654,108 @@ describe("HouseholdsPage", () => {
       const utilisateur = userEvent.setup();
       const supprimer = vi.spyOn(apiModule.api, "delete").mockResolvedValue({});
       renderPage({ households: [foyer({ displayName: "Rakotomavo" })] });
+      await screen.findByText("Rakotomavo");
 
-      await utilisateur.click(await screen.findByRole("button", { name: "Supprimer" }));
-      await utilisateur.click(screen.getByRole("button", { name: "Annuler" }));
+      await viaLeMenu(utilisateur, "Rakotomavo", "Supprimer");
+      await utilisateur.click(await screen.findByRole("button", { name: "Annuler" }));
       expect(supprimer).not.toHaveBeenCalled();
     });
 
     // Ce qui distingue ce garde-fou d'un « Êtes-vous sûr ? » : il dit ce qu'on perd.
     it("spells out what is lost when the household has already answered", async () => {
       const utilisateur = userEvent.setup();
-      renderPage({
-        households: [foyer({ displayName: "Rakotomavo", status: "CONFIRMED", confirmedCount: 4 })],
-      });
+      renderPage({ households: [foyer({ displayName: "Rakotomavo", status: "CONFIRMED", confirmedCount: 4 })] });
+      await screen.findByText("Rakotomavo");
 
-      await utilisateur.click(await screen.findByRole("button", { name: "Supprimer" }));
-      expect(screen.getByText(/a confirmé 4 personnes/)).toBeInTheDocument();
+      await viaLeMenu(utilisateur, "Rakotomavo", "Supprimer");
+      expect(await screen.findByText(/a confirmé 4 personnes/)).toBeInTheDocument();
       expect(screen.getByText(/son lien cessera de fonctionner/)).toBeInTheDocument();
     });
 
-    // « a confirmé 1 personnes » dans une interface qui est en français sans
-    // exception. Le foyer d'une personne n'a rien d'un cas tordu : c'est le
-    // plus courant après le couple.
     it("agrees the noun with the number for a household of one", async () => {
       const utilisateur = userEvent.setup();
-      renderPage({
-        households: [foyer({ displayName: "Rakotomavo", status: "CONFIRMED", confirmedCount: 1 })],
-      });
+      renderPage({ households: [foyer({ displayName: "Rakotomavo", status: "CONFIRMED", confirmedCount: 1 })] });
+      await screen.findByText("Rakotomavo");
 
-      await utilisateur.click(await screen.findByRole("button", { name: "Supprimer" }));
-      expect(screen.getByText(/a confirmé 1 personne\./)).toBeInTheDocument();
+      await viaLeMenu(utilisateur, "Rakotomavo", "Supprimer");
+      expect(await screen.findByText(/a confirmé 1 personne\./)).toBeInTheDocument();
+    });
+  });
+
+  // Sous 768 px : un seul rendu, des cartes — jamais la table cachée par CSS.
+  describe("on a phone", () => {
+    beforeEach(() => ecran(false));
+
+    it("draws cards instead of the table", async () => {
+      renderPage({ households: foyersNumerotes(3) });
+      expect(await screen.findByRole("article", { name: "Foyer 01" })).toBeInTheDocument();
+      expect(screen.queryByRole("table")).toBeNull();
+      expect(screen.getAllByText("Foyer 01")).toHaveLength(1);
+    });
+
+    it("keeps its header stuck to the top, with a short « Ajouter »", async () => {
+      renderPage();
+      await screen.findByRole("article", { name: "Famille Rakoto" });
+      expect(screen.getByRole("banner")).toHaveClass("max-md:sticky");
+      // Visible « Ajouter », nom accessible complet (le visible y est inclus).
+      const ajouter = screen.getByRole("button", { name: "Ajouter un foyer" });
+      expect(ajouter).toHaveTextContent(/^Ajouter$/);
+    });
+
+    it("shows the first names on the card, and only them", async () => {
+      renderPage({ households: [foyer({ memberNames: ["Lova Andriambelo", "Haja Andriambelo"] })] });
+      const carte = await screen.findByRole("article", { name: "Famille Rakoto" });
+      expect(within(carte).getByText("Lova, Haja")).toBeInTheDocument();
+    });
+
+    it("unfolds a card in place from its header", async () => {
+      const utilisateur = userEvent.setup();
+      renderPage();
+      const carte = await screen.findByRole("article", { name: "Famille Rakoto" });
+      const entete = within(carte).getByRole("button", { name: /^Famille Rakoto/ });
+      expect(entete).toHaveAttribute("aria-expanded", "false");
+      await utilisateur.click(entete);
+      expect(entete).toHaveAttribute("aria-expanded", "true");
+      expect(within(carte).getByText("Deux repas végétariens")).toBeInTheDocument();
+    });
+
+    it("pages with the compact arrows", async () => {
+      const utilisateur = userEvent.setup();
+      renderPage({ households: foyersNumerotes(30) });
+      await screen.findByRole("article", { name: "Foyer 01" });
+      expect(screen.getByText("1–25 sur 30")).toBeInTheDocument();
+      await utilisateur.click(screen.getByRole("button", { name: "Page suivante" }));
+      expect(await screen.findByRole("article", { name: "Foyer 26" })).toBeInTheDocument();
+    });
+
+    it("changes the page size from the toolbar", async () => {
+      const utilisateur = userEvent.setup();
+      const { get } = renderPage({ households: foyersNumerotes(30) });
+      await screen.findByRole("article", { name: "Foyer 01" });
+      expect(screen.getAllByLabelText("Par page")).toHaveLength(1);
+      await utilisateur.selectOptions(screen.getByLabelText("Par page"), "10");
+      await waitFor(() => expect(derniereDemande(get).get("limit")).toBe("10"));
+    });
+
+    it("sorts from the « Trier » sheet", async () => {
+      const utilisateur = userEvent.setup();
+      const { get } = renderPage();
+      await screen.findByRole("article", { name: "Famille Rakoto" });
+      await utilisateur.click(screen.getByRole("button", { name: "Trier" }));
+      const feuille = await screen.findByRole("dialog", { name: "Trier" });
+      await utilisateur.selectOptions(within(feuille).getByLabelText("Trier par"), "status");
+      await waitFor(() => expect(derniereDemande(get).get("sort")).toBe("status"));
+    });
+
+    it("deletes from the card's « … » menu, behind the guard", async () => {
+      const utilisateur = userEvent.setup();
+      const supprimer = vi.spyOn(apiModule.api, "delete").mockResolvedValue(undefined);
+      renderPage({ households: [foyer({ displayName: "Rakotomavo" })] });
+      await screen.findByRole("article", { name: "Rakotomavo" });
+
+      await viaLeMenu(utilisateur, "Rakotomavo", "Supprimer");
+      await utilisateur.click(await screen.findByRole("button", { name: "Supprimer le foyer" }));
+      expect(supprimer).toHaveBeenCalledWith("/admin/households/h1");
     });
   });
 });
