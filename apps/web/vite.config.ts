@@ -33,7 +33,7 @@ export default defineConfig(({ command, mode }) => {
   // http://localhost:3000 in src/lib/api.ts; a production build must not.
   //
   // Without this, a deploy that forgets to set VITE_API_URL on the hosting
-  // provider (Vercel) produces a front end that silently talks to
+  // provider (Render) produces a front end that silently talks to
   // localhost:3000 — which does not exist once the build is served from a
   // browser that isn't the developer's own machine. Failing here, loudly and
   // at build time, is cheaper than an invité opening a broken invitation.
@@ -43,8 +43,8 @@ export default defineConfig(({ command, mode }) => {
       throw new Error(
         "VITE_API_URL manque. Le build de production a besoin de l'URL de " +
           "l'API déployée pour la graver dans le bundle — voir apps/web/.env.example. " +
-          "En local, copie-le en apps/web/.env ; en production (Vercel), pose-la " +
-          "dans les variables d'environnement du projet.",
+          "En local, copie-le en apps/web/.env ; en production (Render), pose-la " +
+          "dans les variables d'environnement du site statique.",
       );
     }
   }

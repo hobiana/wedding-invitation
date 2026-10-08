@@ -2,7 +2,11 @@
 #
 # Ce fichier est construit en trois fois : la base d'abord, puis l'API, puis le
 # front. Chaque étage est appliqué et vérifié seul, pour qu'un échec désigne son
-# étage sans ambiguïté. Étage courant : la base.
+# étage sans ambiguïté. Les trois étages sont écrits ; le front, ajouté le
+# 2026-10-08, n'a pas encore été appliqué.
+#
+# TOUT VIT SUR RENDER (décision du commanditaire, 2026-10-08) : la base, l'API et
+# le front. Vercel n'est plus utilisé, et `apps/web/vercel.json` a été retiré.
 #
 # Render relit ce fichier à chaque poussée sur `main`. Ce qui n'y figure pas
 # n'est jamais touché.
@@ -151,3 +155,71 @@ services:
       # depuis un poste, contre l'URL externe (voir docs/runbook-base-de-
       # donnees.md). Ces valeurs n'ont rien à faire à demeure dans
       # l'environnement du serveur.
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Le front React, servi comme site statique par le CDN de Render.
+  # ─────────────────────────────────────────────────────────────────────────
+  # Un site statique est un `type: web` avec `runtime: static` : il n'existe pas
+  # de `type: static`. Il n'est pas sur le réseau privé de Render : il ne parle
+  # à l'API que depuis le navigateur de l'invité, par l'URL publique.
+  - type: web
+    name: hobiana-lova-web
+    runtime: static
+    branch: main
+
+    # On n'installe que le front et ce dont il dépend (`...` = ses dépendances
+    # de workspace, donc `packages/shared`). Un `pnpm install` à la racine
+    # installerait aussi l'API, dont le `postinstall` lance `prisma generate` :
+    # du temps de build et un point d'échec sans rapport avec le front.
+    #
+    # `corepack enable` active le pnpm épinglé dans le `packageManager` de la
+    # racine, au lieu de laisser l'hébergeur choisir une autre version.
+    #
+    # NON ÉPROUVÉ : cette commande n'a pas encore tourné sur Render. Si le
+    # premier build échoue ici, c'est le premier endroit à regarder.
+    buildCommand: >-
+      corepack enable &&
+      pnpm install --frozen-lockfile --filter @invitation-app/web... &&
+      pnpm --filter @invitation-app/web build
+    staticPublishPath: apps/web/dist
+
+    # Même exigence que l'API : une version de Node connue, pas celle du jour.
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+
+      # L'URL PUBLIQUE de l'API, gravée dans le bundle au build. `sync: false` :
+      # elle dépend du nom de domaine, qui n'est pas encore choisi, et se saisit
+      # dans le tableau de bord. Elle est OBLIGATOIRE : `vite.config.ts` fait
+      # échouer le build si elle manque, plutôt que de livrer un front qui parle
+      # à `localhost:3000` (ce que verrait un invité, devant une page blanche).
+      #
+      # Sans barre oblique finale. À changer = reconstruire, pas seulement
+      # redémarrer : la valeur est dans le fichier JavaScript produit.
+      - key: VITE_API_URL
+        sync: false
+
+    # L'équivalent de l'ancien `vercel.json` : une application à une page doit
+    # servir `index.html` pour toute adresse (`/i/abc123`, `/admin/foyers`),
+    # sinon un lien d'invitation ouvert directement répond 404.
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+    headers:
+      # L'adresse d'une invitation EST la clé d'accès du foyer (CLAUDE.md).
+      # Aucune requête partie de cette page ne doit en révéler le chemin dans un
+      # en-tête `Referer`. Les images et liens portent déjà `no-referrer` ; ceci
+      # le garantit pour tout ce qu'on aurait oublié.
+      - path: /*
+        name: Referrer-Policy
+        value: no-referrer
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      # Vite nomme ses fichiers d'après leur contenu : un fichier de `assets/`
+      # ne change jamais sous le même nom, il peut donc être gardé un an.
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable

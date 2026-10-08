@@ -3,6 +3,13 @@
 **Auteur :** agent devops (sous-agent, session du 2026-09-11).
 **Statut :** Livrable 1 (ce document) et Livrable 2 (trois corrections indépendantes de l'hébergeur) terminés et vérifiés dans la même session — voir le résumé des trois corrections en fin de document, et `docs/audit/ETAT-mise-en-ligne.md` pour le détail des vérifications.
 
+> **Mise à jour du 2026-10-08 — le plan ci-dessous parle de Vercel pour le front ; ce n'est plus vrai.**
+>
+> - **Tout est sur Render** (décision du commanditaire) : la base, l'API, et le front en **site statique** (`hobiana-lova-web` dans `render.yaml`). `apps/web/vercel.json` est supprimé ; sa règle de repli vers `index.html` est devenue une `route` du site statique.
+> - **Un nom de domaine à lui** (décision du même jour). C'est ce qui règle le « blocage 6 » : le front sur `invitation.<domaine>` et l'API sur `api.<domaine>` sont le même *site* pour le navigateur, donc le cookie de session de l'admin n'est plus un cookie tiers. Sur deux sous-domaines de `onrender.com` il l'aurait été (Safari les bloque par défaut). **À acheter, puis à brancher sur les deux services dans le tableau de bord de Render** — un domaine ne se déclare pas dans le Blueprint. Le cookie reste `SameSite=None; Secure` : cela fonctionne dans les deux cas, aucun changement de code.
+> - **Ordre à suivre une fois le domaine choisi :** brancher `api.<domaine>` sur l'API et `invitation.<domaine>` sur le site statique ; saisir `VITE_API_URL=https://api.<domaine>` (sans barre finale) sur le site statique ; saisir `FRONTEND_URL=https://invitation.<domaine>` sur l'API ; **reconstruire le front** (la valeur est gravée dans le bundle). Puis tester le login admin dans Chrome et dans Safari.
+> - Le premier build du site statique **n'a pas encore tourné sur Render** : sa commande (`corepack enable`, installation filtrée sur le front) est non éprouvée.
+
 ## Pourquoi ce document passe devant tout le reste
 
 Le mariage a lieu le **samedi 2 janvier 2027** — dans **113 jours** à la date d'écriture. Les réponses des invités sont attendues avant le **1er décembre 2026** — dans **81 jours**. L'application ne tourne aujourd'hui que sur la machine du commanditaire : pas de CI, pas d'hébergement, pas de domaine, pas de base en ligne. Une invitation parfaite sur `localhost` n'envoie rien à personne. C'est le risque numéro un du projet, devant le design et devant le plan de table (qui ne sert qu'en décembre, une fois les invités placés).
