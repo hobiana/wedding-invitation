@@ -724,6 +724,10 @@
        Sur les barres en surimpression — macOS, iOS — la déclaration ne coûte
        rien : il n'y a pas de gouttière à réserver. */
     scrollbar-gutter: stable;
+
+    /* Voir `body` : `clip` doit être posé sur les deux, sur `html` seul ou sur
+       `body` seul le défilement horizontal reste. */
+    overflow-x: clip;
   }
 
   body {
@@ -734,6 +738,12 @@
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+
+    /* Les pétales de la page invitation dérivent hors de l'écran : leur calque
+       fixe est déjà en `overflow-hidden`, et pourtant Chrome mobile en tire un
+       défilement horizontal de 19 px. `clip` et non `hidden` : `hidden` ferait
+       du corps un conteneur de défilement et casserait les `sticky`. */
+    overflow-x: clip;
   }
 
   h1,

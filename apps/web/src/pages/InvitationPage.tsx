@@ -163,7 +163,7 @@ export function InvitationPage() {
         {/* Le calendrier emporte son air en dessous de lui. Sans ça sa carte
             blanche touchait le bandeau bordeaux du programme, et les deux
             sections se lisaient comme une seule. */}
-        <div className="pb-14">
+        <div className="px-4 pb-14">
           <Calendar weddingDate={wedding.weddingDate} />
         </div>
         <Schedule weddingDate={wedding.weddingDate} />
