@@ -65,6 +65,10 @@ Arbitré le 2026-09-10, à partir du design fourni dans `images/html/` :
 | `ccf9752` | Primitives : `Menu` « … », `Switch`, `FilterPills`, `BottomSheet`, `PageHeader` ; boutons arrondis (`--radius-button`) |
 | `5e7c1ea` | **Page Foyers refaite** (bureau + téléphone) |
 
+### Tableau de bord et seuil — 2026-10-08
+
+Commits locaux, non poussés : `3e25f29` (calculs purs, `lib/dashboard.ts`), `89e5d44` (seuil `maxGuests`, nullable, **180 par défaut**, réservé à l'organisateur, un champ vidé l'efface), `c6494e0` (page refaite). Suites : **849 web**, **175 api**, 37 e2e. La frise du bandeau va d'Aujourd'hui à la date limite puis au mariage (pas de date d'envoi). **Une API lancée avant `89e5d44` ne renvoie pas `maxGuests` : le tableau de bord s'affiche alors sans seuil, sans erreur. La redémarrer.** Défaut ancien : `pnpm start:prod` vise `dist/main`, le build produit `dist/src/main.js`.
+
 ### Décisions du commanditaire prises depuis le 10-05 — ne pas les rouvrir
 
 1. **Pagination des listes GET côté serveur**, 100 par défaut, plafond 500 ; l'écran Foyers choisit 10 / 25 / 50 / 100 (25 par défaut, retenu dans `localStorage`). Le tableau de bord et le plan de table demandent `limit=500` et **affichent un avertissement si `total > items.length`** : aucune troncature silencieuse. Seuls les foyers sont paginés ; les tables restent un petit tableau.
@@ -96,7 +100,7 @@ L'anneau de focus (fenêtre non focalisée sous Playwright), un vrai téléphone
 1. **Plan de table, édition d'une table** : le message « Au moins N places : déjà occupées » doit-il être **permanent** sous la capacité, comme sur la maquette 6, ou n'apparaître que sous le minimum comme aujourd'hui ?
 2. **Barre d'outils des Foyers à 1440 px** : l'interrupteur et le tri passent sur une seconde ligne ; la maquette (2000 px) tient sur une ligne. Et à 375 px « Afficher les membres » passe sur deux lignes.
 3. **Plan de table** : « Placer », « × » et « Modifier la table » gardent un rayon de 2 à 4 px (ce ne sont pas des `Button`). À arrondir ?
-4. **Maquettes à fournir par le commanditaire** : tableau de bord et paramètres. Ils n'ont reçu que l'arrondi des boutons.
+4. **Maquette des Paramètres à fournir par le commanditaire.** Le tableau de bord est refait (`c6494e0`) ; les Paramètres n'ont reçu que l'arrondi des boutons et le champ « Seuil maximum d'invités ».
 5. `.agents/` et `skills-lock.json` (installés par un skill) sont dans `.gitignore` « pour l'instant » : à décider.
 6. `InvitationPage.tsx` lit `confirmedCount ?? allocatedSeats` (nombre de personnes d'un foyer, pas occupation d'une table) ; `LoginPage.tsx:51` garde un `text-red-600` en dur ; la liste « à relancer » n'est pas tronquée.
 
