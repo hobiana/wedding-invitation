@@ -22,10 +22,8 @@ import { Reveal } from "@/components/invitation/Reveal";
 import { Schedule } from "@/components/invitation/Schedule";
 import { Venue } from "@/components/invitation/Venue";
 import { COUPLE } from "@/components/invitation/couple";
-import {
-  CONTACT_PHONES,
-  MALAGASY,
-} from "@/components/invitation/wedding-content";
+import { MALAGASY } from "@/components/invitation/wedding-content";
+import { lienTel } from "@/lib/telephone";
 import {
   eyebrowClassName,
   guestTextButtonClassName,
@@ -134,6 +132,9 @@ export function InvitationPage() {
   // Il vient du serveur, qui l'a posé depuis les places accordées ; et si
   // l'organisateur l'a corrigé depuis, c'est sa valeur qu'on relit.
   const countedSeats = household.confirmedCount ?? household.allocatedSeats;
+  // Le contrat promet au moins un numéro, mais une API lancée avant la
+  // migration omet le champ : la page doit rester debout, sans numéros.
+  const contactPhones = wedding.contactPhones ?? [];
 
   return (
     <>
@@ -226,6 +227,7 @@ export function InvitationPage() {
                   householdName={household.displayName}
                   memberNames={household.memberNames}
                   allocatedSeats={household.allocatedSeats}
+                  contactPhones={contactPhones}
                   defaultStatus={
                     household.status === "PENDING" ? undefined : household.status
                   }
@@ -260,20 +262,22 @@ export function InvitationPage() {
             {/* Les numéros vivent aussi dans le formulaire, mais le formulaire
                 disparaît dès qu'on a répondu. Ici ils restent — et c'est justement
                 après avoir répondu qu'on rappelle pour changer quelque chose. */}
-            <p className="mt-6 text-[0.875rem] text-ink-muted">
-              Une question, un changement ?{" "}
-              {CONTACT_PHONES.map((phone, i) => (
-                <span key={phone.tel}>
-                  {i > 0 && " · "}
-                  <a
-                    href={`tel:${phone.tel}`}
-                    className="whitespace-nowrap text-bordeaux-700 underline underline-offset-[3px] decoration-1 hover:decoration-2"
-                  >
-                    {phone.display}
-                  </a>
-                </span>
-              ))}
-            </p>
+            {contactPhones.length > 0 && (
+              <p className="mt-6 text-[0.875rem] text-ink-muted">
+                Une question, un changement ?{" "}
+                {contactPhones.map((phone, i) => (
+                  <span key={`${i}-${phone}`}>
+                    {i > 0 && " · "}
+                    <a
+                      href={lienTel(phone)}
+                      className="whitespace-nowrap text-bordeaux-700 underline underline-offset-[3px] decoration-1 hover:decoration-2"
+                    >
+                      {phone}
+                    </a>
+                  </span>
+                ))}
+              </p>
+            )}
           </footer>
         </Reveal>
       </main>

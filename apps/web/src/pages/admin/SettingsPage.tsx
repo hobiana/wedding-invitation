@@ -1,7 +1,15 @@
-import { useId, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AdminSettingsDto } from "@invitation-app/shared";
 import { api } from "@/lib/api";
+import {
+  WEDDING_TIME_ZONE_LABEL,
+  WEDDING_UTC_OFFSET_LABEL,
+  depuisSaisieMadagascar,
+  formatRsvpDeadline,
+  versSaisieMadagascar,
+} from "@/lib/datetime";
+import { MAX_TELEPHONES, erreursTelephones } from "@/lib/telephone";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
@@ -94,6 +102,22 @@ function lienOuvrable(saisie: string | null): string | null {
   }
 }
 
+/**
+ * Les numéros tels que le serveur les connaît. Une API lancée avant la
+ * migration omet le champ : on présente alors une ligne vide plutôt que rien,
+ * puisqu'au moins un numéro est exigé.
+ */
+function telephonesDuServeur(s: AdminSettingsDto): string[] {
+  return Array.isArray(s.contactPhones) ? s.contactPhones : [];
+}
+
+function memesTelephones(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((t, i) => t === b[i]);
+}
+
+/** « Heure de Madagascar (UTC+3) » : la mention posée sous les dates. */
+const MENTION_FUSEAU = `${WEDDING_TIME_ZONE_LABEL.charAt(0).toUpperCase()}${WEDDING_TIME_ZONE_LABEL.slice(1)} (${WEDDING_UTC_OFFSET_LABEL})`;
+
 /** La colonne de la maquette : 690 px, centrée, une seule sur téléphone. */
 const colonne = "mx-auto w-full max-w-reglages";
 
@@ -115,8 +139,14 @@ export function SettingsPage() {
   // `null` = pas encore touché, on affiche alors la valeur du serveur.
   const [seuilSaisi, setSeuilSaisi] = useState<string | null>(null);
   const [erreurSeuil, setErreurSeuil] = useState<string | null>(null);
+  // Les numéros, gardés à part comme le seuil : une liste ne se compare pas
+  // par `===`, et elle ne part dans le PATCH que si elle a changé. `null` =
+  // pas encore touchée. Un refetch (bascule du plan de table) ne l'écrase pas.
+  const [telephonesSaisis, setTelephonesSaisis] = useState<string[] | null>(null);
+  const [erreursTel, setErreursTel] = useState<(string | null)[]>([]);
 
   const idAideDates = useId();
+  const idFuseau = useId();
   const idAideTenue = useId();
   const idAideSeuil = useId();
 
@@ -133,6 +163,8 @@ export function SettingsPage() {
       await queryClient.invalidateQueries({ queryKey: ["settings"] });
       setSaisie(null);
       setSeuilSaisi(null);
+      setTelephonesSaisis(null);
+      setErreursTel([]);
     },
   });
 
@@ -169,25 +201,44 @@ export function SettingsPage() {
 
   const seuilEnregistre = seuilEnTexte(data.maxGuests);
   const seuilAffiche = seuilSaisi ?? seuilEnTexte(form.maxGuests);
+  const telephonesEnregistres = telephonesDuServeur(data);
+  const telephonesAffiches =
+    telephonesSaisis ?? (telephonesEnregistres.length > 0 ? telephonesEnregistres : [""]);
+  // Les blancs de bord ne comptent pas : « 034 » et « 034 » plus une espace
+  // oubliée sont le même numéro, et c'est la version rognée qui part.
+  const telephonesAEnvoyer = telephonesAffiches.map((t) => t.trim());
+  const telephonesModifies =
+    telephonesSaisis !== null && !memesTelephones(telephonesAEnvoyer, telephonesEnregistres);
   const modifie =
     (saisie !== null && !memesValeurs(saisie, data)) ||
-    (seuilSaisi !== null && seuilSaisi.trim() !== seuilEnregistre);
+    (seuilSaisi !== null && seuilSaisi.trim() !== seuilEnregistre) ||
+    telephonesModifies;
 
   function modifier(patch: Partial<AdminSettingsDto>) {
     if (form) setSaisie({ ...form, ...patch });
+  }
+
+  function changerTelephones(suivants: string[], erreurs: (string | null)[]) {
+    setTelephonesSaisis(suivants);
+    setErreursTel(erreurs);
   }
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!form) return;
     const seuil = lireSeuil(seuilAffiche);
-    if ("erreur" in seuil) {
-      setErreurSeuil(seuil.erreur);
-      return;
-    }
+    const erreurs = telephonesModifies ? erreursTelephones(telephonesAffiches) : [];
+    if ("erreur" in seuil) setErreurSeuil(seuil.erreur);
+    setErreursTel(erreurs);
+    if ("erreur" in seuil || erreurs.some((m) => m !== null)) return;
     // `seatingPlanActivated` reste hors du corps : la bascule est un geste
-    // isolé, et un formulaire resté ouvert ne doit pas la réécrire.
-    enregistrement.mutate({ maxGuests: seuil.valeur, ...corpsDuFormulaire(form) });
+    // isolé, et un formulaire resté ouvert ne doit pas la réécrire. Les numéros
+    // n'y entrent que s'ils ont changé.
+    enregistrement.mutate({
+      maxGuests: seuil.valeur,
+      ...corpsDuFormulaire(form),
+      ...(telephonesModifies ? { contactPhones: telephonesAEnvoyer } : {}),
+    });
   }
 
   // Pendant l'aller-retour, l'interrupteur montre déjà la position demandée :
@@ -208,19 +259,37 @@ export function SettingsPage() {
             />
 
             <Section titre="Dates">
+              {/* Le fuseau est dit avant les champs et rattaché aux deux : un
+                  organisateur à Maurice ou à Paris saisit l'heure du lieu, pas
+                  la sienne. Sans cette mention, la conversion serait invisible
+                  et il « corrigerait » une heure juste. */}
+              <p id={idFuseau} className="text-sm font-medium text-ink">
+                {MENTION_FUSEAU}
+              </p>
               <div className="grid gap-4 md:grid-cols-2">
                 <DateTimeField
                   label="Date du mariage"
                   value={form.weddingDate}
+                  enregistree={data.weddingDate}
                   onChange={(v) => modifier({ weddingDate: v })}
+                  describedBy={idFuseau}
                 />
                 {/* Ce champ gouverne à lui seul le verrou des réponses ; avant
-                    lui, il ne se changeait qu'en SQL. */}
+                    lui, il ne se changeait qu'en SQL. La seconde 59 : « 23:59 »
+                    couvre la minute entière, comme la limite du seed. */}
                 <DateTimeField
                   label="Date limite de réponse (RSVP)"
                   value={form.rsvpDeadline}
+                  enregistree={data.rsvpDeadline}
+                  seconde={59}
                   onChange={(v) => modifier({ rsvpDeadline: v })}
-                  describedBy={idAideDates}
+                  describedBy={`${idFuseau} ${idAideDates}`}
+                  apercu={
+                    // La date telle que l'invitation l'écrira, avec la même
+                    // fonction : tout écart avec ce qu'on croit avoir saisi se
+                    // voit ici, avant d'enregistrer.
+                    `Affichée aux invités : ${formatRsvpDeadline(form.rsvpDeadline)}`
+                  }
                 />
               </div>
               <p id={idAideDates} className="text-sm text-ink-muted">
@@ -285,6 +354,11 @@ export function SettingsPage() {
                   onChange={(e) => modifier({ parkingInfo: e.target.value })}
                 />
               </Field>
+              <BlocTelephones
+                telephones={telephonesAffiches}
+                erreurs={erreursTel}
+                onChange={changerTelephones}
+              />
             </Section>
 
             <Section titre="Invités">
@@ -362,6 +436,121 @@ function Section({ titre, children }: { titre: string; children: ReactNode }) {
       </h2>
       {children}
     </Card>
+  );
+}
+
+/**
+ * Les numéros où joindre les mariés : la page invité les affiche au formulaire
+ * et au pied de page. Au moins un (décision du commanditaire), cinq au plus
+ * (plafond de l'API). Les refus sont rédigés à l'enregistrement, en français,
+ * ligne par ligne ; corriger une ligne efface son refus.
+ *
+ * Un `fieldset` plutôt qu'une suite de champs : « Numéros de téléphone » est
+ * annoncé en entrant dans le groupe, et chaque case garde son libellé visible
+ * « Téléphone N ».
+ */
+function BlocTelephones({
+  telephones,
+  erreurs,
+  onChange,
+}: {
+  telephones: string[];
+  erreurs: (string | null)[];
+  onChange: (telephones: string[], erreurs: (string | null)[]) => void;
+}) {
+  const idAide = useId();
+  const idPlafond = useId();
+  const champs = useRef<(HTMLInputElement | null)[]>([]);
+  // Le champ à focaliser après un ajout ou un retrait : le bouton cliqué
+  // disparaît (retrait) ou le nouveau champ n'existe pas encore (ajout).
+  const [aFocaliser, setAFocaliser] = useState<number | null>(null);
+  useEffect(() => {
+    if (aFocaliser === null) return;
+    champs.current[aFocaliser]?.focus();
+    setAFocaliser(null);
+  }, [aFocaliser]);
+
+  const plein = telephones.length >= MAX_TELEPHONES;
+  const seul = telephones.length <= 1;
+
+  function remplacer(i: number, valeur: string) {
+    onChange(
+      telephones.map((t, j) => (j === i ? valeur : t)),
+      erreurs.map((m, j) => (j === i ? null : m)),
+    );
+  }
+
+  function retirer(i: number) {
+    onChange(
+      telephones.filter((_, j) => j !== i),
+      erreurs.filter((_, j) => j !== i),
+    );
+    setAFocaliser(Math.max(0, i - 1));
+  }
+
+  function ajouter() {
+    onChange([...telephones, ""], [...erreurs, null]);
+    setAFocaliser(telephones.length);
+  }
+
+  return (
+    <fieldset aria-describedby={idAide} className="space-y-3 border-t border-rule pt-4">
+      <legend className="float-left mb-1 w-full text-sm font-medium text-ink">
+        Numéros de téléphone
+      </legend>
+      <p id={idAide} className="clear-left text-sm text-ink-muted">
+        Affichés aux invités pour joindre les mariés.
+      </p>
+      {telephones.map((numero, i) => (
+        // L'index pour clé : deux lignes peuvent porter la même saisie le
+        // temps d'une correction, et une ligne vide n'a pas d'identité.
+        <Field key={i} label={`Téléphone ${i + 1}`} error={erreurs[i] ?? null}>
+          <div className="flex gap-2">
+            <Input
+              ref={(el) => {
+                champs.current[i] = el;
+              }}
+              className="min-w-0 flex-1 rounded-field tabular-nums"
+              type="tel"
+              inputMode="tel"
+              autoComplete="off"
+              aria-describedby={idAide}
+              value={numero}
+              onChange={(e) => remplacer(i, e.target.value)}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              className="h-auto shrink-0"
+              disabled={seul}
+              onClick={() => retirer(i)}
+              // Cinq « Retirer » identiques ne disent pas lequel. Le nom
+              // commence par le texte visible, pour la commande vocale.
+              aria-label={`Retirer le téléphone ${i + 1}`}
+            >
+              Retirer
+            </Button>
+          </div>
+        </Field>
+      ))}
+      {seul && <p className="text-sm text-ink-muted">Au moins un numéro est obligatoire.</p>}
+      <div className="space-y-2">
+        <Button
+          type="button"
+          variant="outline"
+          disabled={plein}
+          aria-describedby={plein ? idPlafond : undefined}
+          onClick={ajouter}
+        >
+          Ajouter un numéro
+        </Button>
+        {plein && (
+          <p id={idPlafond} className="text-sm text-ink-muted">
+            Cinq numéros au plus : retirez-en un pour en ajouter un autre.
+          </p>
+        )}
+      </div>
+    </fieldset>
   );
 }
 
@@ -451,41 +640,61 @@ function BarreEnregistrement({
 }
 
 /**
- * L'API stocke et renvoie des chaînes ISO, mais `datetime-local` ne parle que
- * `YYYY-MM-DDTHH:mm` local : il faut convertir dans les deux sens.
+ * Un `datetime-local` qui parle **l'heure de Madagascar**, quel que soit le
+ * fuseau du navigateur. Il lisait et écrivait l'heure de la machine : à
+ * Maurice, la date limite du 1er décembre 23:59 s'affichait le 2 à 00:59.
+ *
+ * Aller-retour : tant qu'on n'y touche pas, la chaîne ISO du serveur reste
+ * celle du formulaire, secondes comprises. Retaper ce qui était affiché rend
+ * aussi la valeur du serveur telle quelle (`enregistree`) — sinon la seconde 59
+ * de la date limite tomberait et la barre dirait « modifié » pour rien. Une
+ * vraie modification prend la seconde `seconde` (0 par défaut).
  */
-function toDateTimeLocal(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
 function DateTimeField({
   label,
   value,
+  enregistree,
+  seconde = 0,
   onChange,
   describedBy,
+  apercu,
 }: {
   label: string;
   value: string;
+  /** La valeur du serveur, rendue intacte si la saisie y revient. */
+  enregistree: string;
+  seconde?: number;
   onChange: (isoValue: string) => void;
   describedBy?: string;
+  /** Une ligne sous le champ, rattachée à lui. */
+  apercu?: string;
 }) {
+  const idApercu = useId();
+  const decritPar = [describedBy, apercu ? idApercu : null].filter(Boolean).join(" ") || undefined;
   return (
     <Field label={label}>
       <Input
         className="rounded-field"
         type="datetime-local"
-        aria-describedby={describedBy}
-        value={toDateTimeLocal(value)}
+        aria-describedby={decritPar}
+        value={versSaisieMadagascar(value)}
         onChange={(e) => {
+          const saisie = e.target.value;
+          if (saisie === versSaisieMadagascar(enregistree)) {
+            onChange(enregistree);
+            return;
+          }
           // Une saisie à moitié tapée est ignorée plutôt que de pousser une
           // date invalide dans le formulaire, que `@IsDateString` refuserait.
-          const next = new Date(e.target.value);
-          if (!Number.isNaN(next.getTime())) onChange(next.toISOString());
+          const iso = depuisSaisieMadagascar(saisie, { seconde });
+          if (iso !== null) onChange(iso);
         }}
       />
+      {apercu && (
+        <p id={idApercu} className="text-sm text-ink-muted">
+          {apercu}
+        </p>
+      )}
     </Field>
   );
 }

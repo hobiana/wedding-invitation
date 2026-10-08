@@ -2,7 +2,7 @@ import { useId, useState, type FormEvent } from "react";
 import type { SubmitRsvpDto } from "@invitation-app/shared";
 import { Field } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
-import { CONTACT_PHONES } from "@/components/invitation/wedding-content";
+import { lienTel } from "@/lib/telephone";
 import {
   eyebrowClassName,
   guestButtonClassName,
@@ -23,6 +23,12 @@ interface RsvpFormProps {
   /** Les personnes nommément invitées, si l'organisateur les a saisies. */
   memberNames?: string[];
   allocatedSeats: number;
+  /**
+   * Les numéros des mariés, tels que saisis dans les paramètres
+   * (`WeddingInfoDto.contactPhones`) : l'invité ne corrige plus le nombre
+   * lui-même, il téléphone.
+   */
+  contactPhones: string[];
   defaultStatus?: Answer;
   defaultMessage?: string;
   onSubmit: (dto: SubmitRsvpDto) => void;
@@ -134,6 +140,7 @@ export function RsvpForm({
   householdName,
   memberNames = [],
   allocatedSeats,
+  contactPhones,
   defaultStatus,
   defaultMessage,
   onSubmit,
@@ -235,22 +242,32 @@ export function RsvpForm({
       {answer === "CONFIRMED" && (
         <p className="text-[0.9375rem] leading-relaxed text-ink-muted">
           Nous sommes ravis de vous compter parmi nous, {places}
-          <br />
-          Si l'un d'entre vous ne peut finalement pas venir, appelez-nous :{" "}
-          {CONTACT_PHONES.map((phone, i) => (
-            <span key={phone.tel}>
-              {i > 0 && " ou "}
-              {/* `tel:` compose directement depuis un téléphone — et c'est sur
-                  un téléphone que cette page sera ouverte. */}
-              <a
-                href={`tel:${phone.tel}`}
-                className="whitespace-nowrap text-bordeaux-700 underline underline-offset-[3px] decoration-1 hover:decoration-2"
-              >
-                {phone.display}
-              </a>
-            </span>
-          ))}
-          .
+          {/* Sans numéro (API pas encore migrée), « appelez-nous : . » serait
+              une porte peinte sur un mur : la phrase s'efface. */}
+          {contactPhones.length > 0 && (
+            <>
+              <br />
+              Si l'un d'entre vous ne peut finalement pas venir, appelez-nous :{" "}
+              {contactPhones.map((phone, i) => (
+                // L'index dans la clé : deux saisies identiques ne doivent pas
+                // faire crier React (l'admin les refuse, mais rien ne coûte ici).
+                <span key={`${i}-${phone}`}>
+                  {/* « A », « A ou B », « A, B ou C » : la virgule entre les
+                      premiers, « ou » devant le dernier. */}
+                  {i > 0 && (i === contactPhones.length - 1 ? " ou " : ", ")}
+                  {/* `tel:` compose directement depuis un téléphone — et c'est
+                      sur un téléphone que cette page sera ouverte. */}
+                  <a
+                    href={lienTel(phone)}
+                    className="whitespace-nowrap text-bordeaux-700 underline underline-offset-[3px] decoration-1 hover:decoration-2"
+                  >
+                    {phone}
+                  </a>
+                </span>
+              ))}
+              .
+            </>
+          )}
         </p>
       )}
 

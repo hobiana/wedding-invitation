@@ -22,6 +22,7 @@ const settings: AdminSettingsDto = {
   dressCode: null,
   parkingInfo: null,
   rsvpDeadline: "2027-05-01T22:00:00.000Z",
+  contactPhones: ["+261 34 64 314 02", "+261 34 29 682 30"],
   seatingPlanActivated: false,
   maxGuests: 180,
 };
@@ -42,45 +43,327 @@ function dernierCorps(spy: ReturnType<typeof vi.spyOn>) {
   return appels[appels.length - 1][1];
 }
 
-/** Same local-time rendering the datetime-local input performs. */
-function expectedLocalValue(iso: string) {
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
+/**
+ * Les dates se lisent et s'écrivent en heure de Madagascar, **quel que soit le
+ * fuseau du navigateur**. Le bug d'origine : à Maurice (UTC+4), la date limite
+ * `2026-12-01T20:59:59Z` s'affichait « 02/12/2026 00:59 » alors que l'invitation
+ * dit « 1er décembre ». Chaque cas tourne sous trois fuseaux de processus :
+ * UTC, UTC+4 et UTC-5 (Bogota, sans heure d'été).
+ */
+const FUSEAUX_ORGANISATEUR = ["UTC", "Indian/Mauritius", "America/Bogota"];
+/** La vraie date limite : 1er décembre 2026, 23:59:59 à Antananarivo. */
+const VRAIE_LIMITE = "2026-12-01T20:59:59.000Z";
+/** La vraie cérémonie : 2 janvier 2027, 9 h à Antananarivo. */
+const VRAIE_CEREMONIE = "2027-01-02T06:00:00.000Z";
 
 describe("SettingsPage dates", () => {
-  afterEach(() => vi.restoreAllMocks());
+  const tzOrigine = process.env.TZ;
+  afterEach(() => {
+    vi.restoreAllMocks();
+    process.env.TZ = tzOrigine;
+  });
 
   // rsvpDeadline governs the whole public RSVP lock and could previously only
   // be changed with direct SQL.
-  it("pre-fills the wedding date and the RSVP deadline", async () => {
-    renderPage();
+  it.each(FUSEAUX_ORGANISATEUR)(
+    "affiche les deux dates en heure de Madagascar pour un navigateur en %s",
+    async (tz) => {
+      process.env.TZ = tz;
+      renderPage({ weddingDate: VRAIE_CEREMONIE, rsvpDeadline: VRAIE_LIMITE });
 
-    const weddingDate = (await screen.findByLabelText(/date du mariage/i)) as HTMLInputElement;
-    const deadline = screen.getByLabelText(/date limite de réponse/i) as HTMLInputElement;
+      const weddingDate = (await screen.findByLabelText(/date du mariage/i)) as HTMLInputElement;
+      const deadline = screen.getByLabelText(/date limite de réponse/i) as HTMLInputElement;
 
-    expect(weddingDate.type).toBe("datetime-local");
-    expect(weddingDate.value).toBe(expectedLocalValue(settings.weddingDate));
-    expect(deadline.value).toBe(expectedLocalValue(settings.rsvpDeadline));
+      expect(weddingDate.type).toBe("datetime-local");
+      expect(weddingDate.value).toBe("2027-01-02T09:00");
+      expect(deadline.value).toBe("2026-12-01T23:59");
+    },
+  );
+
+  /**
+   * Une date limite saisie couvre toute la minute tapée : « 23:59 » part en
+   * 23:59:59, comme celle du seed. Sans ça, une limite à 23:59 fermerait les
+   * réponses une minute avant ce que l'organisateur croit.
+   */
+  it.each(FUSEAUX_ORGANISATEUR)(
+    "envoie la date limite tapée comme une heure de Madagascar, seconde 59, en %s",
+    async (tz) => {
+      process.env.TZ = tz;
+      const patchSpy = vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
+      renderPage({ weddingDate: VRAIE_CEREMONIE, rsvpDeadline: VRAIE_LIMITE });
+
+      fireEvent.change(await screen.findByLabelText(/date limite de réponse/i), {
+        target: { value: "2026-12-02T23:59" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: /enregistrer/i }));
+
+      await waitFor(() => expect(patchSpy).toHaveBeenCalled());
+      const [[path, body]] = patchSpy.mock.calls as [[string, AdminSettingsDto]];
+      expect(path).toBe("/admin/settings");
+      expect(body.rsvpDeadline).toBe("2026-12-02T20:59:59.000Z");
+      // untouched fields survive the round trip
+      expect(body.venueName).toBe("Domaine des Roses");
+      expect(body.weddingDate).toBe(VRAIE_CEREMONIE);
+    },
+  );
+
+  it.each(FUSEAUX_ORGANISATEUR)(
+    "envoie la date du mariage tapée comme une heure de Madagascar, à la minute, en %s",
+    async (tz) => {
+      process.env.TZ = tz;
+      const patchSpy = vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
+      renderPage({ weddingDate: VRAIE_CEREMONIE, rsvpDeadline: VRAIE_LIMITE });
+
+      fireEvent.change(await screen.findByLabelText(/date du mariage/i), {
+        target: { value: "2027-01-02T10:30" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: /enregistrer/i }));
+
+      await waitFor(() => expect(patchSpy).toHaveBeenCalled());
+      expect(dernierCorps(patchSpy).weddingDate).toBe("2027-01-02T07:30:00.000Z");
+      expect(dernierCorps(patchSpy).rsvpDeadline).toBe(VRAIE_LIMITE);
+    },
+  );
+
+  /**
+   * Retaper la valeur affichée n'est pas une modification : la seconde 59 du
+   * serveur est conservée, et rien n'est à enregistrer.
+   */
+  it("rend la valeur du serveur intacte quand on retape ce qui était affiché", async () => {
+    process.env.TZ = "Indian/Mauritius";
+    const patchSpy = vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
+    renderPage({ weddingDate: VRAIE_CEREMONIE, rsvpDeadline: "2026-12-01T20:59:30.000Z" });
+
+    const deadline = await screen.findByLabelText(/date limite de réponse/i);
+    fireEvent.change(deadline, { target: { value: "2026-12-03T12:00" } });
+    fireEvent.change(deadline, { target: { value: "2026-12-01T23:59" } });
+
+    expect(screen.getByText("Tout est à jour")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/^lieu/i, { selector: "input" }), {
+      target: { value: "Ailleurs" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /enregistrer/i }));
+    await waitFor(() => expect(patchSpy).toHaveBeenCalled());
+    expect(dernierCorps(patchSpy).rsvpDeadline).toBe("2026-12-01T20:59:30.000Z");
   });
 
-  it("patches a new RSVP deadline back as an ISO string", async () => {
+  it("dit, à côté des dates et rattaché aux deux champs, qu'elles sont en heure de Madagascar", async () => {
+    renderPage();
+
+    const carte = within(await screen.findByRole("region", { name: "Dates" }));
+    expect(carte.getByText("Heure de Madagascar (UTC+3)")).toBeVisible();
+    expect(carte.getByLabelText(/date du mariage/i)).toHaveAccessibleDescription(
+      /heure de madagascar \(utc\+3\)/i,
+    );
+    expect(carte.getByLabelText(/date limite de réponse/i)).toHaveAccessibleDescription(
+      /heure de madagascar \(utc\+3\)/i,
+    );
+  });
+
+  /**
+   * La date limite telle que l'invitation l'écrira. Toute différence avec ce
+   * que l'organisateur croit avoir saisi saute aux yeux avant l'enregistrement.
+   */
+  it.each(FUSEAUX_ORGANISATEUR)(
+    "affiche la date limite telle que l'invité la lira, et la suit en direct, en %s",
+    async (tz) => {
+      process.env.TZ = tz;
+      renderPage({ weddingDate: VRAIE_CEREMONIE, rsvpDeadline: VRAIE_LIMITE });
+
+      const deadline = await screen.findByLabelText(/date limite de réponse/i);
+      expect(screen.getByText("Affichée aux invités : 1er décembre 2026")).toBeInTheDocument();
+      expect(deadline).toHaveAccessibleDescription(/affichée aux invités : 1er décembre 2026/i);
+
+      fireEvent.change(deadline, { target: { value: "2026-12-02T23:59" } });
+      expect(screen.getByText("Affichée aux invités : 2 décembre 2026")).toBeInTheDocument();
+    },
+  );
+});
+
+describe("SettingsPage — numéros de téléphone", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  function telephone(n: number) {
+    return screen.getByRole("textbox", { name: `Téléphone ${n}` }) as HTMLInputElement;
+  }
+
+  it("présente une ligne par numéro, clavier téléphonique, sans saisie automatique", async () => {
+    renderPage();
+
+    await screen.findByRole("textbox", { name: "Téléphone 1" });
+    expect(telephone(1).value).toBe("+261 34 64 314 02");
+    expect(telephone(2).value).toBe("+261 34 29 682 30");
+    expect(screen.queryByRole("textbox", { name: "Téléphone 3" })).toBeNull();
+    expect(telephone(1)).toHaveAttribute("type", "tel");
+    expect(telephone(1)).toHaveAttribute("inputmode", "tel");
+    expect(telephone(1)).toHaveAttribute("autocomplete", "off");
+  });
+
+  it("dit, rattaché à chaque champ, que les numéros sont affichés aux invités", async () => {
+    renderPage();
+
+    await screen.findByRole("textbox", { name: "Téléphone 1" });
+    expect(telephone(2)).toHaveAccessibleDescription(
+      /affichés aux invités pour joindre les mariés/i,
+    );
+  });
+
+  it("range les numéros dans la carte « Informations pratiques »", async () => {
+    renderPage();
+
+    const carte = within(await screen.findByRole("region", { name: "Informations pratiques" }));
+    expect(carte.getByRole("group", { name: "Numéros de téléphone" })).toBeInTheDocument();
+    expect(carte.getByRole("textbox", { name: "Téléphone 1" })).toBeInTheDocument();
+  });
+
+  // Décision du commanditaire : au moins un numéro est obligatoire.
+  it("interdit de retirer le dernier numéro, et le dit", async () => {
+    renderPage({ contactPhones: ["+261 34 64 314 02"] });
+
+    const retirer = await screen.findByRole("button", { name: /retirer le téléphone 1/i });
+    expect(retirer).toBeDisabled();
+    expect(screen.getByText(/au moins un numéro est obligatoire/i)).toBeInTheDocument();
+  });
+
+  it("retire une ligne, et n'envoie que ce qui reste", async () => {
     const patchSpy = vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
     renderPage();
 
-    fireEvent.change(await screen.findByLabelText(/date limite de réponse/i), {
-      target: { value: "2027-04-15T18:30" },
+    fireEvent.click(await screen.findByRole("button", { name: /retirer le téléphone 1/i }));
+
+    expect(screen.queryByRole("textbox", { name: "Téléphone 2" })).toBeNull();
+    expect(telephone(1).value).toBe("+261 34 29 682 30");
+    expect(screen.getByText(/modifications non enregistrées/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /^enregistrer/i }));
+    await waitFor(() => expect(patchSpy).toHaveBeenCalled());
+    expect(dernierCorps(patchSpy).contactPhones).toEqual(["+261 34 29 682 30"]);
+  });
+
+  it("ajoute une ligne vide et y place le curseur", async () => {
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: /ajouter un numéro/i }));
+
+    expect(telephone(3).value).toBe("");
+    expect(telephone(3)).toHaveFocus();
+  });
+
+  it("plafonne à cinq numéros, en disant pourquoi le bouton est éteint", async () => {
+    renderPage({
+      contactPhones: ["034 11 111 11", "034 22 222 22", "034 33 333 33", "034 44 444 44"],
     });
-    fireEvent.click(screen.getByRole("button", { name: /enregistrer/i }));
+
+    const ajouter = await screen.findByRole("button", { name: /ajouter un numéro/i });
+    expect(ajouter).toBeEnabled();
+    fireEvent.click(ajouter);
+
+    expect(telephone(5)).toBeInTheDocument();
+    expect(ajouter).toBeDisabled();
+    expect(ajouter).toHaveAccessibleDescription(/cinq numéros au plus/i);
+    expect(screen.getByText(/cinq numéros au plus/i)).toBeVisible();
+  });
+
+  it("compte un numéro modifié, et l'envoie sans ses blancs de bord", async () => {
+    const patchSpy = vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
+    renderPage();
+
+    fireEvent.change(await screen.findByRole("textbox", { name: "Téléphone 2" }), {
+      target: { value: " 034 99 999 99 " },
+    });
+    expect(screen.getByRole("button", { name: /^enregistrer/i })).toBeEnabled();
+
+    fireEvent.click(screen.getByRole("button", { name: /^enregistrer/i }));
+    await waitFor(() => expect(patchSpy).toHaveBeenCalled());
+    expect(dernierCorps(patchSpy).contactPhones).toEqual(["+261 34 64 314 02", "034 99 999 99"]);
+  });
+
+  it("revient à « Tout est à jour » quand le numéro retrouve sa valeur", async () => {
+    renderPage();
+
+    const champ = await screen.findByRole("textbox", { name: "Téléphone 1" });
+    fireEvent.change(champ, { target: { value: "034" } });
+    fireEvent.change(champ, { target: { value: "+261 34 64 314 02" } });
+
+    expect(screen.getByText("Tout est à jour")).toBeInTheDocument();
+  });
+
+  // Comme les autres champs : ce qui n'a pas bougé ne part pas.
+  it("n'envoie pas les numéros quand ils n'ont pas changé", async () => {
+    const patchSpy = vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
+    renderPage();
+
+    fireEvent.change(await screen.findByLabelText(/^lieu/i, { selector: "input" }), {
+      target: { value: "Ailleurs" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^enregistrer/i }));
 
     await waitFor(() => expect(patchSpy).toHaveBeenCalled());
-    const [[path, body]] = patchSpy.mock.calls as [[string, AdminSettingsDto]];
-    expect(path).toBe("/admin/settings");
-    expect(body.rsvpDeadline).toBe(new Date("2027-04-15T18:30").toISOString());
-    // untouched fields survive the round trip
-    expect(body.venueName).toBe("Domaine des Roses");
-    expect(body.weddingDate).toBe(settings.weddingDate);
+    expect(dernierCorps(patchSpy)).not.toHaveProperty("contactPhones");
+  });
+
+  it.each([
+    ["vide", "   ", /indiquez un numéro/i],
+    ["trop court", "+261 34", /au moins 7 chiffres/i],
+    ["avec des lettres", "034 64 314 0x", /chiffres, espaces/i],
+    ["en doublon", "+261346431402", /déjà dans la liste/i],
+  ])("refuse un numéro %s, en français, sans appel réseau", async (_cas, valeur, message) => {
+    const patchSpy = vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
+    renderPage();
+
+    fireEvent.change(await screen.findByRole("textbox", { name: "Téléphone 2" }), {
+      target: { value: valeur },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^enregistrer/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(message);
+    expect(telephone(2)).toHaveAttribute("aria-invalid", "true");
+    expect(telephone(1)).not.toHaveAttribute("aria-invalid");
+    expect(patchSpy).not.toHaveBeenCalled();
+  });
+
+  it("efface le refus dès que la ligne est corrigée", async () => {
+    vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
+    renderPage();
+
+    const champ = await screen.findByRole("textbox", { name: "Téléphone 2" });
+    fireEvent.change(champ, { target: { value: "12" } });
+    fireEvent.click(screen.getByRole("button", { name: /^enregistrer/i }));
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+
+    fireEvent.change(champ, { target: { value: "034 99 999 99" } });
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("dit en français qu'une liste refusée par l'API n'a pas été enregistrée", async () => {
+    vi.spyOn(apiModule.api, "patch").mockRejectedValue(
+      new Error("contactPhones must contain no more than 5 elements"),
+    );
+    renderPage();
+
+    fireEvent.change(await screen.findByRole("textbox", { name: "Téléphone 2" }), {
+      target: { value: "034 99 999 99" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^enregistrer/i }));
+
+    const alerte = await screen.findByRole("alert");
+    expect(alerte).toHaveTextContent(/n'ont pas pu être enregistrés/i);
+    expect(alerte).not.toHaveTextContent(/contactPhones|elements/);
+  });
+
+  it("garde les numéros en cours de saisie quand on bascule le plan de table", async () => {
+    const patchSpy = vi.spyOn(apiModule.api, "patch").mockResolvedValue({});
+    renderPage();
+
+    fireEvent.click(await screen.findByRole("button", { name: /ajouter un numéro/i }));
+    fireEvent.change(telephone(3), { target: { value: "034 77 777 77" } });
+    fireEvent.click(screen.getByRole("switch", { name: /plan de table visible/i }));
+
+    await waitFor(() => expect(patchSpy).toHaveBeenCalled());
+    expect(dernierCorps(patchSpy)).toEqual({ seatingPlanActivated: true });
+    expect(telephone(3).value).toBe("034 77 777 77");
+    expect(screen.getByText(/modifications non enregistrées/i)).toBeInTheDocument();
   });
 });
 

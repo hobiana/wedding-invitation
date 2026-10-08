@@ -44,6 +44,7 @@ function parametres(partiel: Partial<AdminSettingsDto> = {}): AdminSettingsDto {
     dressCode: null,
     parkingInfo: null,
     rsvpDeadline: "2026-12-01T00:00:00.000Z",
+    contactPhones: ["+261 34 64 314 02"],
     seatingPlanActivated: false,
     maxGuests: 180,
     ...partiel,

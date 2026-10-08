@@ -220,3 +220,79 @@ export function weddingMonthGrid(iso: string): {
 export function formatRsvpDeadline(iso: string): string {
   return withFrenchOrdinal(shortDateFormatter.formatToParts(new Date(iso)));
 }
+
+/**
+ * Le décalage du lieu, lu à `Intl` plutôt qu'écrit à la main : « UTC+3 ».
+ * Madagascar n'a pas d'heure d'été, une date quelconque suffit.
+ */
+export const WEDDING_UTC_OFFSET_LABEL =
+  new Intl.DateTimeFormat("fr-FR", {
+    timeZone: WEDDING_TIME_ZONE,
+    timeZoneName: "shortOffset",
+  })
+    .formatToParts(new Date("2026-01-01T00:00:00Z"))
+    .find((p) => p.type === "timeZoneName")?.value ?? "UTC+3";
+
+const saisieFormatter = new Intl.DateTimeFormat("en-CA", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hourCycle: "h23",
+  timeZone: WEDDING_TIME_ZONE,
+});
+
+/** L'heure murale d'Antananarivo à cet instant, en morceaux numériques. */
+function heureMurale(date: Date) {
+  return Object.fromEntries(
+    saisieFormatter.formatToParts(date).map((x) => [x.type, Number(x.value)]),
+  ) as Record<"year" | "month" | "day" | "hour" | "minute" | "second", number>;
+}
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+/**
+ * ISO → `YYYY-MM-DDTHH:mm` d'un `<input type="datetime-local">`, **en heure de
+ * Madagascar** quel que soit le fuseau du navigateur. Les secondes tombent :
+ * le champ n'en montre pas.
+ *
+ * C'était le bug des Paramètres : `getHours()` lit l'heure de la machine, et un
+ * organisateur à Maurice voyait la date limite au 2 décembre 00:59.
+ */
+export function versSaisieMadagascar(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const p = heureMurale(date);
+  return `${p.year}-${pad2(p.month)}-${pad2(p.day)}T${pad2(p.hour)}:${pad2(p.minute)}`;
+}
+
+/**
+ * `YYYY-MM-DDTHH:mm` lu comme une heure d'Antananarivo → ISO UTC. `null` pour
+ * une saisie incomplète ou impossible (30 février) : le formulaire l'ignore
+ * plutôt que d'envoyer une date que `@IsDateString` refuserait.
+ *
+ * `seconde` fixe les secondes de l'instant produit (0 par défaut) : la date
+ * limite les met à 59, pour que « 23:59 » couvre la minute entière.
+ *
+ * Le décalage est relu à `Intl` au lieu d'un `+3` codé en dur : si le lieu
+ * change, seul `WEDDING_TIME_ZONE` change.
+ */
+export function depuisSaisieMadagascar(saisie: string, { seconde = 0 } = {}): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(saisie);
+  if (!m) return null;
+  const [annee, mois, jour, heure, minute] = m.slice(1).map(Number);
+  // L'heure murale voulue, posée comme si elle était UTC…
+  const voulu = Date.UTC(annee, mois - 1, jour, heure, minute, seconde);
+  // …puis corrigée de l'écart entre cette heure murale et ce qu'Antananarivo
+  // lit à cet instant. Sans heure d'été, un seul passage suffit.
+  const lu = heureMurale(new Date(voulu));
+  const ecart =
+    Date.UTC(lu.year, lu.month - 1, lu.day, lu.hour, lu.minute, lu.second) - voulu;
+  const instant = new Date(voulu - ecart);
+  // Le 30 février « existe » pour `Date.UTC` (il glisse au 2 mars) : on vérifie
+  // que l'instant relu est bien ce qui a été tapé.
+  if (versSaisieMadagascar(instant.toISOString()) !== saisie) return null;
+  return instant.toISOString();
+}

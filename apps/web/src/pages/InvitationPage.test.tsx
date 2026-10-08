@@ -35,6 +35,7 @@ function invitation(
       dressCode: null,
       parkingInfo: null,
       rsvpDeadline,
+      contactPhones: ["+261 34 64 314 02", "+261 34 29 682 30"],
       ...weddingOverrides,
     },
     seatingPlan: null,
@@ -466,6 +467,39 @@ describe("InvitationPage — joindre les mariés", () => {
     const liens = screen.getAllByRole("link", { name: /\+261/ });
     expect(liens).toHaveLength(2);
     liens.forEach((lien) => expect(lien.getAttribute("href")).toMatch(/^tel:\+261\d+$/));
+  });
+
+  /** Les numéros sont ceux des paramètres du mariage, plus une constante de build. */
+  it("shows the numbers saved in the wedding settings, in the form and in the footer", async () => {
+    renderPage(
+      invitation(FUTURE_DEADLINE, {}, { contactPhones: ["034 11 111 11", "+261 (33) 22-222.22", "032 33 333 33"] }),
+    );
+
+    await screen.findByRole("heading", { level: 1 });
+    fireEvent.click(screen.getByRole("radio", { name: YES }));
+
+    // Formulaire + pied de page : chaque numéro deux fois.
+    expect(screen.getAllByRole("link", { name: "034 11 111 11" })).toHaveLength(2);
+    expect(screen.getAllByRole("link", { name: "032 33 333 33" })).toHaveLength(2);
+    screen
+      .getAllByRole("link", { name: "+261 (33) 22-222.22" })
+      .forEach((lien) => expect(lien).toHaveAttribute("href", "tel:+261332222222"));
+    expect(screen.queryByRole("link", { name: /\+261 34 64/ })).not.toBeInTheDocument();
+  });
+
+  /**
+   * Une API lancée avant la migration ne renvoie pas le champ. La page reste
+   * debout plutôt que de tomber sur un `.map` de `undefined` — une invitation
+   * blanche, l'invité ne le signalerait pas.
+   */
+  it("still renders when the API does not send any number yet", async () => {
+    renderPage(invitation(FUTURE_DEADLINE, {}, { contactPhones: undefined as unknown as string[] }));
+
+    await screen.findByRole("heading", { level: 1 });
+    fireEvent.click(screen.getByRole("radio", { name: YES }));
+    expect(document.querySelector('a[href^="tel:"]')).not.toBeInTheDocument();
+    expect(screen.queryByText(/une question, un changement/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/appelez-nous/i)).not.toBeInTheDocument();
   });
 });
 

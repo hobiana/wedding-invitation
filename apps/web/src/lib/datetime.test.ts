@@ -8,6 +8,9 @@ import {
   formatWeddingTime,
   weddingDateParts,
   weddingMonthGrid,
+  versSaisieMadagascar,
+  depuisSaisieMadagascar,
+  WEDDING_UTC_OFFSET_LABEL,
 } from "./datetime";
 
 /** Espace fine insécable — la seule espace admise autour du « h » français. */
@@ -204,5 +207,63 @@ describe("weddingMonthGrid", () => {
     // 28 jours à partir d'un lundi : quatre semaines pleines, pas cinq.
     expect(grille.weeks).toHaveLength(4);
     expect(grille.weeks.at(-1)).toEqual([22, 23, 24, 25, 26, 27, 28]);
+  });
+});
+
+/**
+ * Le champ `datetime-local` des Paramètres. Il lisait et écrivait l'heure du
+ * **navigateur** : à Maurice (UTC+4) la date limite `2026-12-01T20:59:59Z`
+ * s'affichait le 2 décembre à 00:59, quand l'invitation dit « 1er décembre ».
+ * L'organisateur saisit désormais en heure de Madagascar, où qu'il soit.
+ */
+const ADMIN_TIME_ZONES = ["UTC", "Indian/Mauritius", "America/Bogota"];
+
+describe("versSaisieMadagascar", () => {
+  it.each(ADMIN_TIME_ZONES)("shows the deadline in Antananarivo time for an organiser in %s", (tz) => {
+    process.env.TZ = tz;
+    expect(versSaisieMadagascar("2026-12-01T20:59:59.000Z")).toBe("2026-12-01T23:59");
+  });
+
+  it("proves the process clock really moved, so the case above is not vacuous", () => {
+    process.env.TZ = "Indian/Mauritius";
+    expect(new Date("2026-12-01T20:59:59.000Z").getHours()).toBe(0);
+    process.env.TZ = "America/Bogota";
+    expect(new Date("2026-12-01T20:59:59.000Z").getHours()).toBe(15);
+  });
+
+  it("gives an empty field for something that is not a date", () => {
+    expect(versSaisieMadagascar("pas une date")).toBe("");
+  });
+});
+
+describe("depuisSaisieMadagascar", () => {
+  it.each(ADMIN_TIME_ZONES)("reads the typed time as Antananarivo time for an organiser in %s", (tz) => {
+    process.env.TZ = tz;
+    expect(depuisSaisieMadagascar("2027-01-02T09:00")).toBe("2027-01-02T06:00:00.000Z");
+  });
+
+  it.each(ADMIN_TIME_ZONES)("can close the deadline at the end of the typed minute in %s", (tz) => {
+    process.env.TZ = tz;
+    expect(depuisSaisieMadagascar("2026-12-02T23:59", { seconde: 59 })).toBe(
+      "2026-12-02T20:59:59.000Z",
+    );
+  });
+
+  it.each(ADMIN_TIME_ZONES)("round-trips an untouched value in %s", (tz) => {
+    process.env.TZ = tz;
+    const iso = "2027-01-02T06:00:00.000Z";
+    expect(depuisSaisieMadagascar(versSaisieMadagascar(iso))).toBe(iso);
+  });
+
+  it("ignores a half-typed value", () => {
+    expect(depuisSaisieMadagascar("")).toBeNull();
+    expect(depuisSaisieMadagascar("2027-01-")).toBeNull();
+    expect(depuisSaisieMadagascar("2027-02-30T10:00")).toBeNull();
+  });
+});
+
+describe("WEDDING_UTC_OFFSET_LABEL", () => {
+  it("names Madagascar's offset, the same all year", () => {
+    expect(WEDDING_UTC_OFFSET_LABEL).toBe("UTC+3");
   });
 });

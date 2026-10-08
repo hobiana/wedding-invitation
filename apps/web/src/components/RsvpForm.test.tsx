@@ -8,7 +8,13 @@ const NO = /nous ne pourrons pas venir/i;
 function setup(props: Partial<React.ComponentProps<typeof RsvpForm>> = {}) {
   const onSubmit = vi.fn();
   const utils = render(
-    <RsvpForm householdName="Famille Rakoto" allocatedSeats={4} onSubmit={onSubmit} {...props} />,
+    <RsvpForm
+      householdName="Famille Rakoto"
+      allocatedSeats={4}
+      contactPhones={["+261 34 64 314 02", "+261 34 29 682 30"]}
+      onSubmit={onSubmit}
+      {...props}
+    />,
   );
   return { onSubmit, ...utils };
 }
@@ -110,6 +116,39 @@ describe("RsvpForm — le nombre, désormais décidé par l'organisateur", () =>
     expect(liens).toHaveLength(2);
     liens.forEach((lien) =>
       expect(lien.getAttribute("href")).toMatch(/^tel:\+261\d+$/),
+    );
+  });
+
+  /** Les numéros viennent des paramètres du mariage, plus d'une constante de build. */
+  it("dials the numbers it is given, shown as typed and composed without separators", () => {
+    setup({ contactPhones: ["+261 (33) 12-345.67"] });
+    fireEvent.click(screen.getByRole("radio", { name: YES }));
+
+    const lien = screen.getByRole("link", { name: "+261 (33) 12-345.67" });
+    expect(lien).toHaveAttribute("href", "tel:+261331234567");
+  });
+
+  function phrase() {
+    return screen.getByText(/appelez-nous/i).textContent?.replace(/\s+/g, " ");
+  }
+
+  it("names a single number without any « ou »", () => {
+    setup({ contactPhones: ["034 11 111 11"] });
+    fireEvent.click(screen.getByRole("radio", { name: YES }));
+    expect(phrase()).toMatch(/appelez-nous : 034 11 111 11\.$/);
+  });
+
+  it("joins two numbers with « ou »", () => {
+    setup({ contactPhones: ["034 11 111 11", "034 22 222 22"] });
+    fireEvent.click(screen.getByRole("radio", { name: YES }));
+    expect(phrase()).toMatch(/appelez-nous : 034 11 111 11 ou 034 22 222 22\.$/);
+  });
+
+  it("lists three numbers as « A, B ou C »", () => {
+    setup({ contactPhones: ["034 11 111 11", "034 22 222 22", "034 33 333 33"] });
+    fireEvent.click(screen.getByRole("radio", { name: YES }));
+    expect(phrase()).toMatch(
+      /appelez-nous : 034 11 111 11, 034 22 222 22 ou 034 33 333 33\.$/,
     );
   });
 
